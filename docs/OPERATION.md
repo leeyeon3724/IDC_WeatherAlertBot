@@ -1,102 +1,91 @@
 # OPERATION
 
-## 1. 처리 흐름
+이 문서는 런타임 동작, 관측 포인트, 장애 대응만 다룹니다.
+설치/환경변수 설정은 `docs/SETUP.md`를 참고하세요.
 
-`app/entrypoints/cli.py` + `app/usecases/process_cycle.py`가 아래 순서로 동작합니다.
+## 1. 사이클 동작 요약
 
-1. 현재 시각(KST) 기준으로 조회 범위 계산(`오늘~내일`)
-2. `AREA_CODES`를 순회하며 지역별 특보 조회
-3. XML 파싱 후 메시지 텍스트 생성
-4. 이벤트 ID 기준으로 신규 특보를 상태 저장소에 등록
-5. 지역별 미전송 이벤트를 Dooray로 발송하고 `sent=true`로 변경
-6. 상태 파일(`sent_messages.json`) 저장
+1. 조회 기간 계산(`today - LOOKBACK_DAYS` ~ `today + 1`)
+2. 지역별 특보 조회(순차 또는 제한 병렬)
+3. 특보 이벤트를 알림 메시지로 변환
+4. 상태 저장소에 upsert(신규/기존)
+5. 미전송 이벤트만 Dooray 전송 후 sent 마킹
 
-`DRY_RUN=true`인 경우 5단계 전송은 수행하지 않고 `notification.dry_run` 로그만 남깁니다.
+관련 코드:
 
-## 2. 재시도/지연 정책
+- `app/usecases/process_cycle.py`
+- `app/services/weather_api.py`
+- `app/services/notifier.py`
+- `app/repositories/state_repo.py`
 
-- API 호출 실패 시 최대 `MAX_RETRIES`만큼 재시도
-- 재시도 간격은 `RETRY_DELAY_SEC` 기반 백오프 적용
-- Webhook 전송 실패 시 `NOTIFIER_MAX_RETRIES`만큼 재시도
-- Webhook 최종 실패는 `notification.final_failure` 로그로 기록
-- 조회 시작일은 `LOOKBACK_DAYS`로 과거 확장 가능
-- 지역 API 조회는 `AREA_MAX_WORKERS` 범위에서 제한 병렬 처리
-- 지역 간 지연: `AREA_INTERVAL_SEC` (순차 모드에서만 적용)
-- 병렬 모드(`AREA_MAX_WORKERS > 1`)에서는 지역 간 지연을 무시하고
-  `cycle.area_interval_ignored` 로그를 남김
-- 사이클 간 지연: `CYCLE_INTERVAL_SEC`
+## 2. 중복 방지/재전송 규칙
 
-## 3. API 장애/복구 판정 정책
+- 기본 이벤트 키: `stn_id + tm_fc + tm_seq + command + cancel`
+- 기본 키가 불완전하면 필드 기반 해시 키 사용
+- Webhook 실패 이벤트는 `sent=false` 유지 후 다음 사이클 재시도
+- `DRY_RUN=true`면 전송 없이 로그만 기록
 
-- 단기/간헐 장애는 즉시 알리지 않고 아래 기준을 만족할 때만 장애 알림(`outage_detected`)을 보냅니다.
-- 장애 판정(기본값):
-  - 최근 `10분`(`HEALTH_OUTAGE_WINDOW_SEC`) 윈도우에서 심각 실패 사이클 `6회` 이상
-  - 연속 심각 실패 `4회` 이상
-  - 심각 실패 사이클 기준: `area_fail_ratio >= 0.7`
-- 복구 판정(기본값):
-  - 최근 `15분`(`HEALTH_RECOVERY_WINDOW_SEC`) 실패비율 `<= 0.1`
-  - 연속 안정 사이클 `8회` 이상
-- 장애가 열려 있는 동안 heartbeat 알림(`outage_heartbeat`)을 주기적으로 전송합니다.
-  - 주기: `HEALTH_HEARTBEAT_INTERVAL_SEC` (기본 3600초)
-- 장애 중에는 자동으로 폴링 간격을 늘리고(backoff), 복구 시 1회 backfill 조회를 실행합니다.
-  - 최대 완화 간격: `HEALTH_BACKOFF_MAX_SEC`
-  - backfill 최대 일수: `HEALTH_RECOVERY_BACKFILL_MAX_DAYS`
+## 3. 장애 감지/복구 정책
 
-## 4. 타임아웃 정책
+### 장애 감지(outage_detected)
 
-- API 요청 timeout:
-  - `REQUEST_CONNECT_TIMEOUT_SEC`
-  - `REQUEST_READ_TIMEOUT_SEC`
-- Webhook 요청 timeout:
-  - `NOTIFIER_CONNECT_TIMEOUT_SEC`
-  - `NOTIFIER_READ_TIMEOUT_SEC`
+- 최근 `HEALTH_OUTAGE_WINDOW_SEC` 구간에서 심각 실패 사이클 수가 기준 이상
+- 연속 심각 실패 횟수가 기준 이상
+- 심각 실패 기준: `area_fail_ratio >= HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD`
 
-## 5. 상태 정리 정책
+### 장애 지속(outage_heartbeat)
 
-- 서비스 프로세스가 하루 1회 자동 정리를 수행합니다.
-- 기본 정책:
-  - 보존 기간: `30일`
-  - 삭제 대상: `sent/unsent` 모두
-- 관련 설정:
-  - `CLEANUP_ENABLED`
-  - `CLEANUP_RETENTION_DAYS`
-  - `CLEANUP_INCLUDE_UNSENT`
+- 장애 열림 상태에서 `HEALTH_HEARTBEAT_INTERVAL_SEC`마다 heartbeat 전송
 
-## 6. 중복 전송 방지 방식
+### 복구(recovered)
 
-- 이벤트 식별자(`stn_id`,`tm_fc`,`tm_seq`,`command`,`cancel`)를 우선 키로 사용합니다.
-- 식별자가 없는 경우 이벤트 필드 기반 해시 키를 사용합니다.
-- 상태값:
-  - `sent=false`: 미전송
-  - `sent=true`: 전송 완료
-- 전송 완료 상태는 사이클 내 배치 저장으로 반영합니다.
+- 최근 `HEALTH_RECOVERY_WINDOW_SEC` 실패 비율이 기준 이하
+- 연속 안정 사이클 횟수가 기준 이상
+- 복구 시 outage 길이에 따라 1회 backfill 조회 실행(상한: `HEALTH_RECOVERY_BACKFILL_MAX_DAYS`)
 
-## 7. 전송 메시지 구성
+## 4. 로그 관측 포인트
 
-- 특보 본문: 특보 종류/강도/지역/발표-해제 상태 기반으로 생성
-- 첨부 링크: `stn_id`, `tm_fc`, `tm_seq`가 있으면 기상청 통보문 URL 첨부
-- URL 파라미터가 불완전/유효하지 않으면 첨부를 차단하고 `notification.url_attachment_blocked` 로그를 남깁니다.
+### 정상 동작 확인
 
-## 8. 운영 체크리스트
+- `startup.ready`
+- `cycle.start`
+- `notification.sent`
+- `cycle.complete`
 
-1. `SERVICE_API_KEY`, `SERVICE_HOOK_URL`가 유효한지 확인
-2. `AREA_CODES`, `AREA_CODE_MAPPING` JSON 형식이 올바른지 확인
-3. `sent_messages.json` 파일 권한/영속화 설정 확인
-4. 로그에서 아래 키워드 모니터링
-   - `notification.sent`
-   - `notification.dry_run`
-   - `notification.url_attachment_blocked`
-   - `notification.final_failure`
-   - `area.failed`
+### 주의/경고
 
-## 9. 장애 대응 포인트
+- `notification.url_attachment_blocked`
+- `area.failed`
+- `notification.final_failure`
 
-- API 응답 코드 오류: `WeatherApiError` 발생 후 해당 지역 실패 로그
-- 네트워크 오류: 백오프 재시도 후 실패 시 `area.failed` 로그
-- Webhook 오류: 실패 이벤트는 미전송 상태로 유지되어 다음 주기에 재시도
-- 장애 알림 관련 로그:
-  - `health.evaluate`
-  - `health.notification.sent`
-  - `health.notification.failed`
-  - `health.backfill.start`
-  - `health.backfill.complete`
+### 장애 관련
+
+- `health.evaluate`
+- `health.notification.sent`
+- `health.notification.failed`
+- `health.backfill.start`
+- `health.backfill.complete`
+
+## 5. 운영 체크리스트
+
+- API 키/웹훅 유효성 확인
+- `AREA_CODES`, `AREA_CODE_MAPPING` JSON 형식 확인
+- `data/` 볼륨 영속화 확인(컨테이너 운영 시)
+- 실패 로그(`area.failed`, `notification.final_failure`) 증가 추이 확인
+
+## 6. 자주 발생하는 문제
+
+### API 호출 실패가 지속될 때
+
+- 네트워크/서비스키/호출 제한 상태 확인
+- `area.failed`의 `error_code` 분포 확인
+
+### 전송 실패가 지속될 때
+
+- Webhook URL 변경 여부 확인
+- `notification.final_failure`의 `attempts`, `error` 확인
+
+### 상태 파일 이상(손상/포맷 오류)
+
+- 저장소는 손상 JSON 감지 시 `.broken-<timestamp>` 백업 후 빈 상태로 복구
+- 이후 중복 방지 상태가 초기화될 수 있으므로 운영 로그로 영향 범위 확인
