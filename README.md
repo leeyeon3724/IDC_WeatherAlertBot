@@ -39,6 +39,7 @@ python3 main.py cleanup-state --days 30
 
 - `docs/SETUP.md`: 설치, 환경변수, 로컬/도커 실행
 - `docs/OPERATION.md`: 런타임 동작, 로그 관측, 장애 대응
+- `docs/TESTING.md`: 테스트 전략, 적절성 평가, 보완 항목
 - `docs/REFRACTORING_BACKLOG.md`: 리팩토링 목표, 단계별 계획, 실행 백로그
 
 ## 품질 게이트
@@ -54,6 +55,6 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 - `app/entrypoints/`: CLI 진입점
 - `app/usecases/`: 사이클/헬스 오케스트레이션
 - `app/services/`: 외부 API/Webhook 연동
-- `app/repositories/`: 상태 저장소(JSON)
+- `app/repositories/`: 상태 저장소(JSON/SQLite)
 - `app/domain/`: 도메인 모델/메시지 생성
 - `tests/`: 단위 테스트

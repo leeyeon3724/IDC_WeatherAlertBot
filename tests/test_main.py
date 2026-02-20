@@ -507,3 +507,25 @@ def test_run_service_uses_sqlite_state_repository(
     assert result == 0
     assert repo is not None
     assert repo.file_path == settings.sqlite_state_file
+
+
+def test_build_state_repository_defaults_to_json(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    logger = logging.getLogger("test.main.repo_factory.json")
+
+    repo = entrypoint._build_state_repository(settings=settings, logger=logger)
+
+    assert repo.__class__.__name__ == "JsonStateRepository"
+
+
+def test_build_state_repository_uses_sqlite_when_configured(tmp_path: Path) -> None:
+    settings = _settings(
+        tmp_path,
+        state_repository_type="sqlite",
+        sqlite_state_file=tmp_path / "state.db",
+    )
+    logger = logging.getLogger("test.main.repo_factory.sqlite")
+
+    repo = entrypoint._build_state_repository(settings=settings, logger=logger)
+
+    assert repo.__class__.__name__ == "SqliteStateRepository"

@@ -316,7 +316,7 @@ def _run_service() -> int:
     try:
         settings = Settings.from_env()
     except SettingsError as exc:
-        bootstrap_logger.critical(log_event("startup.invalid_config", error=str(exc)))
+        bootstrap_logger.critical(log_event(events.STARTUP_INVALID_CONFIG, error=str(exc)))
         return 1
 
     runtime = _build_runtime(settings)

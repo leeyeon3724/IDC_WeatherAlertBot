@@ -49,6 +49,7 @@
 
 - `startup.ready`
 - `cycle.start`
+- `area.fetch.summary`
 - `notification.sent`
 - `cycle.complete`
 

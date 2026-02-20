@@ -182,6 +182,34 @@ def test_fetch_alerts_supports_pagination(tmp_path) -> None:
     assert session.calls[1][1]["pageNo"] == 2
 
 
+def test_fetch_alerts_stops_when_next_page_returns_nodata(tmp_path) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(200, _xml_with_item(total_count=101, tm_seq="1")),
+            DummyResponse(
+                200,
+                b"<response><header><resultCode>03</resultCode></header></response>",
+            ),
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logging.getLogger("test.weather.api.pagination.nodata"),
+    )
+
+    alerts = client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    assert len(alerts) == 1
+    assert alerts[0].tm_seq == "1"
+    assert len(session.calls) == 2
+
+
 def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:
     session = FakeSession([requests.Timeout("t1"), requests.Timeout("t2")])
     client = WeatherAlertClient(
@@ -241,3 +269,15 @@ def test_classify_request_exception() -> None:
         WeatherAlertClient._classify_request_exception(requests.ConnectionError("conn"))
         == API_ERROR_CONNECTION
     )
+
+
+def test_extract_total_count_invalid_returns_none() -> None:
+    root = ET.fromstring(
+        """
+        <response>
+          <header><resultCode>00</resultCode></header>
+          <body><totalCount>not-a-number</totalCount></body>
+        </response>
+        """
+    )
+    assert WeatherAlertClient._extract_total_count(root) is None

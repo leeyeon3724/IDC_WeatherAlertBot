@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # Runtime lifecycle
+STARTUP_INVALID_CONFIG = "startup.invalid_config"
 STARTUP_READY = "startup.ready"
 SHUTDOWN_INTERRUPT = "shutdown.interrupt"
 SHUTDOWN_RUN_ONCE_COMPLETE = "shutdown.run_once_complete"
