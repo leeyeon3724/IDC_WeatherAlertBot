@@ -1,0 +1,187 @@
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from hashlib import sha1
+from pathlib import Path
+from typing import Any, Iterable
+
+from app.domain.models import AlertNotification
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+@dataclass(frozen=True)
+class StoredNotification:
+    event_id: str
+    area_code: str
+    message: str
+    report_url: str | None
+    sent: bool
+    first_seen_at: str
+    updated_at: str
+    last_sent_at: str | None
+
+
+class JsonStateRepository:
+    def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+        self.file_path = Path(file_path)
+        self.logger = logger or logging.getLogger("weather_alert_bot.state")
+        self._state: dict[str, dict[str, Any]] = {}
+        self._load()
+
+    def _load(self) -> None:
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.file_path.exists():
+            self._state = {}
+            return
+
+        with self.file_path.open("r", encoding="utf-8") as file:
+            raw = json.load(file)
+
+        self._state, migrated = self._normalize_state(raw)
+        if migrated:
+            self._persist()
+
+    def _normalize_state(self, raw: Any) -> tuple[dict[str, dict[str, Any]], bool]:
+        if not isinstance(raw, dict):
+            return {}, True
+
+        migrated = False
+        now = _utc_now_iso()
+        normalized: dict[str, dict[str, Any]] = {}
+
+        is_legacy = True
+        for value in raw.values():
+            if not isinstance(value, (int, bool)):
+                is_legacy = False
+                break
+
+        if is_legacy:
+            migrated = True
+            for message, status in raw.items():
+                message_text = str(message)
+                event_id = f"legacy:{sha1(message_text.encode('utf-8')).hexdigest()[:20]}"
+                sent = bool(status)
+                normalized[event_id] = {
+                    "area_code": "UNKNOWN",
+                    "message": message_text,
+                    "report_url": None,
+                    "sent": sent,
+                    "first_seen_at": now,
+                    "updated_at": now,
+                    "last_sent_at": now if sent else None,
+                }
+            return normalized, migrated
+
+        for event_id, record in raw.items():
+            if not isinstance(record, dict):
+                migrated = True
+                continue
+
+            normalized_event_id = str(event_id)
+            normalized_record = {
+                "area_code": str(record.get("area_code", "UNKNOWN")),
+                "message": str(record.get("message", "")),
+                "report_url": record.get("report_url"),
+                "sent": bool(record.get("sent", False)),
+                "first_seen_at": str(record.get("first_seen_at", now)),
+                "updated_at": str(record.get("updated_at", now)),
+                "last_sent_at": record.get("last_sent_at"),
+            }
+            normalized[normalized_event_id] = normalized_record
+        return normalized, migrated
+
+    def _persist(self) -> None:
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.file_path.with_suffix(self.file_path.suffix + ".tmp")
+        with temp_path.open("w", encoding="utf-8") as file:
+            json.dump(self._state, file, ensure_ascii=False, indent=2, sort_keys=True)
+        temp_path.replace(self.file_path)
+
+    def upsert_notifications(self, notifications: Iterable[AlertNotification]) -> int:
+        now = _utc_now_iso()
+        changed = False
+        new_count = 0
+
+        for notification in notifications:
+            existing = self._state.get(notification.event_id)
+            if existing is None:
+                self._state[notification.event_id] = {
+                    "area_code": notification.area_code,
+                    "message": notification.message,
+                    "report_url": notification.report_url,
+                    "sent": False,
+                    "first_seen_at": now,
+                    "updated_at": now,
+                    "last_sent_at": None,
+                }
+                changed = True
+                new_count += 1
+                continue
+
+            record_changed = False
+            if existing.get("area_code") != notification.area_code:
+                existing["area_code"] = notification.area_code
+                record_changed = True
+            if existing.get("message") != notification.message:
+                existing["message"] = notification.message
+                record_changed = True
+            if existing.get("report_url") != notification.report_url:
+                existing["report_url"] = notification.report_url
+                record_changed = True
+            if record_changed:
+                existing["updated_at"] = now
+                changed = True
+
+        if changed:
+            self._persist()
+        return new_count
+
+    def get_unsent(self, area_code: str | None = None) -> list[StoredNotification]:
+        rows: list[StoredNotification] = []
+        for event_id, record in self._state.items():
+            if bool(record.get("sent", False)):
+                continue
+            if area_code and record.get("area_code") != area_code:
+                continue
+            rows.append(
+                StoredNotification(
+                    event_id=event_id,
+                    area_code=str(record.get("area_code", "UNKNOWN")),
+                    message=str(record.get("message", "")),
+                    report_url=record.get("report_url"),
+                    sent=False,
+                    first_seen_at=str(record.get("first_seen_at", "")),
+                    updated_at=str(record.get("updated_at", "")),
+                    last_sent_at=record.get("last_sent_at"),
+                )
+            )
+        return sorted(rows, key=lambda row: row.first_seen_at)
+
+    def mark_sent(self, event_id: str) -> bool:
+        record = self._state.get(event_id)
+        if not record:
+            return False
+        if bool(record.get("sent", False)):
+            return True
+
+        now = _utc_now_iso()
+        record["sent"] = True
+        record["updated_at"] = now
+        record["last_sent_at"] = now
+        self._persist()
+        return True
+
+    @property
+    def total_count(self) -> int:
+        return len(self._state)
+
+    @property
+    def pending_count(self) -> int:
+        return len(self.get_unsent())
+

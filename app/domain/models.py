@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from hashlib import sha1
+
+
+@dataclass(frozen=True)
+class AlertEvent:
+    area_code: str
+    area_name: str
+    warn_var: str
+    warn_stress: str
+    command: str
+    cancel: str
+    start_time: str | None
+    end_time: str | None
+    stn_id: str
+    tm_fc: str
+    tm_seq: str
+
+    @property
+    def event_id(self) -> str:
+        if self.stn_id and self.tm_fc and self.tm_seq:
+            return (
+                f"event:{self.stn_id}:{self.tm_fc}:{self.tm_seq}:"
+                f"{self.command}:{self.cancel}"
+            )
+
+        fallback_source = "|".join(
+            [
+                self.area_code,
+                self.warn_var,
+                self.warn_stress,
+                self.command,
+                self.cancel,
+                self.start_time or "",
+                self.end_time or "",
+            ]
+        )
+        digest = sha1(fallback_source.encode("utf-8")).hexdigest()[:20]
+        return f"fallback:{digest}"
+
+    @property
+    def report_url(self) -> str | None:
+        if not (self.stn_id and self.tm_fc and self.tm_seq):
+            return None
+        date_str = ""
+        if len(self.tm_fc) == 12:
+            date_str = f"{self.tm_fc[0:4]}-{self.tm_fc[4:6]}-{self.tm_fc[6:8]}"
+        return (
+            "https://www.weather.go.kr/w/special-report/list.do"
+            f"?prevStn={self.stn_id}"
+            "&prevKind=met"
+            "&prevCmtCd="
+            f"&stn={self.stn_id}"
+            "&kind=met"
+            f"&date={date_str}"
+            f"&reportId=met%3A{self.tm_fc}%3A{self.tm_seq}"
+        )
+
+
+@dataclass(frozen=True)
+class AlertNotification:
+    event_id: str
+    area_code: str
+    message: str
+    report_url: str | None

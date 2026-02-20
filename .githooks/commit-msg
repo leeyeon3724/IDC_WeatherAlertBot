@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+msg_file="${1:-}"
+if [[ -z "$msg_file" || ! -f "$msg_file" ]]; then
+  echo "commit-msg hook: commit message file not found." >&2
+  exit 1
+fi
+
+subject="$(head -n 1 "$msg_file" | tr -d '\r')"
+
+if [[ "$subject" =~ ^Merge[[:space:]] ]] || [[ "$subject" =~ ^Revert[[:space:]] ]]; then
+  exit 0
+fi
+
+pattern='^(feat|fix|docs|style|refactor|test|chore|ci|build|perf|revert)(\([a-z0-9._/-]+\))?(!)?: .{1,72}$'
+
+if [[ ! "$subject" =~ $pattern ]]; then
+  cat >&2 <<'EOF'
+Invalid commit message format.
+
+Use Conventional Commits:
+  <type>(<scope>): <subject>
+
+Allowed <type>:
+  feat, fix, docs, style, refactor, test, chore, ci, build, perf, revert
+
+Examples:
+  feat(alert): add dry-run mode
+  fix(url): use special-report endpoint
+  docs(readme): update setup guide
+EOF
+  exit 1
+fi
+

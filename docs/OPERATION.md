@@ -1,0 +1,51 @@
+# OPERATION
+
+## 1. 처리 흐름
+
+`main.py` + `app/usecases/process_cycle.py`가 아래 순서로 동작합니다.
+
+1. 현재 시각(KST) 기준으로 조회 범위 계산(`오늘~내일`)
+2. `AREA_CODES`를 순회하며 지역별 특보 조회
+3. XML 파싱 후 메시지 텍스트 생성
+4. 이벤트 ID 기준으로 신규 특보를 상태 저장소에 등록
+5. 지역별 미전송 이벤트를 Dooray로 발송하고 `sent=true`로 변경
+6. 상태 파일(`sent_messages.json`) 저장
+
+`DRY_RUN=true`인 경우 5단계 전송은 수행하지 않고 `notification.dry_run` 로그만 남깁니다.
+
+## 2. 재시도/지연 정책
+
+- API 호출 실패 시 최대 `MAX_RETRIES`만큼 재시도
+- 재시도 간격은 `RETRY_DELAY_SEC` 기반 백오프 적용
+- 지역 간 지연: `AREA_INTERVAL_SEC`
+- 사이클 간 지연: `CYCLE_INTERVAL_SEC`
+
+## 3. 중복 전송 방지 방식
+
+- 이벤트 식별자(`stn_id`,`tm_fc`,`tm_seq`,`command`,`cancel`)를 우선 키로 사용합니다.
+- 식별자가 없는 경우 이벤트 필드 기반 해시 키를 사용합니다.
+- 상태값:
+  - `sent=false`: 미전송
+  - `sent=true`: 전송 완료
+
+## 4. 전송 메시지 구성
+
+- 특보 본문: 특보 종류/강도/지역/발표-해제 상태 기반으로 생성
+- 첨부 링크: `stn_id`, `tm_fc`, `tm_seq`가 있으면 기상청 통보문 URL 첨부
+
+## 5. 운영 체크리스트
+
+1. `SERVICE_API_KEY`, `SERVICE_HOOK_URL`가 유효한지 확인
+2. `AREA_CODES`, `AREA_CODE_MAPPING` JSON 형식이 올바른지 확인
+3. `sent_messages.json` 파일 권한/영속화 설정 확인
+4. 로그에서 아래 키워드 모니터링
+   - `notification.sent`
+   - `notification.dry_run`
+   - `notification.failed`
+   - `area.failed`
+
+## 6. 장애 대응 포인트
+
+- API 응답 코드 오류: `WeatherApiError` 발생 후 해당 지역 실패 로그
+- 네트워크 오류: 백오프 재시도 후 실패 시 `area.failed` 로그
+- Webhook 오류: 실패 이벤트는 미전송 상태로 유지되어 다음 주기에 재시도
