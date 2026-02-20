@@ -43,6 +43,9 @@ cp .env.example .env
 - `NOTIFIER_RETRY_DELAY_SEC` (기본값: `1`)
 - `CYCLE_INTERVAL_SEC` (기본값: `10`)
 - `AREA_INTERVAL_SEC` (기본값: `5`)
+- `CLEANUP_ENABLED` (기본값: `true`, 서비스 내 자동 정리 활성화)
+- `CLEANUP_RETENTION_DAYS` (기본값: `30`)
+- `CLEANUP_INCLUDE_UNSENT` (기본값: `true`, 미전송 포함 정리)
 - `BOT_NAME` (기본값: `기상특보알림`)
 - `TIMEZONE` (기본값: `Asia/Seoul`)
 - `LOG_LEVEL` (기본값: `INFO`)
@@ -92,6 +95,7 @@ docker compose logs -f weather-alert-bot
 ```
 
 `docker-compose.yml`은 운영 기준으로 `DRY_RUN=false`, `RUN_ONCE=false`를 고정합니다.
+또한 매일 1회 자동 상태 정리(`30일`, 미전송 포함)를 기본값으로 고정합니다.
 
 컨테이너 실행(예시):
 

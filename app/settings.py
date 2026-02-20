@@ -147,6 +147,9 @@ class Settings:
     notifier_retry_delay_sec: int = 1
     cycle_interval_sec: int = 10
     area_interval_sec: int = 5
+    cleanup_enabled: bool = True
+    cleanup_retention_days: int = 30
+    cleanup_include_unsent: bool = True
     bot_name: str = "기상특보알림"
     timezone: str = "Asia/Seoul"
     log_level: str = "INFO"
@@ -197,6 +200,9 @@ class Settings:
             notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
             cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
             area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
+            cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),
+            cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
+            cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=True),
             bot_name=os.getenv("BOT_NAME", "기상특보알림").strip() or "기상특보알림",
             timezone=os.getenv("TIMEZONE", "Asia/Seoul").strip() or "Asia/Seoul",
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",

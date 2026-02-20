@@ -4,7 +4,9 @@ import argparse
 import os
 import time
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app.logging_utils import log_event, setup_logging
 from app.repositories.state_repo import JsonStateRepository
@@ -54,11 +56,35 @@ def _run_service() -> int:
             area_count=len(settings.area_codes),
             dry_run=settings.dry_run,
             run_once=settings.run_once,
+            cleanup_enabled=settings.cleanup_enabled,
+            cleanup_retention_days=settings.cleanup_retention_days,
+            cleanup_include_unsent=settings.cleanup_include_unsent,
         )
     )
 
+    last_cleanup_date: str | None = None
     try:
         while True:
+            if settings.cleanup_enabled and not settings.dry_run:
+                current_date = datetime.now(ZoneInfo(settings.timezone)).strftime("%Y-%m-%d")
+                if current_date != last_cleanup_date:
+                    removed = state_repo.cleanup_stale(
+                        days=settings.cleanup_retention_days,
+                        include_unsent=settings.cleanup_include_unsent,
+                    )
+                    logger.info(
+                        log_event(
+                            "state.cleanup.auto",
+                            date=current_date,
+                            days=settings.cleanup_retention_days,
+                            include_unsent=settings.cleanup_include_unsent,
+                            removed=removed,
+                            total=state_repo.total_count,
+                            pending=state_repo.pending_count,
+                        )
+                    )
+                    last_cleanup_date = current_date
+
             stats = processor.run_once()
             logger.info(log_event("cycle.complete", **asdict(stats)))
             if settings.run_once:

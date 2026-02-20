@@ -61,6 +61,8 @@ python main.py
 python main.py cleanup-state --days 30
 ```
 
+서비스 실행 중에는 기본값으로 하루 1회 자동 정리(`30일`, sent/unsent 모두 삭제)가 수행됩니다.
+
 ## Makefile
 
 ```bash

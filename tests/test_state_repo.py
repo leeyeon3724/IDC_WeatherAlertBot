@@ -131,3 +131,31 @@ def test_state_repo_cleanup_stale_dry_run(tmp_path) -> None:
     assert removed == 1
     unchanged = JsonStateRepository(state_file)
     assert unchanged.total_count == 1
+
+
+def test_state_repo_cleanup_stale_include_unsent(tmp_path) -> None:
+    state_file = tmp_path / "state.json"
+    repo = JsonStateRepository(state_file)
+    repo.upsert_notifications(
+        [
+            AlertNotification(
+                event_id="event:old:unsent",
+                area_code="11B00000",
+                message="old unsent",
+                report_url=None,
+            )
+        ]
+    )
+    data = json.loads(state_file.read_text(encoding="utf-8"))
+    data["events"]["event:old:unsent"]["updated_at"] = "2020-01-01T00:00:00Z"
+    state_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    repo = JsonStateRepository(state_file)
+    removed = repo.cleanup_stale(
+        days=30,
+        include_unsent=True,
+        now=datetime(2026, 2, 21, tzinfo=timezone.utc),
+    )
+    assert removed == 1
+    after = JsonStateRepository(state_file)
+    assert after.total_count == 0

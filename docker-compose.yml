@@ -10,6 +10,9 @@ services:
     environment:
       DRY_RUN: "false"
       RUN_ONCE: "false"
+      CLEANUP_ENABLED: "true"
+      CLEANUP_RETENTION_DAYS: "30"
+      CLEANUP_INCLUDE_UNSENT: "true"
     volumes:
       - ./data:/app/data
     command: ["python", "main.py"]

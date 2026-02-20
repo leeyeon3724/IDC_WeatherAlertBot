@@ -17,8 +17,21 @@
 
 - API 호출 실패 시 최대 `MAX_RETRIES`만큼 재시도
 - 재시도 간격은 `RETRY_DELAY_SEC` 기반 백오프 적용
+- Webhook 전송 실패 시 `NOTIFIER_MAX_RETRIES`만큼 재시도
+- Webhook 최종 실패는 `notification.final_failure` 로그로 기록
 - 지역 간 지연: `AREA_INTERVAL_SEC`
 - 사이클 간 지연: `CYCLE_INTERVAL_SEC`
+
+## 2-1. 상태 정리 정책
+
+- 서비스 프로세스가 하루 1회 자동 정리를 수행합니다.
+- 기본 정책:
+  - 보존 기간: `30일`
+  - 삭제 대상: `sent/unsent` 모두
+- 관련 설정:
+  - `CLEANUP_ENABLED`
+  - `CLEANUP_RETENTION_DAYS`
+  - `CLEANUP_INCLUDE_UNSENT`
 
 ## 3. 중복 전송 방지 방식
 
