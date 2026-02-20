@@ -75,6 +75,19 @@ python main.py cleanup-state --days 30
 `LOOKBACK_DAYS`를 설정하면 오늘 이전 특보까지 조회 범위를 확장할 수 있습니다.
 `AREA_MAX_WORKERS`를 설정하면 지역 API 조회를 제한 병렬 처리할 수 있습니다.
 
+## API 장애 알림/복구
+
+- 단기 실패는 즉시 알리지 않고 장애 강도 기준을 충족할 때만 알림을 보냅니다.
+- 장애 감지 기준(기본값):
+  - 최근 10분 심각 실패 사이클 6회 이상
+  - 연속 심각 실패 4회 이상
+  - 심각 실패 기준: `area_fail_ratio >= 0.7`
+- 복구 기준(기본값):
+  - 최근 15분 실패비율 `<= 0.1`
+  - 연속 안정 사이클 8회 이상
+- 장애 지속 중 heartbeat 알림 주기: `HEALTH_HEARTBEAT_INTERVAL_SEC` (기본 3600초)
+- 장애 중에는 사이클 간격을 자동 완화(backoff)하며, 복구 시 outage 길이에 따라 1회 backfill 조회를 수행합니다.
+
 ## Makefile
 
 ```bash

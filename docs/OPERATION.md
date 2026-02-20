@@ -26,7 +26,23 @@
   `cycle.area_interval_ignored` 로그를 남김
 - 사이클 간 지연: `CYCLE_INTERVAL_SEC`
 
-## 3. 타임아웃 정책
+## 3. API 장애/복구 판정 정책
+
+- 단기/간헐 장애는 즉시 알리지 않고 아래 기준을 만족할 때만 장애 알림(`outage_detected`)을 보냅니다.
+- 장애 판정(기본값):
+  - 최근 `10분`(`HEALTH_OUTAGE_WINDOW_SEC`) 윈도우에서 심각 실패 사이클 `6회` 이상
+  - 연속 심각 실패 `4회` 이상
+  - 심각 실패 사이클 기준: `area_fail_ratio >= 0.7`
+- 복구 판정(기본값):
+  - 최근 `15분`(`HEALTH_RECOVERY_WINDOW_SEC`) 실패비율 `<= 0.1`
+  - 연속 안정 사이클 `8회` 이상
+- 장애가 열려 있는 동안 heartbeat 알림(`outage_heartbeat`)을 주기적으로 전송합니다.
+  - 주기: `HEALTH_HEARTBEAT_INTERVAL_SEC` (기본 3600초)
+- 장애 중에는 자동으로 폴링 간격을 늘리고(backoff), 복구 시 1회 backfill 조회를 실행합니다.
+  - 최대 완화 간격: `HEALTH_BACKOFF_MAX_SEC`
+  - backfill 최대 일수: `HEALTH_RECOVERY_BACKFILL_MAX_DAYS`
+
+## 4. 타임아웃 정책
 
 - API 요청 timeout:
   - `REQUEST_CONNECT_TIMEOUT_SEC`
@@ -35,7 +51,7 @@
   - `NOTIFIER_CONNECT_TIMEOUT_SEC`
   - `NOTIFIER_READ_TIMEOUT_SEC`
 
-## 4. 상태 정리 정책
+## 5. 상태 정리 정책
 
 - 서비스 프로세스가 하루 1회 자동 정리를 수행합니다.
 - 기본 정책:
@@ -46,7 +62,7 @@
   - `CLEANUP_RETENTION_DAYS`
   - `CLEANUP_INCLUDE_UNSENT`
 
-## 5. 중복 전송 방지 방식
+## 6. 중복 전송 방지 방식
 
 - 이벤트 식별자(`stn_id`,`tm_fc`,`tm_seq`,`command`,`cancel`)를 우선 키로 사용합니다.
 - 식별자가 없는 경우 이벤트 필드 기반 해시 키를 사용합니다.
@@ -55,13 +71,13 @@
   - `sent=true`: 전송 완료
 - 전송 완료 상태는 사이클 내 배치 저장으로 반영합니다.
 
-## 6. 전송 메시지 구성
+## 7. 전송 메시지 구성
 
 - 특보 본문: 특보 종류/강도/지역/발표-해제 상태 기반으로 생성
 - 첨부 링크: `stn_id`, `tm_fc`, `tm_seq`가 있으면 기상청 통보문 URL 첨부
 - URL 파라미터가 불완전/유효하지 않으면 첨부를 차단하고 `notification.url_attachment_blocked` 로그를 남깁니다.
 
-## 7. 운영 체크리스트
+## 8. 운영 체크리스트
 
 1. `SERVICE_API_KEY`, `SERVICE_HOOK_URL`가 유효한지 확인
 2. `AREA_CODES`, `AREA_CODE_MAPPING` JSON 형식이 올바른지 확인
@@ -73,8 +89,14 @@
    - `notification.final_failure`
    - `area.failed`
 
-## 8. 장애 대응 포인트
+## 9. 장애 대응 포인트
 
 - API 응답 코드 오류: `WeatherApiError` 발생 후 해당 지역 실패 로그
 - 네트워크 오류: 백오프 재시도 후 실패 시 `area.failed` 로그
 - Webhook 오류: 실패 이벤트는 미전송 상태로 유지되어 다음 주기에 재시도
+- 장애 알림 관련 로그:
+  - `health.evaluate`
+  - `health.notification.sent`
+  - `health.notification.failed`
+  - `health.backfill.start`
+  - `health.backfill.complete`

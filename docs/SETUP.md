@@ -58,6 +58,18 @@ cp .env.example .env
 - `LOG_LEVEL` (기본값: `INFO`)
 - `DRY_RUN` (기본값: `false`, `true`면 전송 없이 로그만 기록)
 - `RUN_ONCE` (기본값: `false`, `true`면 1사이클 실행 후 종료)
+- `HEALTH_ALERT_ENABLED` (기본값: `true`, API 장애 알림 기능 활성화)
+- `HEALTH_OUTAGE_WINDOW_SEC` (기본값: `600`, 장애 판정 롤링 윈도우)
+- `HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD` (기본값: `0.7`)
+- `HEALTH_OUTAGE_MIN_FAILED_CYCLES` (기본값: `6`)
+- `HEALTH_OUTAGE_CONSECUTIVE_FAILURES` (기본값: `4`)
+- `HEALTH_RECOVERY_WINDOW_SEC` (기본값: `900`, 복구 판정 롤링 윈도우)
+- `HEALTH_RECOVERY_MAX_FAIL_RATIO` (기본값: `0.1`)
+- `HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES` (기본값: `8`)
+- `HEALTH_HEARTBEAT_INTERVAL_SEC` (기본값: `3600`)
+- `HEALTH_BACKOFF_MAX_SEC` (기본값: `900`, 장애 중 최대 폴링 간격)
+- `HEALTH_RECOVERY_BACKFILL_MAX_DAYS` (기본값: `3`, 복구 시 최대 backfill 일수)
+- `HEALTH_STATE_FILE` (기본값: `./data/api_health_state.json`)
 
 예시:
 
