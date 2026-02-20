@@ -8,13 +8,13 @@ from app.domain.health import (
     HealthCycleSample,
     HealthPolicy,
 )
-from app.repositories.health_state_repo import JsonHealthStateRepository
+from app.repositories.health_state_repository import HealthStateRepository
 
 
 class ApiHealthMonitor:
     def __init__(
         self,
-        state_repo: JsonHealthStateRepository,
+        state_repo: HealthStateRepository,
         policy: HealthPolicy | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
