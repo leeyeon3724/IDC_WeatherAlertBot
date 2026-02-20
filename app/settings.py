@@ -164,7 +164,7 @@ class Settings:
     run_once: bool = False
 
     @classmethod
-    def from_env(cls, env_file: str | Path | None = ".env") -> "Settings":
+    def from_env(cls, env_file: str | Path | None = ".env") -> Settings:
         if env_file:
             _load_dotenv_if_exists(Path(env_file))
 

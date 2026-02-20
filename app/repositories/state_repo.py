@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from hashlib import sha1
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from app.domain.models import AlertNotification
 
@@ -14,7 +15,7 @@ STATE_SCHEMA_VERSION = 2
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _parse_iso_to_utc(value: object) -> datetime | None:
@@ -30,8 +31,8 @@ def _parse_iso_to_utc(value: object) -> datetime | None:
     except ValueError:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 @dataclass(frozen=True)
@@ -87,7 +88,7 @@ class JsonStateRepository:
             self._persist()
 
     def _backup_corrupted_file(self) -> Path | None:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         backup_path = self.file_path.with_name(f"{self.file_path.name}.broken-{timestamp}")
         try:
             self.file_path.replace(backup_path)
@@ -268,7 +269,7 @@ class JsonStateRepository:
         if days < 0:
             raise ValueError("days must be >= 0")
 
-        current = now or datetime.now(timezone.utc)
+        current = now or datetime.now(UTC)
         threshold = current - timedelta(days=days)
         removable: list[str] = []
 

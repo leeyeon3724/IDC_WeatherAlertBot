@@ -55,6 +55,7 @@ jobs:
           fi
 
   test:
+    needs: commit-message-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,5 +67,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-      - name: Run tests
-        run: pytest -q
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy
+      - name: Run tests with coverage gate
+        run: pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc

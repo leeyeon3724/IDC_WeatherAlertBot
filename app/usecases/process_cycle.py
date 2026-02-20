@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from app.domain.models import AlertEvent
 from app.domain.message_builder import build_notification
+from app.domain.models import AlertEvent
 from app.logging_utils import log_event
 from app.repositories.state_repo import JsonStateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
@@ -100,7 +100,10 @@ class ProcessCycleUseCase:
                 )
             )
 
-        with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="area-fetch") as executor:
+        with ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="area-fetch",
+        ) as executor:
             future_to_area = {}
             for area_code in self.settings.area_codes:
                 area_name = self.settings.area_code_mapping.get(area_code, "알 수 없는 지역")

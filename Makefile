@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test clean setup-hooks compose-up compose-down compose-logs cleanup-state
+.PHONY: install install-dev run dry-run test test-cov lint typecheck quality clean setup-hooks compose-up compose-down compose-logs cleanup-state
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -16,6 +16,17 @@ dry-run:
 
 test:
 	$(PYTHON) -m pytest -q
+
+test-cov:
+	$(PYTHON) -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+
+lint:
+	$(PYTHON) -m ruff check .
+
+typecheck:
+	$(PYTHON) -m mypy
+
+quality: lint typecheck test-cov
 
 setup-hooks:
 	git config core.hooksPath .githooks
@@ -36,3 +47,5 @@ cleanup-state:
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 	rm -rf .pytest_cache
+	rm -rf .mypy_cache .ruff_cache htmlcov
+	rm -f .coverage .coverage.*

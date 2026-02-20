@@ -44,7 +44,7 @@ class WeatherAlertClient:
         return self._parse_alerts(root=root, area_code=area_code, area_name=area_name)
 
     def _fetch_xml_root(self, area_code: str, start_date: str, end_date: str) -> ET.Element:
-        params = {
+        params: dict[str, str | int] = {
             "serviceKey": self.settings.service_api_key,
             "numOfRows": 100,
             "pageNo": 1,
@@ -91,7 +91,9 @@ class WeatherAlertClient:
         area_name: str,
     ) -> list[AlertEvent]:
         result_code_elem = root.find(".//resultCode")
-        result_code = result_code_elem.text if result_code_elem is not None else "N/A"
+        result_code = "N/A"
+        if result_code_elem is not None and result_code_elem.text:
+            result_code = result_code_elem.text.strip()
         if result_code not in {"00", "03"}:
             result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
             raise WeatherApiError(f"API response error {result_code}: {result_msg}")

@@ -3,12 +3,28 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 
 class TimezoneFormatter(logging.Formatter):
-    def __init__(self, *args, tz_name: str = "Asia/Seoul", **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        fmt: str | None = None,
+        datefmt: str | None = None,
+        style: Literal["%", "{", "$"] = "%",
+        validate: bool = True,
+        *,
+        defaults: dict[str, Any] | None = None,
+        tz_name: str = "Asia/Seoul",
+    ) -> None:
+        super().__init__(
+            fmt=fmt,
+            datefmt=datefmt,
+            style=style,
+            validate=validate,
+            defaults=defaults,
+        )
         self.tz = ZoneInfo(tz_name)
 
     def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
@@ -50,4 +66,3 @@ def setup_logging(log_level: str = "INFO", timezone: str = "Asia/Seoul") -> logg
 def log_event(event: str, **fields: object) -> str:
     payload = {"event": event, **fields}
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
-

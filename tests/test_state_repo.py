@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.domain.models import AlertNotification
 from app.repositories.state_repo import JsonStateRepository
@@ -96,7 +96,7 @@ def test_state_repo_cleanup_stale_sent_only(tmp_path) -> None:
     removed = repo.cleanup_stale(
         days=30,
         include_unsent=False,
-        now=datetime(2026, 2, 21, tzinfo=timezone.utc),
+        now=datetime(2026, 2, 21, tzinfo=UTC),
     )
     assert removed == 1
     reloaded = JsonStateRepository(state_file)
@@ -126,7 +126,7 @@ def test_state_repo_cleanup_stale_dry_run(tmp_path) -> None:
     removed = repo.cleanup_stale(
         days=30,
         dry_run=True,
-        now=datetime(2026, 2, 21, tzinfo=timezone.utc),
+        now=datetime(2026, 2, 21, tzinfo=UTC),
     )
     assert removed == 1
     unchanged = JsonStateRepository(state_file)
@@ -154,7 +154,7 @@ def test_state_repo_cleanup_stale_include_unsent(tmp_path) -> None:
     removed = repo.cleanup_stale(
         days=30,
         include_unsent=True,
-        now=datetime(2026, 2, 21, tzinfo=timezone.utc),
+        now=datetime(2026, 2, 21, tzinfo=UTC),
     )
     assert removed == 1
     after = JsonStateRepository(state_file)
