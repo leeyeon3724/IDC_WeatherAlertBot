@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-import main as entrypoint
+from app.entrypoints import cli as entrypoint
 from app.settings import Settings, SettingsError
 from app.usecases.process_cycle import CycleStats
 

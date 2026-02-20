@@ -2,7 +2,7 @@
 
 ## 1. 처리 흐름
 
-`main.py` + `app/usecases/process_cycle.py`가 아래 순서로 동작합니다.
+`app/entrypoints/cli.py` + `app/usecases/process_cycle.py`가 아래 순서로 동작합니다.
 
 1. 현재 시각(KST) 기준으로 조회 범위 계산(`오늘~내일`)
 2. `AREA_CODES`를 순회하며 지역별 특보 조회

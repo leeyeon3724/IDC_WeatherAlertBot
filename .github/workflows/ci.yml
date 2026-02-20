@@ -74,6 +74,6 @@ jobs:
       - name: Type check
         run: mypy
       - name: Run tests with coverage gate
-        run: pytest -q --cov=app --cov=main --cov-report=term-missing --cov-config=.coveragerc
+        run: pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
       - name: Docker build smoke test
         run: docker build -t weather-alert-bot-ci .

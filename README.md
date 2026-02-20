@@ -28,7 +28,8 @@ python main.py
 
 ## 코드 구조
 
-- `main.py`: 애플리케이션 진입점
+- `app/entrypoints/cli.py`: 애플리케이션 CLI/서비스 진입점
+- `main.py`: 하위 호환 실행 래퍼
 - `app/settings.py`: 환경변수 로드 및 검증
 - `app/usecases/process_cycle.py`: 1개 사이클 처리 오케스트레이션
 - `app/services/weather_api.py`: 기상청 API 조회/파싱
@@ -52,7 +53,7 @@ CI와 동일한 로컬 품질 게이트 실행:
 ```bash
 python -m ruff check .
 python -m mypy
-pytest -q --cov=app --cov=main --cov-report=term-missing --cov-config=.coveragerc
+pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
 ```
 
 ## 1회 Dry-Run

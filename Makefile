@@ -18,7 +18,7 @@ test:
 	$(PYTHON) -m pytest -q
 
 test-cov:
-	$(PYTHON) -m pytest -q --cov=app --cov=main --cov-report=term-missing --cov-config=.coveragerc
+	$(PYTHON) -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
 
 lint:
 	$(PYTHON) -m ruff check .
