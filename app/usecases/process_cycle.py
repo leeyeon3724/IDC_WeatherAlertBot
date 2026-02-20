@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -20,6 +20,7 @@ from app.settings import Settings
 class CycleStats:
     start_date: str
     end_date: str
+    area_count: int = 0
     areas_processed: int = 0
     area_failures: int = 0
     alerts_fetched: int = 0
@@ -27,6 +28,8 @@ class CycleStats:
     sent_count: int = 0
     send_failures: int = 0
     pending_total: int = 0
+    api_error_counts: dict[str, int] = field(default_factory=dict)
+    last_api_error: str | None = None
 
 
 @dataclass
@@ -51,6 +54,12 @@ class ProcessCycleUseCase:
         self.notifier = notifier
         self.state_repo = state_repo
         self.logger = logger or logging.getLogger("weather_alert_bot.processor")
+
+    @staticmethod
+    def _api_error_code(error: Exception) -> str:
+        if isinstance(error, WeatherApiError):
+            return error.code
+        return "unknown_error"
 
     def _fetch_alerts_for_areas(self, start_date: str, end_date: str) -> dict[str, AreaFetchResult]:
         results: dict[str, AreaFetchResult] = {}
@@ -140,7 +149,11 @@ class ProcessCycleUseCase:
         start_base = current - timedelta(days=self.settings.lookback_days)
         start_date = start_base.strftime("%Y%m%d")
         end_date = (current + timedelta(days=1)).strftime("%Y%m%d")
-        stats = CycleStats(start_date=start_date, end_date=end_date)
+        stats = CycleStats(
+            start_date=start_date,
+            end_date=end_date,
+            area_count=len(self.settings.area_codes),
+        )
 
         self.logger.info(
             log_event(
@@ -153,6 +166,7 @@ class ProcessCycleUseCase:
 
         area_results = self._fetch_alerts_for_areas(start_date=start_date, end_date=end_date)
         for area_code in self.settings.area_codes:
+            stats.areas_processed += 1
             result = area_results.get(
                 area_code,
                 AreaFetchResult(
@@ -167,8 +181,16 @@ class ProcessCycleUseCase:
             )
             if result.error is not None:
                 stats.area_failures += 1
+                error_code = self._api_error_code(result.error)
+                stats.api_error_counts[error_code] = stats.api_error_counts.get(error_code, 0) + 1
+                stats.last_api_error = str(result.error)
                 self.logger.error(
-                    log_event("area.failed", area_code=area_code, error=str(result.error))
+                    log_event(
+                        "area.failed",
+                        area_code=area_code,
+                        error_code=error_code,
+                        error=str(result.error),
+                    )
                 )
                 continue
 
@@ -224,8 +246,5 @@ class ProcessCycleUseCase:
                             area_code=area_code,
                         )
                     )
-
-            stats.areas_processed += 1
-
         stats.pending_total = self.state_repo.pending_count
         return stats

@@ -6,7 +6,13 @@ import xml.etree.ElementTree as ET
 import pytest
 import requests
 
-from app.services.weather_api import WeatherAlertClient, WeatherApiError
+from app.services.weather_api import (
+    API_ERROR_CONNECTION,
+    API_ERROR_RESULT,
+    API_ERROR_TIMEOUT,
+    WeatherAlertClient,
+    WeatherApiError,
+)
 from app.settings import Settings
 
 
@@ -152,13 +158,14 @@ def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:
         logger=logging.getLogger("test.weather.api.fail"),
     )
 
-    with pytest.raises(WeatherApiError, match="Failed to fetch area_code=L1070100"):
+    with pytest.raises(WeatherApiError, match="Failed to fetch area_code=L1070100") as exc_info:
         client.fetch_alerts(
             area_code="L1070100",
             start_date="20260218",
             end_date="20260219",
             area_name="대구",
         )
+    assert exc_info.value.code == API_ERROR_TIMEOUT
 
 
 def test_parse_alerts_raises_for_error_result_code(tmp_path) -> None:
@@ -169,8 +176,9 @@ def test_parse_alerts_raises_for_error_result_code(tmp_path) -> None:
         logger=logging.getLogger("test.weather.api.parse.error"),
     )
 
-    with pytest.raises(WeatherApiError, match="API response error 10"):
+    with pytest.raises(WeatherApiError, match="API response error 10") as exc_info:
         client._parse_alerts(root=root, area_code="L1070100", area_name="대구")
+    assert exc_info.value.code == API_ERROR_RESULT
 
 
 def test_parse_alerts_handles_no_data_result(tmp_path) -> None:
@@ -190,3 +198,14 @@ def test_format_datetime_variants() -> None:
     assert WeatherAlertClient._format_datetime("invalid") is None
     assert WeatherAlertClient._format_datetime("202602181000") == "2026년 2월 18일 오전 10시"
     assert WeatherAlertClient._format_datetime("202602181030") == "2026년 2월 18일 오전 10시 30분"
+
+
+def test_classify_request_exception() -> None:
+    assert (
+        WeatherAlertClient._classify_request_exception(requests.Timeout("timeout"))
+        == API_ERROR_TIMEOUT
+    )
+    assert (
+        WeatherAlertClient._classify_request_exception(requests.ConnectionError("conn"))
+        == API_ERROR_CONNECTION
+    )

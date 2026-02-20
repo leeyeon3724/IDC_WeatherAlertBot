@@ -4,6 +4,7 @@ import logging
 import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from typing import Final
 
 import requests
 
@@ -20,6 +21,30 @@ from app.settings import (
 
 class WeatherApiError(RuntimeError):
     """Raised when weather API fetch/parse fails."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "unknown_error",
+        status_code: int | None = None,
+        result_code: str | None = None,
+        last_error: Exception | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.status_code = status_code
+        self.result_code = result_code
+        self.last_error = last_error
+
+
+API_ERROR_TIMEOUT: Final[str] = "timeout"
+API_ERROR_CONNECTION: Final[str] = "connection"
+API_ERROR_REQUEST: Final[str] = "request_error"
+API_ERROR_HTTP_STATUS: Final[str] = "http_status"
+API_ERROR_PARSE: Final[str] = "parse_error"
+API_ERROR_RESULT: Final[str] = "api_result_error"
+API_ERROR_UNKNOWN: Final[str] = "unknown_error"
 
 
 class WeatherAlertClient:
@@ -54,7 +79,7 @@ class WeatherAlertClient:
         }
 
         backoff_seconds = self.settings.retry_delay_sec
-        last_error: Exception | None = None
+        last_error: WeatherApiError | None = None
         for attempt in range(1, self.settings.max_retries + 1):
             try:
                 response = self.session.get(
@@ -66,23 +91,53 @@ class WeatherAlertClient:
                     ),
                 )
                 if response.status_code != 200:
-                    raise WeatherApiError(f"HTTP {response.status_code}")
+                    raise WeatherApiError(
+                        f"HTTP {response.status_code}",
+                        code=API_ERROR_HTTP_STATUS,
+                        status_code=response.status_code,
+                    )
                 return ET.fromstring(response.content)
-            except (requests.RequestException, ET.ParseError, WeatherApiError) as exc:
+            except requests.RequestException as exc:
+                last_error = WeatherApiError(
+                    f"Request failed: {exc}",
+                    code=self._classify_request_exception(exc),
+                    last_error=exc,
+                )
+            except ET.ParseError as exc:
+                last_error = WeatherApiError(
+                    f"Failed to parse XML: {exc}",
+                    code=API_ERROR_PARSE,
+                    last_error=exc,
+                )
+            except WeatherApiError as exc:
                 last_error = exc
+
+            if last_error is not None:
                 if attempt == self.settings.max_retries:
                     break
                 self.logger.warning(
-                    "weather_api.retry attempt=%s area_code=%s reason=%s backoff=%ss",
+                    "weather_api.retry attempt=%s area_code=%s error_code=%s reason=%s backoff=%ss",
                     attempt,
                     area_code,
-                    exc,
+                    last_error.code,
+                    last_error,
                     backoff_seconds,
                 )
                 time.sleep(backoff_seconds)
                 backoff_seconds = max(backoff_seconds * 2, 1)
 
-        raise WeatherApiError(f"Failed to fetch area_code={area_code}: {last_error}")
+        if last_error is not None:
+            raise WeatherApiError(
+                f"Failed to fetch area_code={area_code}: {last_error}",
+                code=last_error.code,
+                status_code=last_error.status_code,
+                result_code=last_error.result_code,
+                last_error=last_error.last_error or last_error,
+            )
+        raise WeatherApiError(
+            f"Failed to fetch area_code={area_code}: unknown",
+            code=API_ERROR_UNKNOWN,
+        )
 
     def _parse_alerts(
         self,
@@ -96,7 +151,11 @@ class WeatherAlertClient:
             result_code = result_code_elem.text.strip()
         if result_code not in {"00", "03"}:
             result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
-            raise WeatherApiError(f"API response error {result_code}: {result_msg}")
+            raise WeatherApiError(
+                f"API response error {result_code}: {result_msg}",
+                code=API_ERROR_RESULT,
+                result_code=result_code,
+            )
 
         items = root.findall(".//item")
         if not items:
@@ -139,3 +198,11 @@ class WeatherAlertClient:
         if dt.minute == 0:
             return f"{dt.year}년 {dt.month}월 {dt.day}일 {am_pm} {hour}시"
         return f"{dt.year}년 {dt.month}월 {dt.day}일 {am_pm} {hour}시 {dt.minute}분"
+
+    @staticmethod
+    def _classify_request_exception(exc: requests.RequestException) -> str:
+        if isinstance(exc, requests.Timeout):
+            return API_ERROR_TIMEOUT
+        if isinstance(exc, requests.ConnectionError):
+            return API_ERROR_CONNECTION
+        return API_ERROR_REQUEST

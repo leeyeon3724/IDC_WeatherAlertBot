@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from app.domain.models import AlertEvent
 from app.repositories.state_repo import JsonStateRepository
 from app.services.notifier import NotificationError
+from app.services.weather_api import API_ERROR_TIMEOUT, WeatherApiError
 from app.settings import Settings
 from app.usecases.process_cycle import ProcessCycleUseCase
 
@@ -19,7 +20,10 @@ class FakeWeatherClient:
 
     def fetch_alerts(self, area_code: str, start_date: str, end_date: str, area_name: str):
         self.calls.append((area_code, start_date, end_date, area_name))
-        return self.alerts_by_area.get(area_code, [])
+        outcome = self.alerts_by_area.get(area_code, [])
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
 
 
 class FakeNotifier:
@@ -220,3 +224,32 @@ def test_process_cycle_parallel_fetch_ignores_area_interval(tmp_path) -> None:
     usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
     elapsed = time.perf_counter() - start
     assert elapsed < 1.0
+
+
+def test_process_cycle_records_api_error_codes(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient(
+        {
+            "11B00000": WeatherApiError(
+                "temporary timeout",
+                code=API_ERROR_TIMEOUT,
+            )
+        }
+    )
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.error_code"),
+    )
+
+    stats = usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
+    assert stats.area_count == 1
+    assert stats.areas_processed == 1
+    assert stats.area_failures == 1
+    assert stats.api_error_counts[API_ERROR_TIMEOUT] == 1
+    assert stats.last_api_error is not None
