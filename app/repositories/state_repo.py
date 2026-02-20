@@ -40,12 +40,46 @@ class JsonStateRepository:
             self._state = {}
             return
 
-        with self.file_path.open("r", encoding="utf-8") as file:
-            raw = json.load(file)
+        try:
+            with self.file_path.open("r", encoding="utf-8") as file:
+                raw = json.load(file)
+        except json.JSONDecodeError as exc:
+            backup_path = self._backup_corrupted_file()
+            self.logger.error(
+                "state.invalid_json file=%s backup=%s error=%s",
+                self.file_path,
+                backup_path,
+                exc,
+            )
+            self._state = {}
+            self._persist()
+            return
+        except OSError as exc:
+            self.logger.error(
+                "state.read_failed file=%s error=%s",
+                self.file_path,
+                exc,
+            )
+            self._state = {}
+            return
 
         self._state, migrated = self._normalize_state(raw)
         if migrated:
             self._persist()
+
+    def _backup_corrupted_file(self) -> Path | None:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = self.file_path.with_name(f"{self.file_path.name}.broken-{timestamp}")
+        try:
+            self.file_path.replace(backup_path)
+            return backup_path
+        except OSError as exc:
+            self.logger.error(
+                "state.backup_failed file=%s error=%s",
+                self.file_path,
+                exc,
+            )
+            return None
 
     def _normalize_state(self, raw: Any) -> tuple[dict[str, dict[str, Any]], bool]:
         if not isinstance(raw, dict):
@@ -184,4 +218,3 @@ class JsonStateRepository:
     @property
     def pending_count(self) -> int:
         return len(self.get_unsent())
-

@@ -71,6 +71,8 @@ docker compose up -d --build
 docker compose logs -f weather-alert-bot
 ```
 
+Compose 설정은 운영 기준(`DRY_RUN=false`, `RUN_ONCE=false`)으로 동작합니다.
+
 ## Commit Message Rules
 
 커밋 메시지는 Conventional Commits 형식으로 강제됩니다.

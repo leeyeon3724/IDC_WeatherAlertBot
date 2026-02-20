@@ -7,7 +7,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      DRY_RUN: "false"
+      RUN_ONCE: "false"
     volumes:
       - ./data:/app/data
     command: ["python", "main.py"]
-

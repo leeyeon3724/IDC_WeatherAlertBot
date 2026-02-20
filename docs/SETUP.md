@@ -89,6 +89,8 @@ docker compose up -d --build
 docker compose logs -f weather-alert-bot
 ```
 
+`docker-compose.yml`은 운영 기준으로 `DRY_RUN=false`, `RUN_ONCE=false`를 고정합니다.
+
 컨테이너 실행(예시):
 
 ```bash

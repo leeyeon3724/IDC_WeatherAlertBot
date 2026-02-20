@@ -45,3 +45,16 @@ def test_state_repo_migrates_legacy_format(tmp_path) -> None:
     migrated_data = json.loads(state_file.read_text(encoding="utf-8"))
     assert all(key.startswith("legacy:") for key in migrated_data.keys())
 
+
+def test_state_repo_recovers_from_corrupted_json(tmp_path) -> None:
+    state_file = tmp_path / "state.json"
+    state_file.write_text("{invalid-json", encoding="utf-8")
+
+    repo = JsonStateRepository(state_file)
+    assert repo.total_count == 0
+    assert repo.pending_count == 0
+
+    recovered_data = json.loads(state_file.read_text(encoding="utf-8"))
+    assert recovered_data == {}
+    backups = list(tmp_path.glob("state.json.broken-*"))
+    assert len(backups) == 1
