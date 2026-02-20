@@ -1,37 +1,40 @@
 # Refactoring Backlog
 
-## Current Status
+기준: `docs/CODEBASE_ASSESSMENT.md`의 평가 결과 기반
 
-완료:
+## Prioritized Backlog
 
-- `P0`: 관측 이벤트 taxonomy 도입 (`app/observability/events.py`)
-- `P1`: Weather API 페이지네이션 + 수집 요약 로그
-- `P2`: `cli.py` / `process_cycle.py` 오케스트레이션 분해
-- `P3`: 저장소 추상화 + SQLite 저장소 도입
-- 테스트 적절성 문서화 (`docs/TESTING.md`) + 보완 테스트 추가
+| ID | Priority | 영역 | 작업 | 기대효과 | 완료조건(DoD) |
+|---|---|---|---|---|---|
+| RB-101 | P0 | 보안/정확성 | `WEATHER_ALERT_DATA_API_URL` 기본값을 `https`로 변경 | MITM/평문전송 리스크 축소 | 기본값/문서/테스트 동시 반영 |
+| RB-102 | P0 | 보안 | Webhook/API URL 검증 로직 추가(스킴/호스트 규칙) | 오설정/취약 URL 입력 차단 | 설정 검증 테스트 추가 |
+| RB-103 | P1 | 결합도 | `HealthStateRepository` 프로토콜 도입 및 `ApiHealthMonitor` 추상화 의존으로 전환 | 저장소 교체 용이성/테스트 단순화 | health monitor 테스트 무회귀 |
+| RB-104 | P1 | 복잡성 | `cli.py`를 `runtime_builder.py`, `service_loop.py`, `commands.py`로 분리 | 진입점 복잡도/변경 충돌 감소 | 기존 엔트리 동작 동일 + 테스트 통과 |
+| RB-105 | P1 | 가독성/응집도 | `settings.py`의 코드 매핑 상수 분리(`domain/code_maps.py`) | 설정 책임 명확화 | weather/settings 테스트 무회귀 |
+| RB-106 | P1 | 일관성 | notifier/weather_api 재시도 로그를 `log_event()`로 통일 | 관측 일관성 향상 | 비구조 로그 제거 |
+| RB-107 | P2 | 성능/안정성 | SQLite에 `PRAGMA busy_timeout`, WAL 모드 적용 | 락 충돌 내성/쓰기 안정성 향상 | 동시 접근 테스트 추가 |
+| RB-108 | P2 | 성능 | SQLite upsert/mark 경로 batch 최적화(`executemany`) | 대량 이벤트 처리 성능 개선 | 벤치마크/회귀 테스트 통과 |
+| RB-109 | P2 | 성능 | JSON 저장소 `pending_count` 비용 최적화 | 반복 조회 부하 축소 | 기존 기능/테스트 무회귀 |
+| RB-110 | P2 | 테스트가능성 | `tests/test_main.py` monkeypatch 의존도 축소(헬퍼/통합 스모크 분리) | 테스트 유지보수성 향상 | 테스트 구조 단순화 및 커버리지 유지 |
+| RB-111 | P3 | 운영성 | 이벤트 사전 문서(`docs/EVENTS.md`) 신설 | 온콜 대응/대시보드 표준화 | 핵심 이벤트 필드 정의 완료 |
+| RB-112 | P3 | 운영성 | JSON->SQLite 마이그레이션 유틸 추가 | 저장소 전환 리스크 축소 | 샘플 마이그레이션 검증 테스트 |
 
-현재 기준 문서 경계:
+## Suggested Iteration Plan
 
-- `README.md`: 프로젝트 진입
-- `docs/SETUP.md`: 설치/설정
-- `docs/OPERATION.md`: 운영/장애 대응
-- `docs/TESTING.md`: 테스트 전략/평가
-- `docs/REFRACTORING_BACKLOG.md`: 개선 계획
+1. Iteration 1 (안전성 우선)
+- RB-101, RB-102, RB-103
 
-## Backlog
+2. Iteration 2 (구조 정리)
+- RB-104, RB-105, RB-106
 
-| ID | Priority | Status | 작업 | 완료 조건 |
-|---|---|---|---|---|
-| RB-11 | P1 | Done | 로그 이벤트 사전 문서화(운영자용) | 이벤트별 필수 필드/샘플 로그 문서화 |
-| RB-12 | P1 | Open | `area.fetch.summary` 대시보드 지표 정의 | 수집량/실패율/재시도율 기준 확정 |
-| RB-13 | P2 | Open | JSON -> SQLite 마이그레이션 유틸 추가 | 샘플 데이터 마이그레이션 검증 테스트 |
-| RB-14 | P2 | Open | 저장소 선택 운영 가이드 보강 | `json/sqlite` 선택 기준과 롤백 절차 문서화 |
-| RB-15 | P3 | Open | 진입점 테스트에서 monkeypatch 의존 축소 | 통합 성격 테스트 추가로 대체 |
-| RB-16 | P1 | Done | 상태/파싱 유틸 경계 테스트 보강 | `tests/test_state_models.py` 추가 |
-| RB-17 | P1 | Done | 페이지네이션 경계 테스트 보강 | NODATA 페이지/invalid totalCount 테스트 추가 |
+3. Iteration 3 (성능/운영)
+- RB-107, RB-108, RB-109, RB-110
+
+4. Iteration 4 (운영 완성)
+- RB-111, RB-112
 
 ## Maintenance Rules
 
-- 기능 변경은 작은 단위로 반영하고 단계별로 테스트 통과 확인
-- 의미 있는 변경 단위마다 커밋 수행(Conventional Commits)
-- 문서는 역할 경계를 유지하고 중복 설명은 제거
+- 변경 단위별 품질 게이트(`ruff`, `mypy`, `pytest`) 통과 후 병합
+- 기능 변경은 작은 PR/커밋 단위로 진행
+- 문서는 `README/SETUP/OPERATION/TESTING/BACKLOG` 경계 유지
