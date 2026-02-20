@@ -42,8 +42,7 @@ python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqli
 - `docs/OPERATION.md`: 런타임 동작, 로그 관측, 장애 대응
 - `docs/EVENTS.md`: 구조화 로그 이벤트/필드 사전
 - `docs/TESTING.md`: 테스트 전략, 적절성 평가, 보완 항목
-- `docs/CODEBASE_ASSESSMENT.md`: 품질 기준별 현재 코드베이스 평가
-- `docs/REFRACTORING_BACKLOG.md`: 우선순위 리팩토링 실행 백로그
+- `docs/BACKLOG.md`: 코드베이스 평가 + 리팩토링 백로그 통합 문서
 
 ## 품질 게이트
 
