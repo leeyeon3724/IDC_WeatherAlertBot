@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import time
 from dataclasses import asdict
@@ -69,6 +70,7 @@ def _run_service() -> int:
             recovery_max_fail_ratio=settings.health_recovery_max_fail_ratio,
             recovery_consecutive_successes=settings.health_recovery_consecutive_successes,
             heartbeat_interval_sec=settings.health_heartbeat_interval_sec,
+            max_backoff_sec=settings.health_backoff_max_sec,
         ),
         logger=logger.getChild("health_monitor"),
     )
@@ -84,6 +86,8 @@ def _run_service() -> int:
             run_once=settings.run_once,
             lookback_days=settings.lookback_days,
             health_alert_enabled=settings.health_alert_enabled,
+            health_backoff_max_sec=settings.health_backoff_max_sec,
+            health_recovery_backfill_max_days=settings.health_recovery_backfill_max_days,
             cleanup_enabled=settings.cleanup_enabled,
             cleanup_retention_days=settings.cleanup_retention_days,
             cleanup_include_unsent=settings.cleanup_include_unsent,
@@ -158,12 +162,54 @@ def _run_service() -> int:
                                 error=str(exc.last_error or exc),
                             )
                         )
+            if (
+                health_decision.event == "recovered"
+                and settings.health_recovery_backfill_max_days > settings.lookback_days
+            ):
+                outage_days = max(1, math.ceil(health_decision.incident_duration_sec / 86400))
+                backfill_days = min(outage_days, settings.health_recovery_backfill_max_days)
+                if backfill_days > settings.lookback_days:
+                    logger.info(
+                        log_event(
+                            "health.backfill.start",
+                            lookback_days=backfill_days,
+                            incident_duration_sec=health_decision.incident_duration_sec,
+                        )
+                    )
+                    try:
+                        backfill_stats = processor.run_once(lookback_days_override=backfill_days)
+                        logger.info(
+                            log_event(
+                                "health.backfill.complete",
+                                lookback_days=backfill_days,
+                                sent_count=backfill_stats.sent_count,
+                                pending_total=backfill_stats.pending_total,
+                            )
+                        )
+                    except Exception as exc:
+                        logger.error(
+                            log_event(
+                                "health.backfill.failed",
+                                lookback_days=backfill_days,
+                                error=str(exc),
+                            )
+                        )
             logger.info(log_event("cycle.complete", **asdict(stats)))
             if settings.run_once:
                 logger.info(log_event("shutdown.run_once_complete"))
                 return 0
-            if settings.cycle_interval_sec > 0:
-                time.sleep(settings.cycle_interval_sec)
+            sleep_sec = health_monitor.suggested_cycle_interval_sec(settings.cycle_interval_sec)
+            if sleep_sec > 0:
+                if sleep_sec != settings.cycle_interval_sec:
+                    logger.info(
+                        log_event(
+                            "cycle.interval.adjusted",
+                            base_interval_sec=settings.cycle_interval_sec,
+                            adjusted_interval_sec=sleep_sec,
+                            incident_open=health_decision.incident_open,
+                        )
+                    )
+                time.sleep(sleep_sec)
     except KeyboardInterrupt:
         logger.info(log_event("shutdown.interrupt"))
         return 0

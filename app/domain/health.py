@@ -90,6 +90,7 @@ class HealthPolicy:
     recovery_max_fail_ratio: float = 0.1
     recovery_consecutive_successes: int = 8
     heartbeat_interval_sec: int = 3600
+    max_backoff_sec: int = 900
 
     def max_window_sec(self) -> int:
         return max(self.outage_window_sec, self.recovery_window_sec)

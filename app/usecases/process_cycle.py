@@ -143,10 +143,20 @@ class ProcessCycleUseCase:
                     )
         return results
 
-    def run_once(self, now: datetime | None = None) -> CycleStats:
+    def run_once(
+        self,
+        now: datetime | None = None,
+        lookback_days_override: int | None = None,
+    ) -> CycleStats:
         tz = ZoneInfo(self.settings.timezone)
         current = now or datetime.now(tz)
-        start_base = current - timedelta(days=self.settings.lookback_days)
+        lookback_days = (
+            lookback_days_override
+            if lookback_days_override is not None
+            else self.settings.lookback_days
+        )
+        lookback_days = max(lookback_days, 0)
+        start_base = current - timedelta(days=lookback_days)
         start_date = start_base.strftime("%Y%m%d")
         end_date = (current + timedelta(days=1)).strftime("%Y%m%d")
         stats = CycleStats(

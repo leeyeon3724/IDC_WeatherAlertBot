@@ -192,6 +192,8 @@ class Settings:
     health_recovery_max_fail_ratio: float = 0.1
     health_recovery_consecutive_successes: int = 8
     health_heartbeat_interval_sec: int = 3600
+    health_backoff_max_sec: int = 900
+    health_recovery_backfill_max_days: int = 3
     health_state_file: Path = Path("./data/api_health_state.json")
 
     @classmethod
@@ -314,6 +316,12 @@ class Settings:
                 "HEALTH_HEARTBEAT_INTERVAL_SEC",
                 3600,
                 minimum=1,
+            ),
+            health_backoff_max_sec=_parse_int_env("HEALTH_BACKOFF_MAX_SEC", 900, minimum=1),
+            health_recovery_backfill_max_days=_parse_int_env(
+                "HEALTH_RECOVERY_BACKFILL_MAX_DAYS",
+                3,
+                minimum=0,
             ),
             health_state_file=Path(
                 os.getenv("HEALTH_STATE_FILE", "./data/api_health_state.json").strip()

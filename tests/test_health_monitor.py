@@ -102,3 +102,21 @@ def test_health_monitor_sends_recovery_after_stable_window(tmp_path) -> None:
     assert decision.should_notify is True
     assert decision.event == "recovered"
     assert decision.incident_open is False
+
+
+def test_health_monitor_suggests_backoff_interval_when_incident_open(tmp_path) -> None:
+    monitor = _monitor(tmp_path)
+    base = datetime(2026, 2, 21, 9, 0, tzinfo=UTC)
+
+    for offset in (0, 1, 2):
+        monitor.observe_cycle(
+            now=base + timedelta(minutes=offset),
+            total_areas=4,
+            failed_areas=4,
+            error_counts={"timeout": 4},
+            representative_error="timeout",
+        )
+
+    assert monitor.state.incident_open is True
+    adjusted = monitor.suggested_cycle_interval_sec(base_interval_sec=10)
+    assert adjusted >= 20

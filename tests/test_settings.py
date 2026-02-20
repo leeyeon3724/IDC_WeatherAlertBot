@@ -42,6 +42,8 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "HEALTH_RECOVERY_MAX_FAIL_RATIO",
         "HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES",
         "HEALTH_HEARTBEAT_INTERVAL_SEC",
+        "HEALTH_BACKOFF_MAX_SEC",
+        "HEALTH_RECOVERY_BACKFILL_MAX_DAYS",
         "HEALTH_STATE_FILE",
     ]:
         monkeypatch.delenv(key, raising=False)
@@ -82,6 +84,8 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.health_recovery_max_fail_ratio == 0.1
     assert settings.health_recovery_consecutive_successes == 8
     assert settings.health_heartbeat_interval_sec == 3600
+    assert settings.health_backoff_max_sec == 900
+    assert settings.health_recovery_backfill_max_days == 3
     assert settings.health_state_file.as_posix().endswith("data/api_health_state.json")
 
 

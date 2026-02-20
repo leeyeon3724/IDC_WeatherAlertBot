@@ -107,6 +107,25 @@ class ApiHealthMonitor:
         self.state_repo.update_state(self.state)
         return decision
 
+    def suggested_cycle_interval_sec(self, base_interval_sec: int) -> int:
+        if base_interval_sec <= 0:
+            return 0
+        if not self.state.incident_open:
+            return base_interval_sec
+
+        multiplier = 1
+        threshold = max(1, self.policy.outage_consecutive_failures)
+        if self.state.consecutive_severe_failures >= threshold * 3:
+            multiplier = 8
+        elif self.state.consecutive_severe_failures >= threshold * 2:
+            multiplier = 4
+        elif self.state.consecutive_severe_failures >= threshold:
+            multiplier = 2
+
+        suggested = base_interval_sec * multiplier
+        suggested = max(base_interval_sec, suggested)
+        return min(suggested, self.policy.max_backoff_sec)
+
     def _is_outage(self, window: list[HealthCycleSample], severe_failed: int) -> bool:
         if severe_failed < self.policy.outage_min_failed_cycles:
             return False

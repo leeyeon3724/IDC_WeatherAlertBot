@@ -47,6 +47,8 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
         "health_recovery_max_fail_ratio": 0.1,
         "health_recovery_consecutive_successes": 8,
         "health_heartbeat_interval_sec": 3600,
+        "health_backoff_max_sec": 900,
+        "health_recovery_backfill_max_days": 3,
         "health_state_file": tmp_path / "health_state.json",
         "bot_name": "테스트봇",
         "timezone": "Asia/Seoul",
@@ -319,3 +321,100 @@ def test_run_service_sends_health_alert_message(
     assert notifier is not None
     assert len(notifier.messages) == 1
     assert notifier.messages[0].startswith("[API 장애 감지]")
+
+
+def test_run_service_runs_backfill_after_recovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings(
+        tmp_path,
+        run_once=True,
+        lookback_days=0,
+        health_recovery_backfill_max_days=3,
+    )
+
+    class FakeDateTime:
+        @classmethod
+        def now(cls, tz: ZoneInfo | None = None) -> datetime:
+            return datetime(2026, 2, 21, 10, 0, tzinfo=tz)
+
+    class FakeStateRepo:
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+            self.total_count = 0
+            self.pending_count = 0
+
+        def cleanup_stale(self, days: int, include_unsent: bool, dry_run: bool = False) -> int:
+            return 0
+
+    class FakeHealthStateRepo:
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+
+    class FakeWeatherClient:
+        def __init__(self, settings: Settings, logger: logging.Logger | None = None) -> None:
+            self.settings = settings
+            self.logger = logger
+
+    class FakeNotifier:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def send(self, message: str, report_url: str | None = None) -> None:
+            return None
+
+    class FakeProcessor:
+        last_instance: FakeProcessor | None = None
+
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+            self.lookback_calls: list[int | None] = []
+            FakeProcessor.last_instance = self
+
+        def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
+            self.lookback_calls.append(lookback_days_override)
+            return CycleStats(
+                start_date="20260221",
+                end_date="20260222",
+                area_count=1,
+            )
+
+    class FakeHealthMonitor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def observe_cycle(self, **kwargs: object) -> ApiHealthDecision:
+            return ApiHealthDecision(
+                incident_open=False,
+                event="recovered",
+                should_notify=False,
+                incident_duration_sec=90000,
+            )
+
+        def suggested_cycle_interval_sec(self, base_interval_sec: int) -> int:
+            return base_interval_sec
+
+    logger = logging.getLogger("test.main.backfill")
+    monkeypatch.setattr(entrypoint, "setup_logging", lambda *args, **kwargs: logger)
+    monkeypatch.setattr(entrypoint, "datetime", FakeDateTime)
+    monkeypatch.setattr(entrypoint, "JsonStateRepository", FakeStateRepo)
+    monkeypatch.setattr(entrypoint, "JsonHealthStateRepository", FakeHealthStateRepo)
+    monkeypatch.setattr(entrypoint, "ApiHealthMonitor", FakeHealthMonitor)
+    monkeypatch.setattr(entrypoint, "WeatherAlertClient", FakeWeatherClient)
+    monkeypatch.setattr(entrypoint, "DoorayNotifier", FakeNotifier)
+    monkeypatch.setattr(entrypoint, "ProcessCycleUseCase", FakeProcessor)
+    monkeypatch.setattr(
+        entrypoint.Settings,
+        "from_env",
+        classmethod(lambda cls, env_file=".env": settings),
+    )
+
+    result = entrypoint._run_service()
+    processor = FakeProcessor.last_instance
+
+    assert result == 0
+    assert processor is not None
+    assert processor.lookback_calls == [None, 2]

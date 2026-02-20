@@ -253,3 +253,24 @@ def test_process_cycle_records_api_error_codes(tmp_path) -> None:
     assert stats.area_failures == 1
     assert stats.api_error_counts[API_ERROR_TIMEOUT] == 1
     assert stats.last_api_error is not None
+
+
+def test_process_cycle_lookback_override(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": []})
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.lookback.override"),
+    )
+
+    now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    stats = usecase.run_once(now=now, lookback_days_override=3)
+    assert stats.start_date == "20260217"
+    assert stats.end_date == "20260221"
+    assert weather_client.calls[0][1] == "20260217"
