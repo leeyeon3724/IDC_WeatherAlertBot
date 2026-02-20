@@ -10,6 +10,8 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SERVICE_API_KEY",
         "SERVICE_HOOK_URL",
         "WEATHER_ALERT_DATA_API_URL",
+        "WEATHER_API_ALLOWED_HOSTS",
+        "WEATHER_API_ALLOWED_PATH_PREFIXES",
         "SENT_MESSAGES_FILE",
         "STATE_REPOSITORY_TYPE",
         "SQLITE_STATE_FILE",
@@ -232,3 +234,79 @@ def test_settings_invalid_repository_type(monkeypatch: pytest.MonkeyPatch) -> No
 
     with pytest.raises(SettingsError):
         Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_non_https_hook_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "http://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_non_http_weather_api_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv(
+        "WEATHER_ALERT_DATA_API_URL",
+        "https://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
+    )
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_disallowed_weather_api_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv(
+        "WEATHER_ALERT_DATA_API_URL",
+        "http://evil.example/1360000/WthrWrnInfoService/getPwnCd",
+    )
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_disallowed_weather_api_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("WEATHER_API_ALLOWED_HOSTS", '["apis.data.go.kr"]')
+    monkeypatch.setenv(
+        "WEATHER_ALERT_DATA_API_URL",
+        "http://apis.data.go.kr/another-service/path",
+    )
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_accepts_custom_allowed_weather_api_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("WEATHER_API_ALLOWED_HOSTS", '["api.internal.local"]')
+    monkeypatch.setenv("WEATHER_API_ALLOWED_PATH_PREFIXES", '["/proxy/weather/"]')
+    monkeypatch.setenv(
+        "WEATHER_ALERT_DATA_API_URL",
+        "http://api.internal.local/proxy/weather/getPwnCd",
+    )
+
+    settings = Settings.from_env(env_file=None)
+    assert settings.weather_alert_data_api_url == "http://api.internal.local/proxy/weather/getPwnCd"

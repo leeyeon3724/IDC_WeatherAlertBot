@@ -5,9 +5,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 DEFAULT_ALERT_API_URL = "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd"
 DEFAULT_SENT_MESSAGES_FILE = "./data/sent_messages.json"
+DEFAULT_WEATHER_API_ALLOWED_HOSTS = ["apis.data.go.kr"]
+DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES = ["/1360000/WthrWrnInfoService/"]
 
 WARN_VAR_MAPPING = {
     "1": "강풍",
@@ -164,6 +167,53 @@ def _parse_choice_env(name: str, default: str, allowed: set[str]) -> str:
     return value
 
 
+def _parse_non_empty_json_list_env(name: str, default: list[str]) -> list[str]:
+    raw_default = json.dumps(default, ensure_ascii=False)
+    raw_list = _parse_json_env(name, raw_default, list)
+    values = [str(item).strip() for item in raw_list if str(item).strip()]
+    if not values:
+        raise SettingsError(f"{name} must include at least one non-empty value.")
+    return values
+
+
+def _validate_service_hook_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise SettingsError(
+            "SERVICE_HOOK_URL must be a valid https URL with host."
+        )
+
+
+def _validate_weather_api_url(
+    *,
+    url: str,
+    allowed_hosts: list[str],
+    allowed_path_prefixes: list[str],
+) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "http" or not parsed.netloc:
+        raise SettingsError(
+            "WEATHER_ALERT_DATA_API_URL must be a valid http URL with host."
+        )
+
+    hostname = (parsed.hostname or "").lower().strip()
+    normalized_hosts = {host.lower().strip() for host in allowed_hosts if host.strip()}
+    if hostname not in normalized_hosts:
+        allowed_text = ", ".join(sorted(normalized_hosts))
+        raise SettingsError(
+            "WEATHER_ALERT_DATA_API_URL host is not allowed. "
+            f"Allowed hosts: {allowed_text}. Received: {hostname}"
+        )
+
+    path = parsed.path or "/"
+    if not any(path.startswith(prefix) for prefix in allowed_path_prefixes):
+        allowed_prefixes = ", ".join(allowed_path_prefixes)
+        raise SettingsError(
+            "WEATHER_ALERT_DATA_API_URL path is not allowed. "
+            f"Allowed prefixes: {allowed_prefixes}. Received: {path}"
+        )
+
+
 @dataclass(frozen=True)
 class Settings:
     service_api_key: str
@@ -225,6 +275,21 @@ class Settings:
             raise SettingsError("SERVICE_API_KEY is required.")
         if not service_hook_url:
             raise SettingsError("SERVICE_HOOK_URL is required.")
+        _validate_service_hook_url(service_hook_url)
+
+        weather_api_allowed_hosts = _parse_non_empty_json_list_env(
+            "WEATHER_API_ALLOWED_HOSTS",
+            DEFAULT_WEATHER_API_ALLOWED_HOSTS,
+        )
+        weather_api_allowed_path_prefixes = _parse_non_empty_json_list_env(
+            "WEATHER_API_ALLOWED_PATH_PREFIXES",
+            DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES,
+        )
+        _validate_weather_api_url(
+            url=weather_alert_data_api_url,
+            allowed_hosts=weather_api_allowed_hosts,
+            allowed_path_prefixes=weather_api_allowed_path_prefixes,
+        )
 
         area_codes_raw = _parse_json_env("AREA_CODES", "[]", list)
         area_codes = [str(code).strip() for code in area_codes_raw if str(code).strip()]

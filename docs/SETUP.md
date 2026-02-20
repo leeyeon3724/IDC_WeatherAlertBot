@@ -34,7 +34,7 @@ cp .env.example .env
 ## 4. 필수 환경변수
 
 - `SERVICE_API_KEY`: 기상청 Open API 서비스 키
-- `SERVICE_HOOK_URL`: Dooray Incoming Webhook URL
+- `SERVICE_HOOK_URL`: Dooray Incoming Webhook URL (`https`만 허용)
 - `AREA_CODES`: 조회 지역코드 목록(JSON 배열)
 - `AREA_CODE_MAPPING`: 지역코드-지역명 매핑(JSON 객체)
 
@@ -52,6 +52,8 @@ AREA_CODE_MAPPING={"L1012000":"판교(성남)","L1070100":"대구"}
 ### 조회/전송
 
 - `WEATHER_ALERT_DATA_API_URL` (기본: `http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd`, 해당 API는 현재 `https` 미지원)
+- `WEATHER_API_ALLOWED_HOSTS` (기본: `["apis.data.go.kr"]`)
+- `WEATHER_API_ALLOWED_PATH_PREFIXES` (기본: `["/1360000/WthrWrnInfoService/"]`)
 - `MAX_RETRIES`, `RETRY_DELAY_SEC`
 - `NOTIFIER_MAX_RETRIES`, `NOTIFIER_RETRY_DELAY_SEC`
 - `REQUEST_CONNECT_TIMEOUT_SEC`, `REQUEST_READ_TIMEOUT_SEC`
