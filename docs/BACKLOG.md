@@ -41,7 +41,7 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 기대효과 | 완료조건(DoD) |
 |---|---|---|---|---|---|---|
-| RB-201 | P0 | 예정 | 정확성/데이터무결성 | JSON->SQLite 마이그레이션 시 `first_seen_at/updated_at/last_sent_at/sent` 원본 보존 | 상태 이관 후 cleanup/운영 지표 왜곡 방지 | 마이그레이션 후 타임스탬프/전송상태 동일성 테스트 추가 |
+| RB-201 | P0 | 완료 | 정확성/데이터무결성 | JSON->SQLite 마이그레이션 시 `first_seen_at/updated_at/last_sent_at/sent` 원본 보존 | 상태 이관 후 cleanup/운영 지표 왜곡 방지 | 마이그레이션 후 타임스탬프/전송상태 동일성 테스트 추가 |
 | RB-202 | P0 | 예정 | 안정성/운영성 | `migrate-state`/`cleanup-state` 실패 경로 예외 처리 + 구조화 실패 이벤트(`state.*.failed`) 추가 | 운영 중 CLI 실패 원인 추적 가능, 종료코드 일관화 | 실패 시 이벤트 로그/종료코드 테스트 추가 |
 | RB-203 | P1 | 예정 | 테스트가능성 | `service_loop.py`, `commands.py` 단위 테스트 보강(분기/예외/retry 시나리오) | 회귀 탐지력 향상, 리팩토링 내성 강화 | 대상 모듈 커버리지 상향(`service_loop >= 85%`, `commands >= 90%`) |
 | RB-204 | P1 | 예정 | 일관성/관측성 | `health_state_repo.py` 에러 로그를 `log_event()` + `docs/EVENTS.md` 이벤트 사전으로 통일 | 장애 분석 속도/일관성 향상 | 비구조 문자열 로그 제거, 이벤트 문서 반영 |

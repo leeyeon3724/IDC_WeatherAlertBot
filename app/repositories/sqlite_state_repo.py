@@ -113,6 +113,52 @@ class SqliteStateRepository:
                 )
         return len(insert_rows)
 
+    def upsert_stored_notifications(self, notifications: Iterable[StoredNotification]) -> int:
+        by_event_id = {notification.event_id: notification for notification in notifications}
+        if not by_event_id:
+            return 0
+
+        event_ids = list(by_event_id.keys())
+        now = utc_now_iso()
+        with self._connect() as conn:
+            existing = self._fetch_existing(conn, event_ids=event_ids)
+            rows: list[tuple[object, ...]] = []
+            for event_id, notification in by_event_id.items():
+                first_seen_at = notification.first_seen_at or now
+                updated_at = notification.updated_at or first_seen_at
+                last_sent_at = notification.last_sent_at
+                rows.append(
+                    (
+                        event_id,
+                        notification.area_code,
+                        notification.message,
+                        notification.report_url,
+                        1 if notification.sent else 0,
+                        first_seen_at,
+                        updated_at,
+                        last_sent_at,
+                    )
+                )
+
+            conn.executemany(
+                """
+                INSERT INTO notifications (
+                  event_id, area_code, message, report_url, sent,
+                  first_seen_at, updated_at, last_sent_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id) DO UPDATE SET
+                  area_code = excluded.area_code,
+                  message = excluded.message,
+                  report_url = excluded.report_url,
+                  sent = excluded.sent,
+                  first_seen_at = excluded.first_seen_at,
+                  updated_at = excluded.updated_at,
+                  last_sent_at = excluded.last_sent_at
+                """,
+                rows,
+            )
+        return sum(1 for event_id in event_ids if event_id not in existing)
+
     def get_unsent(self, area_code: str | None = None) -> list[StoredNotification]:
         where_clause = "WHERE sent = 0"
         params: tuple[object, ...] = ()
