@@ -27,6 +27,8 @@ class DoorayNotifier:
         hook_url: str,
         bot_name: str,
         timeout_sec: int = 5,
+        connect_timeout_sec: int | None = None,
+        read_timeout_sec: int | None = None,
         max_retries: int = 3,
         retry_delay_sec: int = 1,
         session: requests.Session | None = None,
@@ -35,6 +37,8 @@ class DoorayNotifier:
         self.hook_url = hook_url
         self.bot_name = bot_name
         self.timeout_sec = timeout_sec
+        self.connect_timeout_sec = connect_timeout_sec or timeout_sec
+        self.read_timeout_sec = read_timeout_sec or timeout_sec
         self.max_retries = max(1, max_retries)
         self.retry_delay_sec = max(0, retry_delay_sec)
         self.session = session or requests.Session()
@@ -61,7 +65,7 @@ class DoorayNotifier:
                 response = self.session.post(
                     self.hook_url,
                     json=payload,
-                    timeout=self.timeout_sec,
+                    timeout=(self.connect_timeout_sec, self.read_timeout_sec),
                 )
                 response.raise_for_status()
                 self.logger.debug("notifier.sent report_url=%s", bool(report_url))

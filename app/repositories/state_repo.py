@@ -234,13 +234,28 @@ class JsonStateRepository:
             return False
         if bool(record.get("sent", False)):
             return True
+        return self.mark_many_sent([event_id]) > 0
 
+    def mark_many_sent(self, event_ids: Iterable[str]) -> int:
         now = _utc_now_iso()
-        record["sent"] = True
-        record["updated_at"] = now
-        record["last_sent_at"] = now
-        self._persist()
-        return True
+        changed = False
+        marked_count = 0
+
+        for event_id in event_ids:
+            record = self._state.get(event_id)
+            if not record:
+                continue
+            if bool(record.get("sent", False)):
+                continue
+            record["sent"] = True
+            record["updated_at"] = now
+            record["last_sent_at"] = now
+            changed = True
+            marked_count += 1
+
+        if changed:
+            self._persist()
+        return marked_count
 
     def cleanup_stale(
         self,

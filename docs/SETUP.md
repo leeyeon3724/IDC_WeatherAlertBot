@@ -37,10 +37,16 @@ cp .env.example .env
 - `WEATHER_ALERT_DATA_API_URL` (기본값: `http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd`)
 - `SENT_MESSAGES_FILE` (기본값: `./data/sent_messages.json`)
 - `REQUEST_TIMEOUT_SEC` (기본값: `5`)
+- `REQUEST_CONNECT_TIMEOUT_SEC` (기본값: `REQUEST_TIMEOUT_SEC`)
+- `REQUEST_READ_TIMEOUT_SEC` (기본값: `REQUEST_TIMEOUT_SEC`)
 - `MAX_RETRIES` (기본값: `3`)
 - `RETRY_DELAY_SEC` (기본값: `5`)
+- `NOTIFIER_TIMEOUT_SEC` (기본값: `REQUEST_TIMEOUT_SEC`)
+- `NOTIFIER_CONNECT_TIMEOUT_SEC` (기본값: `NOTIFIER_TIMEOUT_SEC`)
+- `NOTIFIER_READ_TIMEOUT_SEC` (기본값: `NOTIFIER_TIMEOUT_SEC`)
 - `NOTIFIER_MAX_RETRIES` (기본값: `3`)
 - `NOTIFIER_RETRY_DELAY_SEC` (기본값: `1`)
+- `AREA_MAX_WORKERS` (기본값: `1`, 지역 API 조회 병렬 수)
 - `LOOKBACK_DAYS` (기본값: `0`, 오늘보다 이전 일자 조회 확장)
 - `CYCLE_INTERVAL_SEC` (기본값: `10`)
 - `AREA_INTERVAL_SEC` (기본값: `5`)
@@ -97,6 +103,7 @@ docker compose logs -f weather-alert-bot
 
 `docker-compose.yml`은 운영 기준으로 `DRY_RUN=false`, `RUN_ONCE=false`를 고정합니다.
 또한 매일 1회 자동 상태 정리(`30일`, 미전송 포함)를 기본값으로 고정합니다.
+또한 `AREA_MAX_WORKERS=2`로 지역 API 조회를 제한 병렬 실행합니다.
 
 컨테이너 실행(예시):
 

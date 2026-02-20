@@ -36,7 +36,9 @@ def _run_service() -> int:
     notifier = DoorayNotifier(
         hook_url=settings.service_hook_url,
         bot_name=settings.bot_name,
-        timeout_sec=settings.request_timeout_sec,
+        timeout_sec=settings.notifier_timeout_sec,
+        connect_timeout_sec=settings.notifier_connect_timeout_sec,
+        read_timeout_sec=settings.notifier_read_timeout_sec,
         max_retries=settings.notifier_max_retries,
         retry_delay_sec=settings.notifier_retry_delay_sec,
         logger=logger.getChild("notifier"),
@@ -54,6 +56,7 @@ def _run_service() -> int:
             "startup.ready",
             state_file=str(settings.sent_messages_file),
             area_count=len(settings.area_codes),
+            area_max_workers=settings.area_max_workers,
             dry_run=settings.dry_run,
             run_once=settings.run_once,
             lookback_days=settings.lookback_days,

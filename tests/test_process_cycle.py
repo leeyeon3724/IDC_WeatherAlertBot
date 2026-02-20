@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -170,3 +171,52 @@ def test_process_cycle_applies_lookback_days(tmp_path) -> None:
     assert stats.start_date == "20260218"
     assert stats.end_date == "20260221"
     assert weather_client.calls[0][1] == "20260218"
+
+
+def test_process_cycle_parallel_fetch_ignores_area_interval(tmp_path) -> None:
+    settings = Settings(
+        service_api_key="test-key",
+        service_hook_url="https://hook.example",
+        weather_alert_data_api_url="https://api.example",
+        sent_messages_file=tmp_path / "state.json",
+        area_codes=["11B00000", "11C00000"],
+        area_code_mapping={"11B00000": "서울", "11C00000": "경기"},
+        request_timeout_sec=1,
+        request_connect_timeout_sec=1,
+        request_read_timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        notifier_timeout_sec=1,
+        notifier_connect_timeout_sec=1,
+        notifier_read_timeout_sec=1,
+        notifier_max_retries=1,
+        notifier_retry_delay_sec=0,
+        area_max_workers=2,
+        lookback_days=0,
+        cycle_interval_sec=0,
+        area_interval_sec=2,
+        cleanup_enabled=False,
+        cleanup_retention_days=30,
+        cleanup_include_unsent=True,
+        bot_name="테스트봇",
+        timezone="Asia/Seoul",
+        log_level="INFO",
+        dry_run=True,
+        run_once=True,
+    )
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": [], "11C00000": []})
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.parallel"),
+    )
+
+    start = time.perf_counter()
+    usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
+    elapsed = time.perf_counter() - start
+    assert elapsed < 1.0

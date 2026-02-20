@@ -14,10 +14,16 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "AREA_CODES",
         "AREA_CODE_MAPPING",
         "REQUEST_TIMEOUT_SEC",
+        "REQUEST_CONNECT_TIMEOUT_SEC",
+        "REQUEST_READ_TIMEOUT_SEC",
         "MAX_RETRIES",
         "RETRY_DELAY_SEC",
+        "NOTIFIER_TIMEOUT_SEC",
+        "NOTIFIER_CONNECT_TIMEOUT_SEC",
+        "NOTIFIER_READ_TIMEOUT_SEC",
         "NOTIFIER_MAX_RETRIES",
         "NOTIFIER_RETRY_DELAY_SEC",
+        "AREA_MAX_WORKERS",
         "LOOKBACK_DAYS",
         "CYCLE_INTERVAL_SEC",
         "AREA_INTERVAL_SEC",
@@ -47,6 +53,12 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.sent_messages_file.as_posix().endswith("data/sent_messages.json")
     assert settings.notifier_max_retries == 3
     assert settings.notifier_retry_delay_sec == 1
+    assert settings.request_connect_timeout_sec == 5
+    assert settings.request_read_timeout_sec == 5
+    assert settings.notifier_timeout_sec == 5
+    assert settings.notifier_connect_timeout_sec == 5
+    assert settings.notifier_read_timeout_sec == 5
+    assert settings.area_max_workers == 1
     assert settings.lookback_days == 0
     assert settings.cleanup_enabled is True
     assert settings.cleanup_retention_days == 30
@@ -144,3 +156,27 @@ def test_settings_env_precedence_over_dotenv(monkeypatch: pytest.MonkeyPatch, tm
     settings = Settings.from_env(env_file=env_file)
     assert settings.service_api_key == "env-key"
     assert settings.service_hook_url == "https://hook.from.env"
+
+
+def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("REQUEST_TIMEOUT_SEC", "7")
+    monkeypatch.setenv("REQUEST_CONNECT_TIMEOUT_SEC", "2")
+    monkeypatch.setenv("REQUEST_READ_TIMEOUT_SEC", "9")
+    monkeypatch.setenv("NOTIFIER_TIMEOUT_SEC", "6")
+    monkeypatch.setenv("NOTIFIER_CONNECT_TIMEOUT_SEC", "3")
+    monkeypatch.setenv("NOTIFIER_READ_TIMEOUT_SEC", "8")
+    monkeypatch.setenv("AREA_MAX_WORKERS", "4")
+
+    settings = Settings.from_env(env_file=None)
+    assert settings.request_timeout_sec == 7
+    assert settings.request_connect_timeout_sec == 2
+    assert settings.request_read_timeout_sec == 9
+    assert settings.notifier_timeout_sec == 6
+    assert settings.notifier_connect_timeout_sec == 3
+    assert settings.notifier_read_timeout_sec == 8
+    assert settings.area_max_workers == 4

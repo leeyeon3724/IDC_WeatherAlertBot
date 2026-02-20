@@ -10,6 +10,11 @@ services:
     environment:
       DRY_RUN: "false"
       RUN_ONCE: "false"
+      REQUEST_CONNECT_TIMEOUT_SEC: "5"
+      REQUEST_READ_TIMEOUT_SEC: "5"
+      NOTIFIER_CONNECT_TIMEOUT_SEC: "5"
+      NOTIFIER_READ_TIMEOUT_SEC: "5"
+      AREA_MAX_WORKERS: "2"
       LOOKBACK_DAYS: "0"
       CLEANUP_ENABLED: "true"
       CLEANUP_RETENTION_DAYS: "30"

@@ -20,8 +20,18 @@
 - Webhook 전송 실패 시 `NOTIFIER_MAX_RETRIES`만큼 재시도
 - Webhook 최종 실패는 `notification.final_failure` 로그로 기록
 - 조회 시작일은 `LOOKBACK_DAYS`로 과거 확장 가능
+- 지역 API 조회는 `AREA_MAX_WORKERS` 범위에서 제한 병렬 처리
 - 지역 간 지연: `AREA_INTERVAL_SEC`
 - 사이클 간 지연: `CYCLE_INTERVAL_SEC`
+
+## 2-2. 타임아웃 정책
+
+- API 요청 timeout:
+  - `REQUEST_CONNECT_TIMEOUT_SEC`
+  - `REQUEST_READ_TIMEOUT_SEC`
+- Webhook 요청 timeout:
+  - `NOTIFIER_CONNECT_TIMEOUT_SEC`
+  - `NOTIFIER_READ_TIMEOUT_SEC`
 
 ## 2-1. 상태 정리 정책
 
@@ -41,6 +51,7 @@
 - 상태값:
   - `sent=false`: 미전송
   - `sent=true`: 전송 완료
+- 전송 완료 상태는 사이클 내 배치 저장으로 반영합니다.
 
 ## 4. 전송 메시지 구성
 

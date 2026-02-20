@@ -60,7 +60,10 @@ class WeatherAlertClient:
                 response = self.session.get(
                     self.settings.weather_alert_data_api_url,
                     params=params,
-                    timeout=self.settings.request_timeout_sec,
+                    timeout=(
+                        self.settings.request_connect_timeout_sec,
+                        self.settings.request_read_timeout_sec,
+                    ),
                 )
                 if response.status_code != 200:
                     raise WeatherApiError(f"HTTP {response.status_code}")
@@ -134,4 +137,3 @@ class WeatherAlertClient:
         if dt.minute == 0:
             return f"{dt.year}년 {dt.month}월 {dt.day}일 {am_pm} {hour}시"
         return f"{dt.year}년 {dt.month}월 {dt.day}일 {am_pm} {hour}시 {dt.minute}분"
-

@@ -141,10 +141,16 @@ class Settings:
     area_codes: list[str]
     area_code_mapping: dict[str, str]
     request_timeout_sec: int = 5
+    request_connect_timeout_sec: int = 5
+    request_read_timeout_sec: int = 5
     max_retries: int = 3
     retry_delay_sec: int = 5
+    notifier_timeout_sec: int = 5
+    notifier_connect_timeout_sec: int = 5
+    notifier_read_timeout_sec: int = 5
     notifier_max_retries: int = 3
     notifier_retry_delay_sec: int = 1
+    area_max_workers: int = 1
     lookback_days: int = 0
     cycle_interval_sec: int = 10
     area_interval_sec: int = 5
@@ -187,6 +193,33 @@ class Settings:
             or DEFAULT_SENT_MESSAGES_FILE
         )
 
+        request_timeout_sec = _parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1)
+        request_connect_timeout_sec = _parse_int_env(
+            "REQUEST_CONNECT_TIMEOUT_SEC",
+            request_timeout_sec,
+            minimum=1,
+        )
+        request_read_timeout_sec = _parse_int_env(
+            "REQUEST_READ_TIMEOUT_SEC",
+            request_timeout_sec,
+            minimum=1,
+        )
+        notifier_timeout_sec = _parse_int_env(
+            "NOTIFIER_TIMEOUT_SEC",
+            request_timeout_sec,
+            minimum=1,
+        )
+        notifier_connect_timeout_sec = _parse_int_env(
+            "NOTIFIER_CONNECT_TIMEOUT_SEC",
+            notifier_timeout_sec,
+            minimum=1,
+        )
+        notifier_read_timeout_sec = _parse_int_env(
+            "NOTIFIER_READ_TIMEOUT_SEC",
+            notifier_timeout_sec,
+            minimum=1,
+        )
+
         return cls(
             service_api_key=service_api_key,
             service_hook_url=service_hook_url,
@@ -194,11 +227,17 @@ class Settings:
             sent_messages_file=sent_messages_file,
             area_codes=area_codes,
             area_code_mapping=area_code_mapping,
-            request_timeout_sec=_parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1),
+            request_timeout_sec=request_timeout_sec,
+            request_connect_timeout_sec=request_connect_timeout_sec,
+            request_read_timeout_sec=request_read_timeout_sec,
             max_retries=_parse_int_env("MAX_RETRIES", 3, minimum=1),
             retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
+            notifier_timeout_sec=notifier_timeout_sec,
+            notifier_connect_timeout_sec=notifier_connect_timeout_sec,
+            notifier_read_timeout_sec=notifier_read_timeout_sec,
             notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
             notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
+            area_max_workers=_parse_int_env("AREA_MAX_WORKERS", 1, minimum=1),
             lookback_days=_parse_int_env("LOOKBACK_DAYS", 0, minimum=0),
             cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
             area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),

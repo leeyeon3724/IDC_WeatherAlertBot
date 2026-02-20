@@ -159,3 +159,29 @@ def test_state_repo_cleanup_stale_include_unsent(tmp_path) -> None:
     assert removed == 1
     after = JsonStateRepository(state_file)
     assert after.total_count == 0
+
+
+def test_state_repo_mark_many_sent(tmp_path) -> None:
+    state_file = tmp_path / "state.json"
+    repo = JsonStateRepository(state_file)
+    repo.upsert_notifications(
+        [
+            AlertNotification(
+                event_id="event:1",
+                area_code="11B00000",
+                message="msg1",
+                report_url=None,
+            ),
+            AlertNotification(
+                event_id="event:2",
+                area_code="11B00000",
+                message="msg2",
+                report_url=None,
+            ),
+        ]
+    )
+
+    marked = repo.mark_many_sent(["event:1", "event:2", "event:3"])
+    assert marked == 2
+    reloaded = JsonStateRepository(state_file)
+    assert reloaded.pending_count == 0
