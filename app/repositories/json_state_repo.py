@@ -268,4 +268,4 @@ class JsonStateRepository:
 
     @property
     def pending_count(self) -> int:
-        return len(self.get_unsent())
+        return sum(1 for record in self._state.values() if not bool(record.get("sent", False)))
