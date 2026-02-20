@@ -110,6 +110,14 @@ python3 main.py cleanup-state --days 30
 python3 main.py cleanup-state --days 30 --include-unsent
 ```
 
+JSON -> SQLite 상태 마이그레이션:
+
+```bash
+python3 main.py migrate-state \
+  --json-state-file ./data/sent_messages.json \
+  --sqlite-state-file ./data/sent_messages.db
+```
+
 ## 7. Docker 실행
 
 빌드:

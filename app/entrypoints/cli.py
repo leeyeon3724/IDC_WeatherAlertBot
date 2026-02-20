@@ -79,6 +79,16 @@ def _cleanup_state(state_file: str, days: int, include_unsent: bool, dry_run: bo
     )
 
 
+def _migrate_state(json_state_file: str, sqlite_state_file: str) -> int:
+    return commands.migrate_state(
+        json_state_file=json_state_file,
+        sqlite_state_file=sqlite_state_file,
+        log_level=os.getenv("LOG_LEVEL", "INFO"),
+        timezone=os.getenv("TIMEZONE", "Asia/Seoul"),
+        setup_logging_fn=setup_logging,
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     return commands.build_parser()
 
@@ -96,6 +106,11 @@ def main(argv: list[str] | None = None) -> int:
             days=args.days,
             include_unsent=args.include_unsent,
             dry_run=args.dry_run,
+        )
+    if command == "migrate-state":
+        return _migrate_state(
+            json_state_file=args.json_state_file,
+            sqlite_state_file=args.sqlite_state_file,
         )
 
     return _run_service()

@@ -9,6 +9,7 @@ from app.entrypoints.runtime_builder import ServiceRuntime
 from app.logging_utils import log_event, setup_logging
 from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
+from app.repositories.state_migration import migrate_json_to_sqlite
 from app.settings import Settings, SettingsError
 
 
@@ -61,6 +62,34 @@ def cleanup_state(
     return 0
 
 
+def migrate_state(
+    json_state_file: str,
+    sqlite_state_file: str,
+    *,
+    log_level: str = "INFO",
+    timezone: str = "Asia/Seoul",
+    setup_logging_fn: Callable[..., logging.Logger] = setup_logging,
+) -> int:
+    logger = setup_logging_fn(log_level=log_level, timezone=timezone)
+    result = migrate_json_to_sqlite(
+        json_state_file=Path(json_state_file),
+        sqlite_state_file=Path(sqlite_state_file),
+        logger=logger.getChild("migration"),
+    )
+    logger.info(
+        log_event(
+            events.STATE_MIGRATION_COMPLETE,
+            json_state_file=json_state_file,
+            sqlite_state_file=sqlite_state_file,
+            total_records=result.total_records,
+            inserted_records=result.inserted_records,
+            sent_records=result.sent_records,
+            marked_sent_records=result.marked_sent_records,
+        )
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Weather alert bot")
     subparsers = parser.add_subparsers(dest="command")
@@ -91,5 +120,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Preview removal count without persisting",
+    )
+
+    migration_parser = subparsers.add_parser(
+        "migrate-state",
+        help="Migrate JSON state file records into SQLite state DB",
+    )
+    migration_parser.add_argument(
+        "--json-state-file",
+        default="./data/sent_messages.json",
+        help="Path to source JSON state file",
+    )
+    migration_parser.add_argument(
+        "--sqlite-state-file",
+        default="./data/sent_messages.db",
+        help="Path to target SQLite DB file",
     )
     return parser

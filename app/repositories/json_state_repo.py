@@ -196,6 +196,23 @@ class JsonStateRepository:
             )
         return sorted(rows, key=lambda row: row.first_seen_at)
 
+    def all_notifications(self) -> list[StoredNotification]:
+        rows: list[StoredNotification] = []
+        for event_id, record in self._state.items():
+            rows.append(
+                StoredNotification(
+                    event_id=event_id,
+                    area_code=str(record.get("area_code", "UNKNOWN")),
+                    message=str(record.get("message", "")),
+                    report_url=record.get("report_url"),
+                    sent=bool(record.get("sent", False)),
+                    first_seen_at=str(record.get("first_seen_at", "")),
+                    updated_at=str(record.get("updated_at", "")),
+                    last_sent_at=record.get("last_sent_at"),
+                )
+            )
+        return sorted(rows, key=lambda row: row.first_seen_at)
+
     def mark_sent(self, event_id: str) -> bool:
         record = self._state.get(event_id)
         if not record:

@@ -35,6 +35,7 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 - `state_models` 파싱 경계값 테스트 추가 (`tests/test_state_models.py`)
 - Weather API 페이지네이션 경계 테스트 추가 (`tests/test_weather_api.py`)
 - 엔트리포인트 테스트를 helper/smoke 구조로 분리 (`tests/main_test_harness.py`, `tests/test_main_smoke.py`)
+- JSON->SQLite 마이그레이션 회귀 테스트 추가 (`tests/test_state_migration.py`)
 
 ## 5. 다음 개선 우선순위
 
