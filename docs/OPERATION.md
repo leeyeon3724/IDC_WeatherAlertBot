@@ -45,27 +45,11 @@
 
 ## 4. 로그 관측 포인트
 
-### 정상 동작 확인
-
-- `startup.ready`
-- `cycle.start`
-- `area.fetch.summary`
-- `notification.sent`
-- `cycle.complete`
-
-### 주의/경고
-
-- `notification.url_attachment_blocked`
-- `area.failed`
-- `notification.final_failure`
-
-### 장애 관련
-
-- `health.evaluate`
-- `health.notification.sent`
-- `health.notification.failed`
-- `health.backfill.start`
-- `health.backfill.complete`
+- 이벤트 이름/필드 표준은 `docs/EVENTS.md`를 단일 기준으로 사용
+- 대시보드/알람은 아래 핵심 이벤트를 우선 추적
+- 정상 동작: `startup.ready`, `cycle.complete`, `notification.sent`
+- 경고/실패: `area.failed`, `notification.final_failure`, `health.notification.failed`
+- 상태 관리: `state.cleanup.auto`, `state.cleanup.complete`, `state.migration.complete`
 
 ## 5. 운영 체크리스트
 

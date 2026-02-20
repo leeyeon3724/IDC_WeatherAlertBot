@@ -12,8 +12,8 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 ## 2. 현재 스냅샷
 
-- 테스트 수: `67`
-- 전체 커버리지: `85.82%`
+- 테스트 수: `85`
+- 전체 커버리지: `87.48%`
 - 최소 커버리지 기준: `80%`
 
 ## 3. 테스트 적절성 평가
@@ -34,7 +34,7 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 - `state_models` 파싱 경계값 테스트 추가 (`tests/test_state_models.py`)
 - Weather API 페이지네이션 경계 테스트 추가 (`tests/test_weather_api.py`)
-- 저장소 팩토리 선택 경로 테스트 보강 (`tests/test_main.py`)
+- 엔트리포인트 테스트를 helper/smoke 구조로 분리 (`tests/main_test_harness.py`, `tests/test_main_smoke.py`)
 
 ## 5. 다음 개선 우선순위
 
