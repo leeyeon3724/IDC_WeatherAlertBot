@@ -51,58 +51,67 @@ class SqliteStateRepository:
             )
 
     def upsert_notifications(self, notifications: Iterable[AlertNotification]) -> int:
+        by_event_id = {notification.event_id: notification for notification in notifications}
+        if not by_event_id:
+            return 0
+
+        event_ids = list(by_event_id.keys())
         now = utc_now_iso()
-        new_count = 0
         with self._connect() as conn:
-            for notification in notifications:
-                existing = conn.execute(
-                    """
-                    SELECT area_code, message, report_url
-                    FROM notifications
-                    WHERE event_id = ?
-                    """,
-                    (notification.event_id,),
-                ).fetchone()
-                if existing is None:
-                    conn.execute(
-                        """
-                        INSERT INTO notifications (
-                          event_id, area_code, message, report_url, sent,
-                          first_seen_at, updated_at, last_sent_at
-                        ) VALUES (?, ?, ?, ?, 0, ?, ?, NULL)
-                        """,
+            existing = self._fetch_existing(conn, event_ids=event_ids)
+            insert_rows: list[tuple[str, str, str, str | None, str, str]] = []
+            update_rows: list[tuple[str, str, str | None, str, str]] = []
+
+            for event_id, notification in by_event_id.items():
+                existing_row = existing.get(event_id)
+                if existing_row is None:
+                    insert_rows.append(
                         (
-                            notification.event_id,
+                            event_id,
                             notification.area_code,
                             notification.message,
                             notification.report_url,
                             now,
                             now,
-                        ),
+                        )
                     )
-                    new_count += 1
                     continue
 
                 if (
-                    existing["area_code"] != notification.area_code
-                    or existing["message"] != notification.message
-                    or existing["report_url"] != notification.report_url
+                    existing_row["area_code"] != notification.area_code
+                    or existing_row["message"] != notification.message
+                    or existing_row["report_url"] != notification.report_url
                 ):
-                    conn.execute(
-                        """
-                        UPDATE notifications
-                        SET area_code = ?, message = ?, report_url = ?, updated_at = ?
-                        WHERE event_id = ?
-                        """,
+                    update_rows.append(
                         (
                             notification.area_code,
                             notification.message,
                             notification.report_url,
                             now,
-                            notification.event_id,
-                        ),
+                            event_id,
+                        )
                     )
-        return new_count
+
+            if insert_rows:
+                conn.executemany(
+                    """
+                    INSERT INTO notifications (
+                      event_id, area_code, message, report_url, sent,
+                      first_seen_at, updated_at, last_sent_at
+                    ) VALUES (?, ?, ?, ?, 0, ?, ?, NULL)
+                    """,
+                    insert_rows,
+                )
+            if update_rows:
+                conn.executemany(
+                    """
+                    UPDATE notifications
+                    SET area_code = ?, message = ?, report_url = ?, updated_at = ?
+                    WHERE event_id = ?
+                    """,
+                    update_rows,
+                )
+        return len(insert_rows)
 
     def get_unsent(self, area_code: str | None = None) -> list[StoredNotification]:
         where_clause = "WHERE sent = 0"
@@ -151,25 +160,48 @@ class SqliteStateRepository:
         return exists is not None
 
     def mark_many_sent(self, event_ids: Iterable[str]) -> int:
-        ids = [event_id for event_id in event_ids if event_id]
+        ids = list(dict.fromkeys(event_id for event_id in event_ids if event_id))
         if not ids:
             return 0
 
-        placeholders = ",".join("?" for _ in ids)
         now = utc_now_iso()
         with self._connect() as conn:
-            cursor = conn.execute(
-                f"""
+            before_changes = conn.total_changes
+            conn.executemany(
+                """
                 UPDATE notifications
                 SET sent = 1,
                     updated_at = ?,
                     last_sent_at = ?
                 WHERE sent = 0
-                  AND event_id IN ({placeholders})
+                  AND event_id = ?
                 """,
-                (now, now, *ids),
+                ((now, now, event_id) for event_id in ids),
             )
-            return int(cursor.rowcount)
+            return conn.total_changes - before_changes
+
+    @staticmethod
+    def _fetch_existing(
+        conn: sqlite3.Connection,
+        *,
+        event_ids: list[str],
+        chunk_size: int = 500,
+    ) -> dict[str, sqlite3.Row]:
+        existing: dict[str, sqlite3.Row] = {}
+        for start in range(0, len(event_ids), chunk_size):
+            chunk = event_ids[start : start + chunk_size]
+            placeholders = ",".join("?" for _ in chunk)
+            rows = conn.execute(
+                f"""
+                SELECT event_id, area_code, message, report_url
+                FROM notifications
+                WHERE event_id IN ({placeholders})
+                """,
+                tuple(chunk),
+            ).fetchall()
+            for row in rows:
+                existing[str(row["event_id"])] = row
+        return existing
 
     def cleanup_stale(
         self,

@@ -84,3 +84,13 @@ def test_sqlite_state_repo_configures_busy_timeout_and_wal(tmp_path) -> None:
 
     assert int(busy_timeout) == SQLITE_BUSY_TIMEOUT_MS
     assert str(journal_mode).lower() == SQLITE_JOURNAL_MODE.lower()
+
+
+def test_sqlite_state_repo_mark_many_sent_handles_duplicates(tmp_path) -> None:
+    repo = SqliteStateRepository(tmp_path / "state.db")
+    repo.upsert_notifications([_notification("event:1"), _notification("event:2")])
+
+    marked = repo.mark_many_sent(["event:1", "event:1", "event:2"])
+
+    assert marked == 2
+    assert repo.pending_count == 0

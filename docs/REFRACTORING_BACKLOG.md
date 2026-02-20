@@ -13,7 +13,7 @@
 | RB-105 | P1 | 완료 | 가독성/응집도 | `settings.py`의 코드 매핑 상수 분리(`domain/code_maps.py`) | 설정 책임 명확화 | weather/settings 테스트 무회귀 |
 | RB-106 | P1 | 완료 | 일관성 | notifier/weather_api 재시도 로그를 `log_event()`로 통일 | 관측 일관성 향상 | 비구조 로그 제거 |
 | RB-107 | P2 | 완료 | 성능/안정성 | SQLite에 `PRAGMA busy_timeout`, WAL 모드 적용 | 락 충돌 내성/쓰기 안정성 향상 | 동시 접근 테스트 추가 |
-| RB-108 | P2 | 대기 | 성능 | SQLite upsert/mark 경로 batch 최적화(`executemany`) | 대량 이벤트 처리 성능 개선 | 벤치마크/회귀 테스트 통과 |
+| RB-108 | P2 | 완료 | 성능 | SQLite upsert/mark 경로 batch 최적화(`executemany`) | 대량 이벤트 처리 성능 개선 | 벤치마크/회귀 테스트 통과 |
 | RB-109 | P2 | 대기 | 성능 | JSON 저장소 `pending_count` 비용 최적화 | 반복 조회 부하 축소 | 기존 기능/테스트 무회귀 |
 | RB-110 | P2 | 대기 | 테스트가능성 | `tests/test_main.py` monkeypatch 의존도 축소(헬퍼/통합 스모크 분리) | 테스트 유지보수성 향상 | 테스트 구조 단순화 및 커버리지 유지 |
 | RB-111 | P3 | 대기 | 운영성 | 이벤트 사전 문서(`docs/EVENTS.md`) 신설 | 온콜 대응/대시보드 표준화 | 핵심 이벤트 필드 정의 완료 |
