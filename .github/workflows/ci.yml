@@ -19,18 +19,20 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+            echo "Checking commit messages in range: $range"
+            mapfile -t messages < <(git log --format=%s "$range")
           else
             before="${{ github.event.before }}"
             head="${{ github.sha }}"
             if [[ "$before" == "0000000000000000000000000000000000000000" ]]; then
-              range="$head"
+              echo "Initial push detected. Checking head commit only: $head"
+              mapfile -t messages < <(git log --format=%s -n 1 "$head")
             else
               range="${before}..${head}"
+              echo "Checking commit messages in range: $range"
+              mapfile -t messages < <(git log --format=%s "$range")
             fi
           fi
-
-          echo "Checking commit messages in range: $range"
-          mapfile -t messages < <(git log --format=%s $range)
 
           if [[ ${#messages[@]} -eq 0 ]]; then
             echo "No commit messages to validate."
@@ -72,4 +74,6 @@ jobs:
       - name: Type check
         run: mypy
       - name: Run tests with coverage gate
-        run: pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+        run: pytest -q --cov=app --cov=main --cov-report=term-missing --cov-config=.coveragerc
+      - name: Docker build smoke test
+        run: docker build -t weather-alert-bot-ci .

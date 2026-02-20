@@ -21,10 +21,12 @@
 - Webhook 최종 실패는 `notification.final_failure` 로그로 기록
 - 조회 시작일은 `LOOKBACK_DAYS`로 과거 확장 가능
 - 지역 API 조회는 `AREA_MAX_WORKERS` 범위에서 제한 병렬 처리
-- 지역 간 지연: `AREA_INTERVAL_SEC`
+- 지역 간 지연: `AREA_INTERVAL_SEC` (순차 모드에서만 적용)
+- 병렬 모드(`AREA_MAX_WORKERS > 1`)에서는 지역 간 지연을 무시하고
+  `cycle.area_interval_ignored` 로그를 남김
 - 사이클 간 지연: `CYCLE_INTERVAL_SEC`
 
-## 2-2. 타임아웃 정책
+## 3. 타임아웃 정책
 
 - API 요청 timeout:
   - `REQUEST_CONNECT_TIMEOUT_SEC`
@@ -33,7 +35,7 @@
   - `NOTIFIER_CONNECT_TIMEOUT_SEC`
   - `NOTIFIER_READ_TIMEOUT_SEC`
 
-## 2-1. 상태 정리 정책
+## 4. 상태 정리 정책
 
 - 서비스 프로세스가 하루 1회 자동 정리를 수행합니다.
 - 기본 정책:
@@ -44,7 +46,7 @@
   - `CLEANUP_RETENTION_DAYS`
   - `CLEANUP_INCLUDE_UNSENT`
 
-## 3. 중복 전송 방지 방식
+## 5. 중복 전송 방지 방식
 
 - 이벤트 식별자(`stn_id`,`tm_fc`,`tm_seq`,`command`,`cancel`)를 우선 키로 사용합니다.
 - 식별자가 없는 경우 이벤트 필드 기반 해시 키를 사용합니다.
@@ -53,13 +55,13 @@
   - `sent=true`: 전송 완료
 - 전송 완료 상태는 사이클 내 배치 저장으로 반영합니다.
 
-## 4. 전송 메시지 구성
+## 6. 전송 메시지 구성
 
 - 특보 본문: 특보 종류/강도/지역/발표-해제 상태 기반으로 생성
 - 첨부 링크: `stn_id`, `tm_fc`, `tm_seq`가 있으면 기상청 통보문 URL 첨부
 - URL 파라미터가 불완전/유효하지 않으면 첨부를 차단하고 `notification.url_attachment_blocked` 로그를 남깁니다.
 
-## 5. 운영 체크리스트
+## 7. 운영 체크리스트
 
 1. `SERVICE_API_KEY`, `SERVICE_HOOK_URL`가 유효한지 확인
 2. `AREA_CODES`, `AREA_CODE_MAPPING` JSON 형식이 올바른지 확인
@@ -71,7 +73,7 @@
    - `notification.final_failure`
    - `area.failed`
 
-## 6. 장애 대응 포인트
+## 8. 장애 대응 포인트
 
 - API 응답 코드 오류: `WeatherApiError` 발생 후 해당 지역 실패 로그
 - 네트워크 오류: 백오프 재시도 후 실패 시 `area.failed` 로그

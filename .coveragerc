@@ -1,8 +1,9 @@
 [run]
 branch = True
-source = app
+source =
+    app
+    main
 
 [report]
 fail_under = 80
 show_missing = True
-

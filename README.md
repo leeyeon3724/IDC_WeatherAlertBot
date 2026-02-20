@@ -43,8 +43,16 @@ python main.py
 ## 테스트
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r requirements.txt -r requirements-dev.txt
 pytest -q
+```
+
+CI와 동일한 로컬 품질 게이트 실행:
+
+```bash
+python -m ruff check .
+python -m mypy
+pytest -q --cov=app --cov=main --cov-report=term-missing --cov-config=.coveragerc
 ```
 
 ## 1회 Dry-Run
@@ -70,9 +78,11 @@ python main.py cleanup-state --days 30
 
 ```bash
 make install
+make install-dev
 make setup-hooks
 make dry-run
 make test
+make quality
 ```
 
 ## Docker Compose
