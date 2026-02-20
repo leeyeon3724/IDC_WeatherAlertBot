@@ -19,10 +19,10 @@ env/
 
 # Runtime data
 data/sent_messages*.json
+data/sent_messages*.broken-*
 *.log
 
 # OS / editor
 .DS_Store
 .idea/
 .vscode/
-

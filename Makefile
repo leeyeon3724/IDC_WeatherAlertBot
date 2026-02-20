@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test clean setup-hooks compose-up compose-down compose-logs
+.PHONY: install install-dev run dry-run test clean setup-hooks compose-up compose-down compose-logs cleanup-state
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -29,6 +29,9 @@ compose-down:
 
 compose-logs:
 	docker compose logs -f weather-alert-bot
+
+cleanup-state:
+	$(PYTHON) main.py cleanup-state --days $${DAYS:-30}
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +

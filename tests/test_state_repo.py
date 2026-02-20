@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from app.domain.models import AlertNotification
 from app.repositories.state_repo import JsonStateRepository
@@ -43,7 +44,10 @@ def test_state_repo_migrates_legacy_format(tmp_path) -> None:
     assert repo.pending_count == 1
 
     migrated_data = json.loads(state_file.read_text(encoding="utf-8"))
-    assert all(key.startswith("legacy:") for key in migrated_data.keys())
+    assert migrated_data.get("version") == 2
+    events = migrated_data.get("events", {})
+    assert isinstance(events, dict)
+    assert all(key.startswith("legacy:") for key in events.keys())
 
 
 def test_state_repo_recovers_from_corrupted_json(tmp_path) -> None:
@@ -55,6 +59,75 @@ def test_state_repo_recovers_from_corrupted_json(tmp_path) -> None:
     assert repo.pending_count == 0
 
     recovered_data = json.loads(state_file.read_text(encoding="utf-8"))
-    assert recovered_data == {}
+    assert recovered_data.get("version") == 2
+    assert recovered_data.get("events") == {}
     backups = list(tmp_path.glob("state.json.broken-*"))
     assert len(backups) == 1
+
+
+def test_state_repo_cleanup_stale_sent_only(tmp_path) -> None:
+    state_file = tmp_path / "state.json"
+    repo = JsonStateRepository(state_file)
+
+    old_sent = AlertNotification(
+        event_id="event:old:1",
+        area_code="11B00000",
+        message="old sent",
+        report_url=None,
+    )
+    old_unsent = AlertNotification(
+        event_id="event:old:2",
+        area_code="11B00000",
+        message="old unsent",
+        report_url=None,
+    )
+    repo.upsert_notifications([old_sent, old_unsent])
+    repo.mark_sent(old_sent.event_id)
+
+    data = json.loads(state_file.read_text(encoding="utf-8"))
+    old_time = "2020-01-01T00:00:00Z"
+    data["events"][old_sent.event_id]["updated_at"] = old_time
+    data["events"][old_sent.event_id]["last_sent_at"] = old_time
+    data["events"][old_unsent.event_id]["updated_at"] = old_time
+    data["events"][old_unsent.event_id]["first_seen_at"] = old_time
+    state_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    repo = JsonStateRepository(state_file)
+    removed = repo.cleanup_stale(
+        days=30,
+        include_unsent=False,
+        now=datetime(2026, 2, 21, tzinfo=timezone.utc),
+    )
+    assert removed == 1
+    reloaded = JsonStateRepository(state_file)
+    assert reloaded.total_count == 1
+    assert reloaded.pending_count == 1
+
+
+def test_state_repo_cleanup_stale_dry_run(tmp_path) -> None:
+    state_file = tmp_path / "state.json"
+    repo = JsonStateRepository(state_file)
+    repo.upsert_notifications(
+        [
+            AlertNotification(
+                event_id="event:old:3",
+                area_code="11B00000",
+                message="old sent",
+                report_url=None,
+            )
+        ]
+    )
+    repo.mark_sent("event:old:3")
+    data = json.loads(state_file.read_text(encoding="utf-8"))
+    data["events"]["event:old:3"]["updated_at"] = "2020-01-01T00:00:00Z"
+    state_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    repo = JsonStateRepository(state_file)
+    removed = repo.cleanup_stale(
+        days=30,
+        dry_run=True,
+        now=datetime(2026, 2, 21, tzinfo=timezone.utc),
+    )
+    assert removed == 1
+    unchanged = JsonStateRepository(state_file)
+    assert unchanged.total_count == 1

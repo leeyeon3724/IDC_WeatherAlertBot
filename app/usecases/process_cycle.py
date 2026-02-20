@@ -100,10 +100,11 @@ class ProcessCycleUseCase:
                         stats.send_failures += 1
                         self.logger.error(
                             log_event(
-                                "notification.failed",
+                                "notification.final_failure",
                                 event_id=row.event_id,
                                 area_code=row.area_code,
-                                error=str(exc),
+                                attempts=exc.attempts,
+                                error=str(exc.last_error or exc),
                             )
                         )
                 stats.areas_processed += 1

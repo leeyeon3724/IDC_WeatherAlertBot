@@ -16,6 +16,8 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "REQUEST_TIMEOUT_SEC",
         "MAX_RETRIES",
         "RETRY_DELAY_SEC",
+        "NOTIFIER_MAX_RETRIES",
+        "NOTIFIER_RETRY_DELAY_SEC",
         "CYCLE_INTERVAL_SEC",
         "AREA_INTERVAL_SEC",
         "BOT_NAME",
@@ -39,6 +41,8 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.area_codes == ["11B00000"]
     assert settings.area_code_mapping["11B00000"] == "서울"
     assert settings.sent_messages_file.as_posix().endswith("data/sent_messages.json")
+    assert settings.notifier_max_retries == 3
+    assert settings.notifier_retry_delay_sec == 1
 
 
 def test_settings_bool_flags(monkeypatch: pytest.MonkeyPatch) -> None:

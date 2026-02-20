@@ -55,6 +55,12 @@ export RUN_ONCE=true
 python main.py
 ```
 
+## 상태 정리
+
+```bash
+python main.py cleanup-state --days 30
+```
+
 ## Makefile
 
 ```bash

@@ -41,7 +41,7 @@
 4. 로그에서 아래 키워드 모니터링
    - `notification.sent`
    - `notification.dry_run`
-   - `notification.failed`
+   - `notification.final_failure`
    - `area.failed`
 
 ## 6. 장애 대응 포인트

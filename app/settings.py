@@ -143,6 +143,8 @@ class Settings:
     request_timeout_sec: int = 5
     max_retries: int = 3
     retry_delay_sec: int = 5
+    notifier_max_retries: int = 3
+    notifier_retry_delay_sec: int = 1
     cycle_interval_sec: int = 10
     area_interval_sec: int = 5
     bot_name: str = "기상특보알림"
@@ -191,6 +193,8 @@ class Settings:
             request_timeout_sec=_parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1),
             max_retries=_parse_int_env("MAX_RETRIES", 3, minimum=1),
             retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
+            notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
+            notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
             cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
             area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
             bot_name=os.getenv("BOT_NAME", "기상특보알림").strip() or "기상특보알림",

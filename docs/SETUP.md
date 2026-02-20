@@ -39,6 +39,8 @@ cp .env.example .env
 - `REQUEST_TIMEOUT_SEC` (기본값: `5`)
 - `MAX_RETRIES` (기본값: `3`)
 - `RETRY_DELAY_SEC` (기본값: `5`)
+- `NOTIFIER_MAX_RETRIES` (기본값: `3`)
+- `NOTIFIER_RETRY_DELAY_SEC` (기본값: `1`)
 - `CYCLE_INTERVAL_SEC` (기본값: `10`)
 - `AREA_INTERVAL_SEC` (기본값: `5`)
 - `BOT_NAME` (기본값: `기상특보알림`)
@@ -115,6 +117,19 @@ docker run --rm \
 - 기본 저장 경로는 `./data/sent_messages.json`입니다.
 - 이 파일은 이벤트 ID 단위로 전송 상태를 저장해 중복 전송을 막습니다.
 - 컨테이너 재시작 후 상태를 유지하려면 볼륨 마운트로 파일을 영속화하세요.
+- 상태 파일 JSON이 손상되면 `.broken-<UTC_TIMESTAMP>`로 백업 후 빈 상태로 복구합니다.
+
+상태 파일 정리(기본 30일):
+
+```bash
+python main.py cleanup-state --days 30
+```
+
+미전송 이벤트도 포함 정리:
+
+```bash
+python main.py cleanup-state --days 30 --include-unsent
+```
 
 ## 8. 커밋 메시지 규칙 강제
 

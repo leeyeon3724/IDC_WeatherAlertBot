@@ -3,16 +3,35 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha1
 from pathlib import Path
 from typing import Any, Iterable
 
 from app.domain.models import AlertNotification
 
+STATE_SCHEMA_VERSION = 2
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_iso_to_utc(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True)
@@ -89,6 +108,14 @@ class JsonStateRepository:
         now = _utc_now_iso()
         normalized: dict[str, dict[str, Any]] = {}
 
+        if "events" in raw:
+            events_raw = raw.get("events")
+            if not isinstance(events_raw, dict):
+                return {}, True
+            if raw.get("version") != STATE_SCHEMA_VERSION:
+                migrated = True
+            raw = events_raw
+
         is_legacy = True
         for value in raw.values():
             if not isinstance(value, (int, bool)):
@@ -133,8 +160,12 @@ class JsonStateRepository:
     def _persist(self) -> None:
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path = self.file_path.with_suffix(self.file_path.suffix + ".tmp")
+        payload = {
+            "version": STATE_SCHEMA_VERSION,
+            "events": self._state,
+        }
         with temp_path.open("w", encoding="utf-8") as file:
-            json.dump(self._state, file, ensure_ascii=False, indent=2, sort_keys=True)
+            json.dump(payload, file, ensure_ascii=False, indent=2, sort_keys=True)
         temp_path.replace(self.file_path)
 
     def upsert_notifications(self, notifications: Iterable[AlertNotification]) -> int:
@@ -210,6 +241,43 @@ class JsonStateRepository:
         record["last_sent_at"] = now
         self._persist()
         return True
+
+    def cleanup_stale(
+        self,
+        *,
+        days: int = 30,
+        include_unsent: bool = False,
+        dry_run: bool = False,
+        now: datetime | None = None,
+    ) -> int:
+        if days < 0:
+            raise ValueError("days must be >= 0")
+
+        current = now or datetime.now(timezone.utc)
+        threshold = current - timedelta(days=days)
+        removable: list[str] = []
+
+        for event_id, record in self._state.items():
+            is_sent = bool(record.get("sent", False))
+            if not include_unsent and not is_sent:
+                continue
+
+            reference_time = (
+                _parse_iso_to_utc(record.get("updated_at"))
+                or _parse_iso_to_utc(record.get("last_sent_at"))
+                or _parse_iso_to_utc(record.get("first_seen_at"))
+            )
+            if reference_time is None:
+                continue
+            if reference_time <= threshold:
+                removable.append(event_id)
+
+        if removable and not dry_run:
+            for event_id in removable:
+                self._state.pop(event_id, None)
+            self._persist()
+
+        return len(removable)
 
     @property
     def total_count(self) -> int:
