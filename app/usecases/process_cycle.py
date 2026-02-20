@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from app.domain.message_builder import build_notification
 from app.domain.models import AlertEvent
-from app.logging_utils import log_event
+from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
 from app.repositories.state_repository import StateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
@@ -175,7 +175,7 @@ class ProcessCycleUseCase:
                 events.AREA_FAILED,
                 area_code=area_code,
                 error_code=error_code,
-                error=str(result.error),
+                error=redact_sensitive_text(result.error),
             )
         )
 
@@ -225,7 +225,7 @@ class ProcessCycleUseCase:
                         event_id=row.event_id,
                         area_code=row.area_code,
                         attempts=exc.attempts,
-                        error=str(exc.last_error or exc),
+                        error=redact_sensitive_text(exc.last_error or exc),
                     )
                 )
 

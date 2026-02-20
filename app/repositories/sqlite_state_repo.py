@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from app.domain.models import AlertNotification
-from app.repositories.state_models import StoredNotification, parse_iso_to_utc, utc_now_iso
+from app.repositories.state_models import StoredNotification, utc_now_iso
 
 SQLITE_BUSY_TIMEOUT_MS = 30_000
 SQLITE_JOURNAL_MODE = "WAL"
@@ -262,43 +262,23 @@ class SqliteStateRepository:
 
         current = now or datetime.now(UTC)
         threshold = current - timedelta(days=days)
+        threshold_iso = threshold.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        sent_filter = "" if include_unsent else "sent = 1 AND "
+        where_clause = f"WHERE {sent_filter}COALESCE(updated_at, last_sent_at, first_seen_at) <= ?"
 
-        if include_unsent:
-            select_query = """
-                SELECT event_id, updated_at, last_sent_at, first_seen_at
-                FROM notifications
-            """
-            params: tuple[object, ...] = ()
-        else:
-            select_query = """
-                SELECT event_id, updated_at, last_sent_at, first_seen_at
-                FROM notifications
-                WHERE sent = 1
-            """
-            params = ()
-
-        removable: list[str] = []
         with self._connect() as conn:
-            rows = conn.execute(select_query, params).fetchall()
-            for row in rows:
-                reference_time = (
-                    parse_iso_to_utc(row["updated_at"])
-                    or parse_iso_to_utc(row["last_sent_at"])
-                    or parse_iso_to_utc(row["first_seen_at"])
-                )
-                if reference_time is None:
-                    continue
-                if reference_time <= threshold:
-                    removable.append(str(row["event_id"]))
+            if dry_run:
+                row = conn.execute(
+                    f"SELECT COUNT(*) AS count FROM notifications {where_clause}",
+                    (threshold_iso,),
+                ).fetchone()
+                return int(row["count"]) if row is not None else 0
 
-            if removable and not dry_run:
-                placeholders = ",".join("?" for _ in removable)
-                conn.execute(
-                    f"DELETE FROM notifications WHERE event_id IN ({placeholders})",
-                    tuple(removable),
-                )
-
-        return len(removable)
+            cursor = conn.execute(
+                f"DELETE FROM notifications {where_clause}",
+                (threshold_iso,),
+            )
+            return int(cursor.rowcount)
 
     @property
     def total_count(self) -> int:

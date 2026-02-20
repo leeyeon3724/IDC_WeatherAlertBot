@@ -94,3 +94,33 @@ def test_sqlite_state_repo_mark_many_sent_handles_duplicates(tmp_path) -> None:
 
     assert marked == 2
     assert repo.pending_count == 0
+
+
+def test_sqlite_state_repo_cleanup_stale_bulk_records(tmp_path) -> None:
+    repo = SqliteStateRepository(tmp_path / "state.db")
+    notifications = [_notification(f"event:{idx}") for idx in range(200)]
+    repo.upsert_notifications(notifications)
+
+    sent_ids = [f"event:{idx}" for idx in range(150)]
+    repo.mark_many_sent(sent_ids)
+
+    old_sent_ids = [f"event:{idx}" for idx in range(120)]
+    old_time = "2020-01-01T00:00:00Z"
+    with repo._connect() as conn:
+        conn.executemany(
+            """
+            UPDATE notifications
+            SET updated_at = ?, last_sent_at = ?
+            WHERE event_id = ?
+            """,
+            ((old_time, old_time, event_id) for event_id in old_sent_ids),
+        )
+
+    removed = repo.cleanup_stale(
+        days=30,
+        include_unsent=False,
+        now=datetime(2026, 2, 21, tzinfo=UTC),
+    )
+
+    assert removed == 120
+    assert repo.total_count == 80

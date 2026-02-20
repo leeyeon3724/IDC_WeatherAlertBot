@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from app.domain.health import ApiHealthDecision
 from app.domain.health_message_builder import build_health_notification_message
 from app.entrypoints.runtime_builder import ServiceRuntime
-from app.logging_utils import log_event
+from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
 from app.services.notifier import NotificationError
 from app.usecases.process_cycle import CycleStats
@@ -106,7 +106,7 @@ def maybe_send_health_notification(
                 events.HEALTH_NOTIFICATION_FAILED,
                 health_event=health_decision.event,
                 attempts=exc.attempts,
-                error=str(exc.last_error or exc),
+                error=redact_sensitive_text(exc.last_error or exc),
             )
         )
 
@@ -150,7 +150,7 @@ def maybe_run_recovery_backfill(
             log_event(
                 events.HEALTH_BACKFILL_FAILED,
                 lookback_days=backfill_days,
-                error=str(exc),
+                error=redact_sensitive_text(exc),
             )
         )
 
@@ -217,7 +217,7 @@ def run_loop(
         return 0
     except Exception as exc:  # pragma: no cover
         runtime.logger.critical(
-            log_event(events.SHUTDOWN_UNEXPECTED_ERROR, error=str(exc)),
+            log_event(events.SHUTDOWN_UNEXPECTED_ERROR, error=redact_sensitive_text(exc)),
             exc_info=True,
         )
         return 1

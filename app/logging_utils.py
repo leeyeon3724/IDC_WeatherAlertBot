@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
@@ -66,3 +67,15 @@ def setup_logging(log_level: str = "INFO", timezone: str = "Asia/Seoul") -> logg
 def log_event(event: str, **fields: object) -> str:
     payload = {"event": event, **fields}
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def redact_sensitive_text(value: object) -> str:
+    text = str(value)
+    patterns = (
+        (r"(?i)(servicekey=)([^&\s]+)", r"\1***"),
+        (r"(?i)(api[_-]?key=)([^&\s]+)", r"\1***"),
+        (r"(?i)(service_api_key\s*[=:]\s*)([^\s,}]+)", r"\1***"),
+    )
+    for pattern, replacement in patterns:
+        text = re.sub(pattern, replacement, text)
+    return text

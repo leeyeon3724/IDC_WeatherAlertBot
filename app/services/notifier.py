@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from app.logging_utils import log_event
+from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
 
 
@@ -82,7 +82,7 @@ class DoorayNotifier:
                         events.NOTIFICATION_RETRY,
                         attempt=attempt,
                         max_retries=self.max_retries,
-                        error=str(exc),
+                        error=redact_sensitive_text(exc),
                         backoff_sec=backoff_seconds,
                     )
                 )

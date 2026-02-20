@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from app.entrypoints.runtime_builder import ServiceRuntime
-from app.logging_utils import log_event, setup_logging
+from app.logging_utils import log_event, redact_sensitive_text, setup_logging
 from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
 from app.repositories.state_migration import JsonToSqliteMigrationResult, migrate_json_to_sqlite
@@ -25,7 +25,9 @@ def run_service(
     try:
         settings = settings_from_env()
     except SettingsError as exc:
-        bootstrap_logger.critical(log_event(events.STARTUP_INVALID_CONFIG, error=str(exc)))
+        bootstrap_logger.critical(
+            log_event(events.STARTUP_INVALID_CONFIG, error=redact_sensitive_text(exc))
+        )
         return 1
 
     runtime = build_runtime_fn(settings)
@@ -56,7 +58,7 @@ def cleanup_state(
                 days=days,
                 include_unsent=include_unsent,
                 dry_run=dry_run,
-                error=str(exc),
+                error=redact_sensitive_text(exc),
             )
         )
         return 1
@@ -98,7 +100,7 @@ def migrate_state(
                 events.STATE_MIGRATION_FAILED,
                 json_state_file=json_state_file,
                 sqlite_state_file=sqlite_state_file,
-                error=str(exc),
+                error=redact_sensitive_text(exc),
             )
         )
         return 1

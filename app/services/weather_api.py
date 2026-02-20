@@ -16,7 +16,7 @@ from app.domain.code_maps import (
     WARN_VAR_MAPPING,
 )
 from app.domain.models import AlertEvent
-from app.logging_utils import log_event
+from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
 from app.settings import Settings
 
@@ -191,7 +191,7 @@ class WeatherAlertClient:
                         max_retries=self.settings.max_retries,
                         area_code=area_code,
                         error_code=last_error.code,
-                        error=str(last_error),
+                        error=redact_sensitive_text(last_error),
                         backoff_sec=backoff_seconds,
                     )
                 )

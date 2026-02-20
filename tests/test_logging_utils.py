@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 
-from app.logging_utils import TimezoneFormatter, log_event, setup_logging
+from app.logging_utils import TimezoneFormatter, log_event, redact_sensitive_text, setup_logging
 
 
 def _reset_logger() -> logging.Logger:
@@ -60,3 +60,19 @@ def test_log_event_serializes_fields() -> None:
     assert decoded["event"] == "cycle.start"
     assert decoded["area_code"] == "L1070100"
     assert decoded["area_name"] == "대구"
+
+
+def test_redact_sensitive_text_masks_key_patterns() -> None:
+    text = (
+        "GET /weather?serviceKey=ABCD1234&apiKey=XYZ987 "
+        "SERVICE_API_KEY=PLAIN_VALUE"
+    )
+
+    redacted = redact_sensitive_text(text)
+
+    assert "ABCD1234" not in redacted
+    assert "XYZ987" not in redacted
+    assert "PLAIN_VALUE" not in redacted
+    assert "serviceKey=***" in redacted
+    assert "apiKey=***" in redacted
+    assert "SERVICE_API_KEY=***" in redacted
