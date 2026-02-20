@@ -33,6 +33,16 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "BOT_NAME",
         "TIMEZONE",
         "LOG_LEVEL",
+        "HEALTH_ALERT_ENABLED",
+        "HEALTH_OUTAGE_WINDOW_SEC",
+        "HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD",
+        "HEALTH_OUTAGE_MIN_FAILED_CYCLES",
+        "HEALTH_OUTAGE_CONSECUTIVE_FAILURES",
+        "HEALTH_RECOVERY_WINDOW_SEC",
+        "HEALTH_RECOVERY_MAX_FAIL_RATIO",
+        "HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES",
+        "HEALTH_HEARTBEAT_INTERVAL_SEC",
+        "HEALTH_STATE_FILE",
     ]:
         monkeypatch.delenv(key, raising=False)
 
@@ -63,6 +73,16 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.cleanup_enabled is True
     assert settings.cleanup_retention_days == 30
     assert settings.cleanup_include_unsent is True
+    assert settings.health_alert_enabled is True
+    assert settings.health_outage_window_sec == 600
+    assert settings.health_outage_fail_ratio_threshold == 0.7
+    assert settings.health_outage_min_failed_cycles == 6
+    assert settings.health_outage_consecutive_failures == 4
+    assert settings.health_recovery_window_sec == 900
+    assert settings.health_recovery_max_fail_ratio == 0.1
+    assert settings.health_recovery_consecutive_successes == 8
+    assert settings.health_heartbeat_interval_sec == 3600
+    assert settings.health_state_file.as_posix().endswith("data/api_health_state.json")
 
 
 def test_settings_bool_flags(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -180,3 +200,15 @@ def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.notifier_connect_timeout_sec == 3
     assert settings.notifier_read_timeout_sec == 8
     assert settings.area_max_workers == 4
+
+
+def test_settings_invalid_health_ratio(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD", "1.5")
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)

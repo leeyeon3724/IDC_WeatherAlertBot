@@ -117,6 +117,27 @@ def _parse_int_env(name: str, default: int, minimum: int = 0) -> int:
     return value
 
 
+def _parse_float_env(
+    name: str,
+    default: float,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise SettingsError(f"{name} must be a float. Received: {raw}") from exc
+    if minimum is not None and value < minimum:
+        raise SettingsError(f"{name} must be >= {minimum}. Received: {value}")
+    if maximum is not None and value > maximum:
+        raise SettingsError(f"{name} must be <= {maximum}. Received: {value}")
+    return value
+
+
 def _parse_bool_env(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -162,6 +183,16 @@ class Settings:
     log_level: str = "INFO"
     dry_run: bool = False
     run_once: bool = False
+    health_alert_enabled: bool = True
+    health_outage_window_sec: int = 600
+    health_outage_fail_ratio_threshold: float = 0.7
+    health_outage_min_failed_cycles: int = 6
+    health_outage_consecutive_failures: int = 4
+    health_recovery_window_sec: int = 900
+    health_recovery_max_fail_ratio: float = 0.1
+    health_recovery_consecutive_successes: int = 8
+    health_heartbeat_interval_sec: int = 3600
+    health_state_file: Path = Path("./data/api_health_state.json")
 
     @classmethod
     def from_env(cls, env_file: str | Path | None = ".env") -> Settings:
@@ -249,4 +280,43 @@ class Settings:
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
             dry_run=_parse_bool_env("DRY_RUN", default=False),
             run_once=_parse_bool_env("RUN_ONCE", default=False),
+            health_alert_enabled=_parse_bool_env("HEALTH_ALERT_ENABLED", default=True),
+            health_outage_window_sec=_parse_int_env("HEALTH_OUTAGE_WINDOW_SEC", 600, minimum=1),
+            health_outage_fail_ratio_threshold=_parse_float_env(
+                "HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD",
+                0.7,
+                minimum=0.0,
+                maximum=1.0,
+            ),
+            health_outage_min_failed_cycles=_parse_int_env(
+                "HEALTH_OUTAGE_MIN_FAILED_CYCLES",
+                6,
+                minimum=1,
+            ),
+            health_outage_consecutive_failures=_parse_int_env(
+                "HEALTH_OUTAGE_CONSECUTIVE_FAILURES",
+                4,
+                minimum=1,
+            ),
+            health_recovery_window_sec=_parse_int_env("HEALTH_RECOVERY_WINDOW_SEC", 900, minimum=1),
+            health_recovery_max_fail_ratio=_parse_float_env(
+                "HEALTH_RECOVERY_MAX_FAIL_RATIO",
+                0.1,
+                minimum=0.0,
+                maximum=1.0,
+            ),
+            health_recovery_consecutive_successes=_parse_int_env(
+                "HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES",
+                8,
+                minimum=1,
+            ),
+            health_heartbeat_interval_sec=_parse_int_env(
+                "HEALTH_HEARTBEAT_INTERVAL_SEC",
+                3600,
+                minimum=1,
+            ),
+            health_state_file=Path(
+                os.getenv("HEALTH_STATE_FILE", "./data/api_health_state.json").strip()
+                or "./data/api_health_state.json"
+            ),
         )

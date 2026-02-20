@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from app.domain.health import ApiHealthDecision
 from app.entrypoints import cli as entrypoint
 from app.settings import Settings, SettingsError
 from app.usecases.process_cycle import CycleStats
@@ -37,6 +38,16 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
         "cleanup_enabled": True,
         "cleanup_retention_days": 30,
         "cleanup_include_unsent": True,
+        "health_alert_enabled": True,
+        "health_outage_window_sec": 600,
+        "health_outage_fail_ratio_threshold": 0.7,
+        "health_outage_min_failed_cycles": 6,
+        "health_outage_consecutive_failures": 4,
+        "health_recovery_window_sec": 900,
+        "health_recovery_max_fail_ratio": 0.1,
+        "health_recovery_consecutive_successes": 8,
+        "health_heartbeat_interval_sec": 3600,
+        "health_state_file": tmp_path / "health_state.json",
         "bot_name": "테스트봇",
         "timezone": "Asia/Seoul",
         "log_level": "INFO",
@@ -91,8 +102,15 @@ def test_run_service_auto_cleanup_once_on_run_once(
             self.logger = logger
 
     class FakeNotifier:
+        last_instance: FakeNotifier | None = None
+
         def __init__(self, **kwargs: object) -> None:
             self.kwargs = kwargs
+            self.messages: list[str] = []
+            FakeNotifier.last_instance = self
+
+        def send(self, message: str, report_url: str | None = None) -> None:
+            self.messages.append(message)
 
     class FakeProcessor:
         last_instance: FakeProcessor | None = None
@@ -104,12 +122,30 @@ def test_run_service_auto_cleanup_once_on_run_once(
 
         def run_once(self) -> CycleStats:
             self.calls += 1
-            return CycleStats(start_date="20260221", end_date="20260222")
+            return CycleStats(
+                start_date="20260221",
+                end_date="20260222",
+                area_count=1,
+            )
+
+    class FakeHealthStateRepo:
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+
+    class FakeHealthMonitor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def observe_cycle(self, **kwargs: object) -> ApiHealthDecision:
+            return ApiHealthDecision(incident_open=False)
 
     logger = logging.getLogger("test.main.service")
     monkeypatch.setattr(entrypoint, "setup_logging", lambda *args, **kwargs: logger)
     monkeypatch.setattr(entrypoint, "datetime", FakeDateTime)
     monkeypatch.setattr(entrypoint, "JsonStateRepository", FakeStateRepo)
+    monkeypatch.setattr(entrypoint, "JsonHealthStateRepository", FakeHealthStateRepo)
+    monkeypatch.setattr(entrypoint, "ApiHealthMonitor", FakeHealthMonitor)
     monkeypatch.setattr(entrypoint, "WeatherAlertClient", FakeWeatherClient)
     monkeypatch.setattr(entrypoint, "DoorayNotifier", FakeNotifier)
     monkeypatch.setattr(entrypoint, "ProcessCycleUseCase", FakeProcessor)
@@ -182,3 +218,104 @@ def test_default_command_routes_to_run_service(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(entrypoint, "_run_service", lambda: 7)
     assert entrypoint.main([]) == 7
     assert entrypoint.main(["run"]) == 7
+
+
+def test_run_service_sends_health_alert_message(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings(
+        tmp_path,
+        health_outage_min_failed_cycles=1,
+        health_outage_consecutive_failures=1,
+        run_once=True,
+    )
+
+    class FakeDateTime:
+        @classmethod
+        def now(cls, tz: ZoneInfo | None = None) -> datetime:
+            return datetime(2026, 2, 21, 10, 0, tzinfo=tz)
+
+    class FakeStateRepo:
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+            self.total_count = 0
+            self.pending_count = 0
+
+        def cleanup_stale(self, days: int, include_unsent: bool, dry_run: bool = False) -> int:
+            return 0
+
+    class FakeHealthStateRepo:
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+
+    class FakeWeatherClient:
+        def __init__(self, settings: Settings, logger: logging.Logger | None = None) -> None:
+            self.settings = settings
+            self.logger = logger
+
+    class FakeNotifier:
+        last_instance: FakeNotifier | None = None
+
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+            self.messages: list[str] = []
+            FakeNotifier.last_instance = self
+
+        def send(self, message: str, report_url: str | None = None) -> None:
+            self.messages.append(message)
+
+    class FakeProcessor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def run_once(self) -> CycleStats:
+            return CycleStats(
+                start_date="20260221",
+                end_date="20260222",
+                area_count=1,
+                area_failures=1,
+                api_error_counts={"timeout": 1},
+                last_api_error="timeout",
+            )
+
+    class FakeHealthMonitor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def observe_cycle(self, **kwargs: object) -> ApiHealthDecision:
+            return ApiHealthDecision(
+                incident_open=True,
+                event="outage_detected",
+                should_notify=True,
+                outage_window_cycles=1,
+                outage_window_failed_cycles=1,
+                outage_window_fail_ratio=1.0,
+                consecutive_severe_failures=1,
+                representative_error="timeout",
+            )
+
+    logger = logging.getLogger("test.main.health")
+    monkeypatch.setattr(entrypoint, "setup_logging", lambda *args, **kwargs: logger)
+    monkeypatch.setattr(entrypoint, "datetime", FakeDateTime)
+    monkeypatch.setattr(entrypoint, "JsonStateRepository", FakeStateRepo)
+    monkeypatch.setattr(entrypoint, "JsonHealthStateRepository", FakeHealthStateRepo)
+    monkeypatch.setattr(entrypoint, "ApiHealthMonitor", FakeHealthMonitor)
+    monkeypatch.setattr(entrypoint, "WeatherAlertClient", FakeWeatherClient)
+    monkeypatch.setattr(entrypoint, "DoorayNotifier", FakeNotifier)
+    monkeypatch.setattr(entrypoint, "ProcessCycleUseCase", FakeProcessor)
+    monkeypatch.setattr(
+        entrypoint.Settings,
+        "from_env",
+        classmethod(lambda cls, env_file=".env": settings),
+    )
+
+    result = entrypoint._run_service()
+    notifier = FakeNotifier.last_instance
+
+    assert result == 0
+    assert notifier is not None
+    assert len(notifier.messages) == 1
+    assert notifier.messages[0].startswith("[API 장애 감지]")

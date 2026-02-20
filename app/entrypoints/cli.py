@@ -4,15 +4,19 @@ import argparse
 import os
 import time
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from app.domain.health import HealthPolicy
+from app.domain.health_message_builder import build_health_notification_message
 from app.logging_utils import log_event, setup_logging
+from app.repositories.health_state_repo import JsonHealthStateRepository
 from app.repositories.state_repo import JsonStateRepository
-from app.services.notifier import DoorayNotifier
+from app.services.notifier import DoorayNotifier, NotificationError
 from app.services.weather_api import WeatherAlertClient
 from app.settings import Settings, SettingsError
+from app.usecases.health_monitor import ApiHealthMonitor
 from app.usecases.process_cycle import ProcessCycleUseCase
 
 
@@ -50,16 +54,36 @@ def _run_service() -> int:
         state_repo=state_repo,
         logger=logger.getChild("processor"),
     )
+    health_state_repo = JsonHealthStateRepository(
+        file_path=settings.health_state_file,
+        logger=logger.getChild("health_state"),
+    )
+    health_monitor = ApiHealthMonitor(
+        state_repo=health_state_repo,
+        policy=HealthPolicy(
+            outage_window_sec=settings.health_outage_window_sec,
+            outage_fail_ratio_threshold=settings.health_outage_fail_ratio_threshold,
+            outage_min_failed_cycles=settings.health_outage_min_failed_cycles,
+            outage_consecutive_failures=settings.health_outage_consecutive_failures,
+            recovery_window_sec=settings.health_recovery_window_sec,
+            recovery_max_fail_ratio=settings.health_recovery_max_fail_ratio,
+            recovery_consecutive_successes=settings.health_recovery_consecutive_successes,
+            heartbeat_interval_sec=settings.health_heartbeat_interval_sec,
+        ),
+        logger=logger.getChild("health_monitor"),
+    )
 
     logger.info(
         log_event(
             "startup.ready",
             state_file=str(settings.sent_messages_file),
+            health_state_file=str(settings.health_state_file),
             area_count=len(settings.area_codes),
             area_max_workers=settings.area_max_workers,
             dry_run=settings.dry_run,
             run_once=settings.run_once,
             lookback_days=settings.lookback_days,
+            health_alert_enabled=settings.health_alert_enabled,
             cleanup_enabled=settings.cleanup_enabled,
             cleanup_retention_days=settings.cleanup_retention_days,
             cleanup_include_unsent=settings.cleanup_include_unsent,
@@ -90,6 +114,50 @@ def _run_service() -> int:
                     last_cleanup_date = current_date
 
             stats = processor.run_once()
+            health_decision = health_monitor.observe_cycle(
+                now=datetime.now(UTC),
+                total_areas=stats.area_count,
+                failed_areas=stats.area_failures,
+                error_counts=stats.api_error_counts,
+                representative_error=stats.last_api_error,
+            )
+            logger.info(
+                log_event(
+                    "health.evaluate",
+                    incident_open=health_decision.incident_open,
+                    health_event=health_decision.event,
+                    should_notify=health_decision.should_notify,
+                    outage_window_fail_ratio=round(health_decision.outage_window_fail_ratio, 4),
+                    recovery_window_fail_ratio=round(health_decision.recovery_window_fail_ratio, 4),
+                    consecutive_severe_failures=health_decision.consecutive_severe_failures,
+                    consecutive_stable_successes=health_decision.consecutive_stable_successes,
+                )
+            )
+            if (
+                settings.health_alert_enabled
+                and health_decision.should_notify
+                and not settings.dry_run
+                and health_decision.event
+            ):
+                health_message = build_health_notification_message(health_decision)
+                if health_message:
+                    try:
+                        notifier.send(health_message)
+                        logger.info(
+                            log_event(
+                                "health.notification.sent",
+                                health_event=health_decision.event,
+                            )
+                        )
+                    except NotificationError as exc:
+                        logger.error(
+                            log_event(
+                                "health.notification.failed",
+                                health_event=health_decision.event,
+                                attempts=exc.attempts,
+                                error=str(exc.last_error or exc),
+                            )
+                        )
             logger.info(log_event("cycle.complete", **asdict(stats)))
             if settings.run_once:
                 logger.info(log_event("shutdown.run_once_complete"))
