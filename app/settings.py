@@ -12,58 +12,6 @@ DEFAULT_SENT_MESSAGES_FILE = "./data/sent_messages.json"
 DEFAULT_WEATHER_API_ALLOWED_HOSTS = ["apis.data.go.kr"]
 DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES = ["/1360000/WthrWrnInfoService/"]
 
-WARN_VAR_MAPPING = {
-    "1": "강풍",
-    "2": "호우",
-    "3": "한파",
-    "4": "건조",
-    "5": "폭풍해일",
-    "6": "풍랑",
-    "7": "태풍",
-    "8": "대설",
-    "9": "황사",
-    "12": "폭염",
-}
-
-WARN_STRESS_MAPPING = {
-    "0": "주의보",
-    "1": "경보",
-}
-
-COMMAND_MAPPING = {
-    "1": "발표",
-    "2": "해제",
-    "3": "연장",
-    "6": "정정",
-    "7": "변경발표",
-    "8": "변경해제",
-}
-
-CANCEL_MAPPING = {
-    "0": "정상",
-    "1": "취소된 특보",
-}
-
-RESPONSE_CODE_MAPPING = {
-    "00": "정상 (NORMAL_CODE)",
-    "01": "어플리케이션 에러 (APPLICATION_ERROR)",
-    "02": "데이터베이스 에러 (DB_ERROR)",
-    "03": "데이터없음 에러 (NODATA_ERROR)",
-    "04": "HTTP 에러 (HTTP_ERROR)",
-    "05": "서비스 연결실패 에러 (SERVICETIMEOUT_ERROR)",
-    "10": "잘못된 요청 파라메터 에러 (INVALID_REQUEST_PARAMETER_ERROR)",
-    "11": "필수 요청 파라메터가 없음 (NO_MANDATORY_REQUEST_PARAMETERS_ERROR)",
-    "12": "해당 오픈API서비스가 없거나 폐기됨 (NO_OPENAPI_SERVICE_ERROR)",
-    "20": "서비스 접근거부 (SERVICE_ACCESS_DENIED_ERROR)",
-    "21": "일시적으로 사용할 수 없는 서비스 키 (TEMPORARILY_DISABLE_THE_SERVICEKEY_ERROR)",
-    "22": "서비스 요청제한횟수 초과 (LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR)",
-    "30": "등록되지 않은 서비스키 (SERVICE_KEY_IS_NOT_REGISTERED_ERROR)",
-    "31": "기한만료된 서비스키 (DEADLINE_HAS_EXPIRED_ERROR)",
-    "32": "등록되지 않은 IP (UNREGISTERED_IP_ERROR)",
-    "33": "서명되지 않은 호출 (UNSIGNED_CALL_ERROR)",
-    "99": "기타에러 (UNKNOWN_ERROR)",
-}
-
 
 class SettingsError(ValueError):
     """Raised when required environment settings are missing or malformed."""
