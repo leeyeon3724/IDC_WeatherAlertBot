@@ -19,6 +19,7 @@
 - 재시도 간격은 `RETRY_DELAY_SEC` 기반 백오프 적용
 - Webhook 전송 실패 시 `NOTIFIER_MAX_RETRIES`만큼 재시도
 - Webhook 최종 실패는 `notification.final_failure` 로그로 기록
+- 조회 시작일은 `LOOKBACK_DAYS`로 과거 확장 가능
 - 지역 간 지연: `AREA_INTERVAL_SEC`
 - 사이클 간 지연: `CYCLE_INTERVAL_SEC`
 
@@ -45,6 +46,7 @@
 
 - 특보 본문: 특보 종류/강도/지역/발표-해제 상태 기반으로 생성
 - 첨부 링크: `stn_id`, `tm_fc`, `tm_seq`가 있으면 기상청 통보문 URL 첨부
+- URL 파라미터가 불완전/유효하지 않으면 첨부를 차단하고 `notification.url_attachment_blocked` 로그를 남깁니다.
 
 ## 5. 운영 체크리스트
 
@@ -54,6 +56,7 @@
 4. 로그에서 아래 키워드 모니터링
    - `notification.sent`
    - `notification.dry_run`
+   - `notification.url_attachment_blocked`
    - `notification.final_failure`
    - `area.failed`
 

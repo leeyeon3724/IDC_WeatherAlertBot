@@ -145,6 +145,7 @@ class Settings:
     retry_delay_sec: int = 5
     notifier_max_retries: int = 3
     notifier_retry_delay_sec: int = 1
+    lookback_days: int = 0
     cycle_interval_sec: int = 10
     area_interval_sec: int = 5
     cleanup_enabled: bool = True
@@ -198,6 +199,7 @@ class Settings:
             retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
             notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
             notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
+            lookback_days=_parse_int_env("LOOKBACK_DAYS", 0, minimum=0),
             cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
             area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
             cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),

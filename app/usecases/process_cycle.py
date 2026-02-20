@@ -45,7 +45,8 @@ class ProcessCycleUseCase:
     def run_once(self, now: datetime | None = None) -> CycleStats:
         tz = ZoneInfo(self.settings.timezone)
         current = now or datetime.now(tz)
-        start_date = current.strftime("%Y%m%d")
+        start_base = current - timedelta(days=self.settings.lookback_days)
+        start_date = start_base.strftime("%Y%m%d")
         end_date = (current + timedelta(days=1)).strftime("%Y%m%d")
         stats = CycleStats(start_date=start_date, end_date=end_date)
 
@@ -73,6 +74,16 @@ class ProcessCycleUseCase:
                 )
                 stats.alerts_fetched += len(alerts)
                 notifications = [build_notification(alert) for alert in alerts]
+                for notification in notifications:
+                    if notification.url_validation_error:
+                        self.logger.warning(
+                            log_event(
+                                "notification.url_attachment_blocked",
+                                event_id=notification.event_id,
+                                area_code=notification.area_code,
+                                reason=notification.url_validation_error,
+                            )
+                        )
                 stats.newly_tracked += self.state_repo.upsert_notifications(notifications)
 
                 for row in self.state_repo.get_unsent(area_code=area_code):

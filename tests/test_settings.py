@@ -18,6 +18,7 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "RETRY_DELAY_SEC",
         "NOTIFIER_MAX_RETRIES",
         "NOTIFIER_RETRY_DELAY_SEC",
+        "LOOKBACK_DAYS",
         "CYCLE_INTERVAL_SEC",
         "AREA_INTERVAL_SEC",
         "CLEANUP_ENABLED",
@@ -46,6 +47,7 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.sent_messages_file.as_posix().endswith("data/sent_messages.json")
     assert settings.notifier_max_retries == 3
     assert settings.notifier_retry_delay_sec == 1
+    assert settings.lookback_days == 0
     assert settings.cleanup_enabled is True
     assert settings.cleanup_retention_days == 30
     assert settings.cleanup_include_unsent is True

@@ -40,8 +40,26 @@ class AlertEvent:
         digest = sha1(fallback_source.encode("utf-8")).hexdigest()[:20]
         return f"fallback:{digest}"
 
+    def validate_report_params(self) -> tuple[bool, str | None]:
+        fields = [self.stn_id, self.tm_fc, self.tm_seq]
+        has_any = any(fields)
+        has_all = all(fields)
+
+        if has_any and not has_all:
+            return False, "incomplete_report_params"
+        if not has_all:
+            return True, None
+        if len(self.tm_fc) != 12 or not self.tm_fc.isdigit():
+            return False, "invalid_tm_fc"
+        if not self.tm_seq.isdigit():
+            return False, "invalid_tm_seq"
+        return True, None
+
     @property
     def report_url(self) -> str | None:
+        is_valid, _ = self.validate_report_params()
+        if not is_valid:
+            return None
         if not (self.stn_id and self.tm_fc and self.tm_seq):
             return None
         date_str = ""
@@ -65,3 +83,4 @@ class AlertNotification:
     area_code: str
     message: str
     report_url: str | None
+    url_validation_error: str | None = None

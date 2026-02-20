@@ -14,8 +14,10 @@ from app.usecases.process_cycle import ProcessCycleUseCase
 class FakeWeatherClient:
     def __init__(self, alerts_by_area):
         self.alerts_by_area = alerts_by_area
+        self.calls: list[tuple[str, str, str, str]] = []
 
     def fetch_alerts(self, area_code: str, start_date: str, end_date: str, area_name: str):
+        self.calls.append((area_code, start_date, end_date, area_name))
         return self.alerts_by_area.get(area_code, [])
 
 
@@ -146,3 +148,25 @@ def test_process_cycle_dry_run_does_not_send_or_mark(tmp_path) -> None:
     assert stats.sent_count == 0
     assert stats.pending_total == 1
     assert notifier.sent_messages == []
+
+
+def test_process_cycle_applies_lookback_days(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    settings = Settings(**{**settings.__dict__, "lookback_days": 2})
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": []})
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.lookback"),
+    )
+
+    now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    stats = usecase.run_once(now=now)
+    assert stats.start_date == "20260218"
+    assert stats.end_date == "20260221"
+    assert weather_client.calls[0][1] == "20260218"

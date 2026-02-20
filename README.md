@@ -63,6 +63,8 @@ python main.py cleanup-state --days 30
 
 서비스 실행 중에는 기본값으로 하루 1회 자동 정리(`30일`, sent/unsent 모두 삭제)가 수행됩니다.
 
+`LOOKBACK_DAYS`를 설정하면 오늘 이전 특보까지 조회 범위를 확장할 수 있습니다.
+
 ## Makefile
 
 ```bash

@@ -41,6 +41,7 @@ cp .env.example .env
 - `RETRY_DELAY_SEC` (기본값: `5`)
 - `NOTIFIER_MAX_RETRIES` (기본값: `3`)
 - `NOTIFIER_RETRY_DELAY_SEC` (기본값: `1`)
+- `LOOKBACK_DAYS` (기본값: `0`, 오늘보다 이전 일자 조회 확장)
 - `CYCLE_INTERVAL_SEC` (기본값: `10`)
 - `AREA_INTERVAL_SEC` (기본값: `5`)
 - `CLEANUP_ENABLED` (기본값: `true`, 서비스 내 자동 정리 활성화)
@@ -122,6 +123,7 @@ docker run --rm \
 - 이 파일은 이벤트 ID 단위로 전송 상태를 저장해 중복 전송을 막습니다.
 - 컨테이너 재시작 후 상태를 유지하려면 볼륨 마운트로 파일을 영속화하세요.
 - 상태 파일 JSON이 손상되면 `.broken-<UTC_TIMESTAMP>`로 백업 후 빈 상태로 복구합니다.
+- 통보문 URL 파라미터(`stn_id/tm_fc/tm_seq`)가 불완전하면 URL 첨부를 차단합니다.
 
 상태 파일 정리(기본 30일):
 

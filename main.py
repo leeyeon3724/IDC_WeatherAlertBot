@@ -56,6 +56,7 @@ def _run_service() -> int:
             area_count=len(settings.area_codes),
             dry_run=settings.dry_run,
             run_once=settings.run_once,
+            lookback_days=settings.lookback_days,
             cleanup_enabled=settings.cleanup_enabled,
             cleanup_retention_days=settings.cleanup_retention_days,
             cleanup_include_unsent=settings.cleanup_include_unsent,
