@@ -51,7 +51,7 @@ AREA_CODE_MAPPING={"L1012000":"판교(성남)","L1070100":"대구"}
 
 ### 조회/전송
 
-- `WEATHER_ALERT_DATA_API_URL` (기본: `http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd`)
+- `WEATHER_ALERT_DATA_API_URL` (기본: `http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd`, 해당 API는 현재 `https` 미지원)
 - `MAX_RETRIES`, `RETRY_DELAY_SEC`
 - `NOTIFIER_MAX_RETRIES`, `NOTIFIER_RETRY_DELAY_SEC`
 - `REQUEST_CONNECT_TIMEOUT_SEC`, `REQUEST_READ_TIMEOUT_SEC`

@@ -6,8 +6,8 @@
 
 | ID | Priority | 영역 | 작업 | 기대효과 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-101 | P0 | 보안/정확성 | `WEATHER_ALERT_DATA_API_URL` 기본값을 `https`로 변경 | MITM/평문전송 리스크 축소 | 기본값/문서/테스트 동시 반영 |
-| RB-102 | P0 | 보안 | Webhook/API URL 검증 로직 추가(스킴/호스트 규칙) | 오설정/취약 URL 입력 차단 | 설정 검증 테스트 추가 |
+| RB-101 | P0 | 보안/정확성 | 기상청 API `http-only` 제약 반영한 보완 통제 적용(허용 도메인/경로 검증 + 운영 통제) | 불가능한 `https` 전환 과제 제거, 현실적 보안 강화 | 문서/설정검증/테스트 동시 반영 |
+| RB-102 | P0 | 보안 | URL 검증 정책 분리(Webhook=`https` 강제, Weather API=허용목록 기반 `http`) | 오설정/취약 URL 입력 차단 | 설정 검증 테스트 추가 |
 | RB-103 | P1 | 결합도 | `HealthStateRepository` 프로토콜 도입 및 `ApiHealthMonitor` 추상화 의존으로 전환 | 저장소 교체 용이성/테스트 단순화 | health monitor 테스트 무회귀 |
 | RB-104 | P1 | 복잡성 | `cli.py`를 `runtime_builder.py`, `service_loop.py`, `commands.py`로 분리 | 진입점 복잡도/변경 충돌 감소 | 기존 엔트리 동작 동일 + 테스트 통과 |
 | RB-105 | P1 | 가독성/응집도 | `settings.py`의 코드 매핑 상수 분리(`domain/code_maps.py`) | 설정 책임 명확화 | weather/settings 테스트 무회귀 |
