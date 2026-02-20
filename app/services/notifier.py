@@ -5,6 +5,9 @@ import time
 
 import requests
 
+from app.logging_utils import log_event
+from app.observability import events
+
 
 class NotificationError(RuntimeError):
     """Raised when message delivery fails."""
@@ -75,10 +78,13 @@ class DoorayNotifier:
                 if attempt == self.max_retries:
                     break
                 self.logger.warning(
-                    "notifier.retry attempt=%s reason=%s backoff=%ss",
-                    attempt,
-                    exc,
-                    backoff_seconds,
+                    log_event(
+                        events.NOTIFICATION_RETRY,
+                        attempt=attempt,
+                        max_retries=self.max_retries,
+                        error=str(exc),
+                        backoff_sec=backoff_seconds,
+                    )
                 )
                 if backoff_seconds > 0:
                     time.sleep(backoff_seconds)

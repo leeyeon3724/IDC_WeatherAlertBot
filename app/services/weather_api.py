@@ -185,12 +185,15 @@ class WeatherAlertClient:
                 if attempt == self.settings.max_retries:
                     break
                 self.logger.warning(
-                    "weather_api.retry attempt=%s area_code=%s error_code=%s reason=%s backoff=%ss",
-                    attempt,
-                    area_code,
-                    last_error.code,
-                    last_error,
-                    backoff_seconds,
+                    log_event(
+                        events.AREA_FETCH_RETRY,
+                        attempt=attempt,
+                        max_retries=self.settings.max_retries,
+                        area_code=area_code,
+                        error_code=last_error.code,
+                        error=str(last_error),
+                        backoff_sec=backoff_seconds,
+                    )
                 )
                 time.sleep(backoff_seconds)
                 backoff_seconds = max(backoff_seconds * 2, 1)

@@ -11,7 +11,7 @@
 | RB-103 | P1 | 완료 | 결합도 | `HealthStateRepository` 프로토콜 도입 및 `ApiHealthMonitor` 추상화 의존으로 전환 | 저장소 교체 용이성/테스트 단순화 | health monitor 테스트 무회귀 |
 | RB-104 | P1 | 완료 | 복잡성 | `cli.py`를 `runtime_builder.py`, `service_loop.py`, `commands.py`로 분리 | 진입점 복잡도/변경 충돌 감소 | 기존 엔트리 동작 동일 + 테스트 통과 |
 | RB-105 | P1 | 완료 | 가독성/응집도 | `settings.py`의 코드 매핑 상수 분리(`domain/code_maps.py`) | 설정 책임 명확화 | weather/settings 테스트 무회귀 |
-| RB-106 | P1 | 대기 | 일관성 | notifier/weather_api 재시도 로그를 `log_event()`로 통일 | 관측 일관성 향상 | 비구조 로그 제거 |
+| RB-106 | P1 | 완료 | 일관성 | notifier/weather_api 재시도 로그를 `log_event()`로 통일 | 관측 일관성 향상 | 비구조 로그 제거 |
 | RB-107 | P2 | 대기 | 성능/안정성 | SQLite에 `PRAGMA busy_timeout`, WAL 모드 적용 | 락 충돌 내성/쓰기 안정성 향상 | 동시 접근 테스트 추가 |
 | RB-108 | P2 | 대기 | 성능 | SQLite upsert/mark 경로 batch 최적화(`executemany`) | 대량 이벤트 처리 성능 개선 | 벤치마크/회귀 테스트 통과 |
 | RB-109 | P2 | 대기 | 성능 | JSON 저장소 `pending_count` 비용 최적화 | 반복 조회 부하 축소 | 기존 기능/테스트 무회귀 |
