@@ -34,6 +34,9 @@ HEALTH_NOTIFICATION_FAILED = "health.notification.failed"
 HEALTH_BACKFILL_START = "health.backfill.start"
 HEALTH_BACKFILL_COMPLETE = "health.backfill.complete"
 HEALTH_BACKFILL_FAILED = "health.backfill.failed"
+HEALTH_STATE_INVALID_JSON = "health_state.invalid_json"
+HEALTH_STATE_READ_FAILED = "health_state.read_failed"
+HEALTH_STATE_BACKUP_FAILED = "health_state.backup_failed"
 
 # State
 STATE_CLEANUP_AUTO = "state.cleanup.auto"

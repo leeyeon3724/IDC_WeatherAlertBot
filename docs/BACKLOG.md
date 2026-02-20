@@ -44,7 +44,7 @@
 | RB-201 | P0 | 완료 | 정확성/데이터무결성 | JSON->SQLite 마이그레이션 시 `first_seen_at/updated_at/last_sent_at/sent` 원본 보존 | 상태 이관 후 cleanup/운영 지표 왜곡 방지 | 마이그레이션 후 타임스탬프/전송상태 동일성 테스트 추가 |
 | RB-202 | P0 | 완료 | 안정성/운영성 | `migrate-state`/`cleanup-state` 실패 경로 예외 처리 + 구조화 실패 이벤트(`state.*.failed`) 추가 | 운영 중 CLI 실패 원인 추적 가능, 종료코드 일관화 | 실패 시 이벤트 로그/종료코드 테스트 추가 |
 | RB-203 | P1 | 완료 | 테스트가능성 | `service_loop.py`, `commands.py` 단위 테스트 보강(분기/예외/retry 시나리오) | 회귀 탐지력 향상, 리팩토링 내성 강화 | 대상 모듈 커버리지 상향(`service_loop >= 85%`, `commands >= 90%`) |
-| RB-204 | P1 | 예정 | 일관성/관측성 | `health_state_repo.py` 에러 로그를 `log_event()` + `docs/EVENTS.md` 이벤트 사전으로 통일 | 장애 분석 속도/일관성 향상 | 비구조 문자열 로그 제거, 이벤트 문서 반영 |
+| RB-204 | P1 | 완료 | 일관성/관측성 | `health_state_repo.py` 에러 로그를 `log_event()` + `docs/EVENTS.md` 이벤트 사전으로 통일 | 장애 분석 속도/일관성 향상 | 비구조 문자열 로그 제거, 이벤트 문서 반영 |
 | RB-205 | P1 | 예정 | 문서품질 | `docs/TESTING.md` 우선순위/리스크를 현재 상태에 맞춰 정합성 갱신 | 문서-코드 상태 불일치 제거 | 테스트 현황/우선순위가 실제 코드와 일치 |
 | RB-206 | P2 | 예정 | 성능/안정성 | `SqliteStateRepository.cleanup_stale()` SQL 기반 필터링 최적화 및 대량 데이터 검증 | 대규모 상태 파일에서 cleanup 비용/락 시간 감소 | 성능 회귀 테스트 또는 비교 벤치 결과 기록 |
 | RB-207 | P2 | 예정 | 보안/운영 | 운영 로그 민감정보(서비스키/원본 URL query) 노출 가드 테스트 및 정책 문서화 | 실운영 로그 안전성 강화 | redaction 정책 문서 + 회귀 테스트 추가 |

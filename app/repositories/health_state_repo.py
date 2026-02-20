@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.domain.health import ApiHealthState
+from app.logging_utils import log_event
+from app.observability import events
 
 HEALTH_STATE_SCHEMA_VERSION = 1
 
@@ -37,19 +39,23 @@ class JsonHealthStateRepository:
         except json.JSONDecodeError as exc:
             backup_path = self._backup_corrupted_file()
             self.logger.error(
-                "health_state.invalid_json file=%s backup=%s error=%s",
-                self.file_path,
-                backup_path,
-                exc,
+                log_event(
+                    events.HEALTH_STATE_INVALID_JSON,
+                    file=str(self.file_path),
+                    backup=str(backup_path) if backup_path is not None else None,
+                    error=str(exc),
+                )
             )
             self._state = ApiHealthState()
             self._persist()
             return
         except OSError as exc:
             self.logger.error(
-                "health_state.read_failed file=%s error=%s",
-                self.file_path,
-                exc,
+                log_event(
+                    events.HEALTH_STATE_READ_FAILED,
+                    file=str(self.file_path),
+                    error=str(exc),
+                )
             )
             self._state = ApiHealthState()
             return
@@ -66,9 +72,11 @@ class JsonHealthStateRepository:
             return backup_path
         except OSError as exc:
             self.logger.error(
-                "health_state.backup_failed file=%s error=%s",
-                self.file_path,
-                exc,
+                log_event(
+                    events.HEALTH_STATE_BACKUP_FAILED,
+                    file=str(self.file_path),
+                    error=str(exc),
+                )
             )
             return None
 

@@ -47,6 +47,9 @@
 - `health.backfill.start`: `lookback_days`, `incident_duration_sec`
 - `health.backfill.complete`: `lookback_days`, `sent_count`, `pending_total`
 - `health.backfill.failed`: `lookback_days`, `error`
+- `health_state.invalid_json`: `file`, `backup`, `error`
+- `health_state.read_failed`: `file`, `error`
+- `health_state.backup_failed`: `file`, `error`
 
 ## State
 
