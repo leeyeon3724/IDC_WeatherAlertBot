@@ -3,7 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.domain.models import AlertNotification
-from app.repositories.sqlite_state_repo import SqliteStateRepository
+from app.repositories.sqlite_state_repo import (
+    SQLITE_BUSY_TIMEOUT_MS,
+    SQLITE_JOURNAL_MODE,
+    SqliteStateRepository,
+)
 
 
 def _notification(event_id: str, message: str = "테스트 메시지") -> AlertNotification:
@@ -69,3 +73,14 @@ def test_sqlite_state_repo_cleanup_dry_run(tmp_path) -> None:
 
     assert removed == 1
     assert repo.total_count == 1
+
+
+def test_sqlite_state_repo_configures_busy_timeout_and_wal(tmp_path) -> None:
+    repo = SqliteStateRepository(tmp_path / "state.db")
+
+    with repo._connect() as conn:
+        busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+
+    assert int(busy_timeout) == SQLITE_BUSY_TIMEOUT_MS
+    assert str(journal_mode).lower() == SQLITE_JOURNAL_MODE.lower()

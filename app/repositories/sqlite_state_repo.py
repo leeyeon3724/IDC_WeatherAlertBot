@@ -9,6 +9,9 @@ from pathlib import Path
 from app.domain.models import AlertNotification
 from app.repositories.state_models import StoredNotification, parse_iso_to_utc, utc_now_iso
 
+SQLITE_BUSY_TIMEOUT_MS = 30_000
+SQLITE_JOURNAL_MODE = "WAL"
+
 
 class SqliteStateRepository:
     def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
@@ -20,10 +23,12 @@ class SqliteStateRepository:
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.file_path)
         conn.row_factory = sqlite3.Row
+        conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
         return conn
 
     def _init_schema(self) -> None:
         with self._connect() as conn:
+            conn.execute(f"PRAGMA journal_mode = {SQLITE_JOURNAL_MODE}")
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS notifications (
