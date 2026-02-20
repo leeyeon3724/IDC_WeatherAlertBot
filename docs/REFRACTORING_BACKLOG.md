@@ -1,111 +1,35 @@
 # Refactoring Backlog
 
-## 1. 목표와 측정 기준
+## Current Status
 
-리팩토링 목표는 세 가지 품질 축을 동시에 개선하는 것입니다.
+진행 완료:
 
-### Product Quality
+- `P0`: 관측 이벤트 taxonomy 도입 (`app/observability/events.py`)
+- `P1`: Weather API 페이지네이션 + 수집 요약 로그
+- `P2`: `cli.py` / `process_cycle.py` 오케스트레이션 분해
+- `P3`: 저장소 추상화 + SQLite 저장소 도입
 
-- 특보 누락률: `0%` 목표
-- 중복 전송률: `0%` 유지
-- 장애 감지/복구 알림 정확성: 거짓 양성/음성 최소화
+현재 프로젝트 기본 구조:
 
-### Engineering Excellence
+- `app/entrypoints`: 실행 진입점/런타임 조립
+- `app/usecases`: 사이클/헬스 유스케이스
+- `app/services`: 외부 연동(API/Webhook)
+- `app/repositories`: 상태 저장소 구현(json/sqlite) + 인터페이스
+- `app/domain`: 도메인 모델/메시지
+- `app/observability`: 로그 이벤트 상수
 
-- 오케스트레이션 모듈 복잡도 감소(단일 함수 책임 축소)
-- 핵심 경로 테스트 커버리지 `>= 90%` 목표
-- 저장소 계층 추상화로 교체 가능성 확보(JSON -> DB)
+## Active Backlog
 
-### Business Impact
+| ID | Priority | 작업 | 완료 조건 |
+|---|---|---|---|
+| RB-11 | P1 | 로그 이벤트 사전 문서화(운영자용) | 이벤트별 필수 필드/샘플 로그 문서화 |
+| RB-12 | P1 | `area.fetch.summary` 대시보드 지표 정의 | 수집량/실패율/재시도율 기준 확정 |
+| RB-13 | P2 | JSON -> SQLite 마이그레이션 유틸 추가 | 샘플 데이터 마이그레이션 검증 테스트 |
+| RB-14 | P2 | 저장소 선택 운영 가이드 보강 | `json/sqlite` 선택 기준과 롤백 절차 문서화 |
+| RB-15 | P3 | 진입점 테스트에서 monkeypatch 의존 축소 | 통합 성격 테스트 추가로 대체 |
 
-- 장애 대응 시간 단축(MTTD/MTTR 개선)
-- 운영 비용 감소(수동 정리/분석 작업 최소화)
-- 기능 변경 리드타임 단축(핵심 변경 시 영향 범위 축소)
+## Maintenance Rules
 
-## 2. 실행 원칙
-
-- 큰 변경을 한 번에 하지 않고, 기능 플래그 또는 호환 계층으로 단계적 전환
-- 각 단계마다 품질 게이트(`ruff`, `mypy`, `pytest`, coverage) 통과를 종료 조건으로 사용
-- 운영 동작에 영향이 있는 변경은 로그/메트릭 가시성을 먼저 확보한 뒤 적용
-
-## 3. 단계별 계획
-
-### Phase 0. Baseline 고정
-
-- 범위: 현재 지표와 운영 이벤트 정의 고정
-- 산출물:
-  - 핵심 메트릭 목록(사이클 성공률, area 실패율, 전송 실패율)
-  - 로그 이벤트 사전(event taxonomy)
-- 완료 조건:
-  - 메트릭/이벤트 문서화 및 팀 합의
-
-### Phase 1. 데이터 정확성 강화(최우선)
-
-- 범위: API 조회 누락 가능성 제거
-- 작업:
-  - Weather API 페이지네이션 지원
-  - 지역별 `fetched_items`, `page_count` 로그 추가
-  - 누락 방지 회귀 테스트 추가
-- 완료 조건:
-  - 다건 페이지 응답 테스트 통과
-  - 기존 동작 하위호환 유지
-
-### Phase 2. 오케스트레이션 분리
-
-- 범위: `cli.py`, `process_cycle.py` 책임 분리
-- 작업:
-  - `CycleRunner`, `AreaFetchCoordinator`, `NotificationDispatcher`, `HealthCoordinator`로 분할
-  - 함수 단위 복잡도 감소 및 테스트 단위 재정렬
-- 완료 조건:
-  - 기존 시나리오 테스트 유지
-  - 진입점 monkeypatch 의존도 감소
-
-### Phase 3. 저장소 추상화 + SQLite 도입
-
-- 범위: JSON 단일 파일 한계 보완
-- 작업:
-  - `StateRepository` 프로토콜/인터페이스 도입
-  - `JsonStateRepository`, `SqliteStateRepository` 이중 구현
-  - 설정으로 저장소 타입 선택 가능화
-- 완료 조건:
-  - 동일 테스트 세트를 두 구현에 재사용 가능
-  - 단일 인스턴스/재시작 시 상태 일관성 확인
-
-### Phase 4. 운영성/관측성 강화
-
-- 범위: 운영 지표/대응성 강화
-- 작업:
-  - 구조화 로그 필드 표준화
-  - 헬스 이벤트별 알림 템플릿 정교화
-  - 운영 대시보드용 최소 메트릭 정의
-- 완료 조건:
-  - 주요 장애 시나리오에서 원인 추적 가능
-  - Runbook 기준으로 온콜 대응 가능
-
-## 4. 우선순위 백로그
-
-| ID | Priority | 작업 | 기대 효과 | 완료 조건 |
-|---|---|---|---|---|
-| RB-01 | P0 | Weather API 페이지네이션 구현 | 누락 리스크 제거 | 2페이지 이상 응답 테스트 통과 |
-| RB-02 | P0 | 수집량/페이지수 로그 추가 | 데이터 품질 관측성 확보 | `area.fetch.summary` 이벤트 추가 |
-| RB-03 | P1 | `ProcessCycleUseCase` 내부 책임 분리 | 변경 영향 범위 축소 | 분리 모듈 단위 테스트 추가 |
-| RB-04 | P1 | `cli._run_service` 조립/실행 분리 | 진입점 단순화 | 조립 함수와 루프 함수 분리 |
-| RB-05 | P1 | 진입점 테스트의 monkeypatch 축소 | 테스트 유지보수성 개선 | 통합 성격 테스트 2개 이상 추가 |
-| RB-06 | P2 | `StateRepository` 인터페이스 도입 | 저장소 교체 용이성 확보 | JSON 구현이 인터페이스 준수 |
-| RB-07 | P2 | SQLite 저장소 구현 | 동시성/확장성 개선 | 기존 저장소 테스트 재사용 통과 |
-| RB-08 | P2 | 상태 마이그레이션 도구 작성(JSON->SQLite) | 운영 전환 리스크 축소 | 샘플 데이터 마이그레이션 검증 |
-| RB-09 | P3 | 로그 이벤트 사전 문서화 | 운영 커뮤니케이션 비용 절감 | 운영 문서 반영 완료 |
-| RB-10 | P3 | 실패율/재시도율 메트릭 산출 추가 | MTTD/MTTR 개선 | 주기 로그에 핵심 지표 포함 |
-
-## 5. 제안 일정(예시)
-
-- Week 1: Phase 0 + RB-01, RB-02
-- Week 2: RB-03, RB-04, RB-05
-- Week 3: RB-06, RB-07, RB-08
-- Week 4: RB-09, RB-10 + 안정화
-
-## 6. 리스크 및 대응
-
-- 저장소 전환 리스크: JSON/SQLite 병행 지원 기간 운영
-- 회귀 리스크: 기존 테스트 + 신규 시나리오 테스트를 CI 필수 게이트로 유지
-- 운영 가시성 공백: 코드 변경 전 로그 이벤트 표준부터 고정
+- 기능 변경은 “작은 단위”로 반영하고 각 단위마다 테스트 통과 확인
+- 의미 있는 변경 단위마다 커밋 수행(Conventional Commits)
+- 문서는 `README(진입) / SETUP(설치) / OPERATION(운영) / BACKLOG(계획)` 경계 유지

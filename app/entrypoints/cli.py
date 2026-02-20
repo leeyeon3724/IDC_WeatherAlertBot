@@ -15,8 +15,8 @@ from app.domain.health_message_builder import build_health_notification_message
 from app.logging_utils import log_event, setup_logging
 from app.observability import events
 from app.repositories.health_state_repo import JsonHealthStateRepository
+from app.repositories.json_state_repo import JsonStateRepository
 from app.repositories.sqlite_state_repo import SqliteStateRepository
-from app.repositories.state_repo import JsonStateRepository
 from app.repositories.state_repository import StateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
 from app.services.weather_api import WeatherAlertClient

@@ -16,7 +16,7 @@
 - `app/usecases/process_cycle.py`
 - `app/services/weather_api.py`
 - `app/services/notifier.py`
-- `app/repositories/state_repo.py`
+- `app/repositories/json_state_repo.py`
 
 ## 2. 중복 방지/재전송 규칙
 

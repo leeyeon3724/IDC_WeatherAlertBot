@@ -188,14 +188,6 @@ class ProcessCycleUseCase:
     ) -> None:
         alerts = result.alerts or []
         stats.alerts_fetched += len(alerts)
-        self.logger.info(
-            log_event(
-                events.AREA_FETCH_SUMMARY,
-                area_code=area_code,
-                area_name=result.area_name,
-                fetched_items=len(alerts),
-            )
-        )
 
         notifications = [build_notification(alert) for alert in alerts]
         for notification in notifications:

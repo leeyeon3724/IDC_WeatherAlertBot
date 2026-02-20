@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 
 from app.domain.models import AlertNotification
-from app.repositories.state_repo import JsonStateRepository
+from app.repositories.json_state_repo import JsonStateRepository
 
 
 def test_state_repo_upsert_and_mark_sent(tmp_path) -> None:

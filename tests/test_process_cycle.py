@@ -6,7 +6,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.domain.models import AlertEvent
-from app.repositories.state_repo import JsonStateRepository
+from app.repositories.json_state_repo import JsonStateRepository
 from app.services.notifier import NotificationError
 from app.services.weather_api import API_ERROR_TIMEOUT, WeatherApiError
 from app.settings import Settings

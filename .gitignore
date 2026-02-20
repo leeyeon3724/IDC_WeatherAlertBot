@@ -23,6 +23,9 @@ env/
 # Runtime data
 data/sent_messages*.json
 data/sent_messages*.broken-*
+data/api_health_state*.json
+data/sent_messages*.db
+data/sent_messages*.db-*
 *.log
 
 # OS / editor
