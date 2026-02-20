@@ -58,6 +58,7 @@
 - `STATE_REPOSITORY_TYPE`에 맞는 상태 파일 경로/권한 확인
 - `data/` 볼륨 영속화 확인(컨테이너 운영 시)
 - 실패 로그(`area.failed`, `notification.final_failure`) 증가 추이 확인
+- 민감정보 마스킹 확인(`serviceKey`, `apiKey`, `SERVICE_API_KEY` 값이 로그에 노출되지 않는지 점검)
 
 ## 6. 자주 발생하는 문제
 
@@ -75,3 +76,31 @@
 
 - 저장소는 손상 JSON 감지 시 `.broken-<timestamp>` 백업 후 빈 상태로 복구
 - 이후 중복 방지 상태가 초기화될 수 있으므로 운영 로그로 영향 범위 확인
+
+## 7. 마이그레이션/롤백 런북
+
+### JSON -> SQLite 마이그레이션
+
+1. 서비스 중지 또는 `RUN_ONCE=true`로 단일 실행 상태 전환
+2. 기존 JSON 상태 백업
+3. 마이그레이션 실행
+
+```bash
+python3 main.py migrate-state \
+  --json-state-file ./data/sent_messages.json \
+  --sqlite-state-file ./data/sent_messages.db
+```
+
+4. `state.migration.complete` 이벤트 확인 후 `STATE_REPOSITORY_TYPE=sqlite` 적용
+
+### 마이그레이션 실패 대응
+
+- `state.migration.failed` 이벤트의 `error` 확인
+- SQLite 파일 생성/권한/디스크 상태 점검
+- 필요 시 기존 JSON 모드(`STATE_REPOSITORY_TYPE=json`)로 즉시 롤백
+
+### 롤백 절차
+
+1. `STATE_REPOSITORY_TYPE=json`으로 설정 복귀
+2. 백업한 `sent_messages.json` 복원
+3. `RUN_ONCE=true` 점검 실행 후 정상 알림/중복 방지 동작 확인

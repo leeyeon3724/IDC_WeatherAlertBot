@@ -8,17 +8,17 @@
 
 | 관점 | 점수(5점) | 평가 |
 |---|---:|---|
-| 정확성 | 4.1 | 핵심 알림/중복 방지/헬스 흐름은 안정적이나, JSON->SQLite 마이그레이션 시 타임스탬프 보존이 부족함 |
-| 가독성 | 4.2 | 엔트리포인트 분리 후 책임 경계가 개선됨 |
-| 복잡성 | 4.0 | 복잡도는 낮아졌지만 `service_loop` 분기 테스트가 충분하지 않음 |
-| 응집도/결합도 | 4.2 | 프로토콜 기반 의존성으로 결합도 개선, 저장소 간 공통 모델 정리는 추가 여지 존재 |
-| 테스트 가능성 | 4.0 | 전체 게이트는 안정적이나 `commands/service_loop/health_state_repo` 커버리지가 상대적으로 낮음 |
-| 확장성 | 4.2 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드로 운영 전환 유연성 확보 |
-| 성능 | 4.2 | SQLite WAL/busy_timeout/batch 최적화 반영, cleanup 경로 추가 최적화 여지 있음 |
-| 안정성 | 4.2 | 재시도/백오프/헬스 감지/복구 체계 동작, CLI 실패 경로의 명시적 핸들링 보강 필요 |
-| 보안 | 3.9 | Weather API `http-only` 제약을 허용목록으로 보완했으나 운영 통제/로그 가드 강화 여지 있음 |
-| 일관성 | 4.1 | 재시도 로그 구조화는 완료, 일부 저장소 에러 로그는 구조화 이벤트 미적용 |
-| 기술부채 | 4.0 | 1차 백로그 완료, 다음 단계는 정확성/운영 내구성 중심으로 축소됨 |
+| 정확성 | 4.4 | 핵심 알림/중복 방지/헬스 흐름 안정적, 마이그레이션 타임스탬프/sent 보존 반영 |
+| 가독성 | 4.3 | 엔트리포인트/명령/루프 책임 분리와 이벤트 문서화가 정착됨 |
+| 복잡성 | 4.3 | 고복잡 경로(`service_loop`)가 테스트로 보호되어 변경 리스크 감소 |
+| 응집도/결합도 | 4.3 | 프로토콜 기반 의존으로 저장소 결합도 완화, 경계가 명확함 |
+| 테스트 가능성 | 4.4 | `service_loop/commands/migration` 분기 테스트 보강 완료 |
+| 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
+| 성능 | 4.4 | SQLite WAL/busy_timeout/batch + cleanup SQL 필터링 최적화 적용 |
+| 안정성 | 4.4 | CLI 실패 경로 이벤트/종료코드 표준화로 운영 복원력 향상 |
+| 보안 | 4.2 | 로그 민감정보 redaction 가드 및 운영 체크리스트 반영 |
+| 일관성 | 4.4 | health_state 포함 주요 오류 로그가 구조화 이벤트로 통일 |
+| 기술부채 | 4.2 | RB-201~RB-208 완료, 다음 부채는 정밀 테스트/운영 자동화 중심 |
 
 ## 2) Evidence Snapshot
 
@@ -27,39 +27,34 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `85 passed`
-- 총 커버리지 `87.48%`
-- 상대적 취약 구간
-- `app/entrypoints/service_loop.py` 72%
-- `app/entrypoints/commands.py` 80%
-- `app/repositories/health_state_repo.py` 79%
-- 문서 적합성
-- 문서 체계(SETUP/OPERATION/EVENTS/TESTING/BACKLOG)는 유지됨
-- 테스트 문서의 우선순위 항목 중 일부는 완료 상태 반영이 더 필요함
+- `97 passed`
+- 총 커버리지 `89.37%`
+- 주요 커버리지 지표
+- `app/entrypoints/service_loop.py` 98%
+- `app/entrypoints/commands.py` 94%
+- `app/repositories/health_state_repo.py` 85%
 
-## 3) Active Refactoring Backlog
+## 3) Refactoring Backlog (Current Wave)
 
-| ID | Priority | 상태 | 영역 | 작업 | 기대효과 | 완료조건(DoD) |
-|---|---|---|---|---|---|---|
-| RB-201 | P0 | 완료 | 정확성/데이터무결성 | JSON->SQLite 마이그레이션 시 `first_seen_at/updated_at/last_sent_at/sent` 원본 보존 | 상태 이관 후 cleanup/운영 지표 왜곡 방지 | 마이그레이션 후 타임스탬프/전송상태 동일성 테스트 추가 |
-| RB-202 | P0 | 완료 | 안정성/운영성 | `migrate-state`/`cleanup-state` 실패 경로 예외 처리 + 구조화 실패 이벤트(`state.*.failed`) 추가 | 운영 중 CLI 실패 원인 추적 가능, 종료코드 일관화 | 실패 시 이벤트 로그/종료코드 테스트 추가 |
-| RB-203 | P1 | 완료 | 테스트가능성 | `service_loop.py`, `commands.py` 단위 테스트 보강(분기/예외/retry 시나리오) | 회귀 탐지력 향상, 리팩토링 내성 강화 | 대상 모듈 커버리지 상향(`service_loop >= 85%`, `commands >= 90%`) |
-| RB-204 | P1 | 완료 | 일관성/관측성 | `health_state_repo.py` 에러 로그를 `log_event()` + `docs/EVENTS.md` 이벤트 사전으로 통일 | 장애 분석 속도/일관성 향상 | 비구조 문자열 로그 제거, 이벤트 문서 반영 |
-| RB-205 | P1 | 예정 | 문서품질 | `docs/TESTING.md` 우선순위/리스크를 현재 상태에 맞춰 정합성 갱신 | 문서-코드 상태 불일치 제거 | 테스트 현황/우선순위가 실제 코드와 일치 |
-| RB-206 | P2 | 예정 | 성능/안정성 | `SqliteStateRepository.cleanup_stale()` SQL 기반 필터링 최적화 및 대량 데이터 검증 | 대규모 상태 파일에서 cleanup 비용/락 시간 감소 | 성능 회귀 테스트 또는 비교 벤치 결과 기록 |
-| RB-207 | P2 | 예정 | 보안/운영 | 운영 로그 민감정보(서비스키/원본 URL query) 노출 가드 테스트 및 정책 문서화 | 실운영 로그 안전성 강화 | redaction 정책 문서 + 회귀 테스트 추가 |
-| RB-208 | P3 | 예정 | 운영성 | 마이그레이션/롤백/장애 대응 runbook 확장 (`docs/OPERATION.md`) | 온콜 절차 표준화 | 체크리스트 기반 runbook 섹션 추가 |
+| ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
+|---|---|---|---|---|---|
+| RB-201 | P0 | 완료 | 정확성/데이터무결성 | JSON->SQLite 마이그레이션 시 `first_seen_at/updated_at/last_sent_at/sent` 원본 보존 | 타임스탬프/전송상태 동일성 테스트 추가 |
+| RB-202 | P0 | 완료 | 안정성/운영성 | `migrate-state`/`cleanup-state` 실패 경로 예외 처리 + `state.*.failed` 이벤트 추가 | 실패 이벤트/종료코드 테스트 추가 |
+| RB-203 | P1 | 완료 | 테스트가능성 | `service_loop.py`, `commands.py` 단위 테스트 보강 | `service_loop >= 85%`, `commands >= 90%` 달성 |
+| RB-204 | P1 | 완료 | 일관성/관측성 | `health_state_repo.py` 에러 로그를 `log_event()`로 통일 | 비구조 문자열 로그 제거 + 이벤트 문서 반영 |
+| RB-205 | P1 | 완료 | 문서품질 | `docs/TESTING.md` 리스크/우선순위 정합성 갱신 | 테스트 현황/우선순위가 실제 코드와 일치 |
+| RB-206 | P2 | 완료 | 성능/안정성 | `SqliteStateRepository.cleanup_stale()` SQL 필터링 최적화 + 대량 데이터 검증 | bulk cleanup 테스트 추가 |
+| RB-207 | P2 | 완료 | 보안/운영 | 민감정보(`serviceKey/apiKey/SERVICE_API_KEY`) 로그 redaction 가드 + 테스트/정책 문서화 | redaction 단위 테스트 + 운영 체크리스트 반영 |
+| RB-208 | P3 | 완료 | 운영성 | 마이그레이션/롤백/장애 대응 runbook 확장 (`docs/OPERATION.md`) | 체크리스트 기반 절차 문서 추가 |
 
-## 4) Iteration Plan
+## 4) Next Candidates
 
-1. Iteration A (정확성/안정성 우선)
-- RB-201, RB-202
-
-2. Iteration B (테스트/일관성 강화)
-- RB-203, RB-204, RB-205
-
-3. Iteration C (성능/운영 고도화)
-- RB-206, RB-207, RB-208
+| ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
+|---|---|---|---|---|---|
+| RB-301 | P1 | 예정 | 테스트가능성 | `health.py` 전이 조건(임계치/윈도우) 경계 테스트 강화 | `app/domain/health.py` 커버리지 90%+ |
+| RB-302 | P1 | 예정 | 정확성 | `json_state_repo` 손상/레거시 마이그레이션 경로 정밀 테스트 | 손상/이관 분기 회귀 테스트 케이스 확장 |
+| RB-303 | P2 | 예정 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 | end-to-end 스모크 테스트 추가 |
+| RB-304 | P2 | 예정 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 | `docs/OPERATION.md` 알람 기준 섹션 추가 |
 
 ## 5) Completed History
 
@@ -77,6 +72,14 @@
 | RB-110 | P2 | 완료 | 테스트가능성 | `tests/test_main.py` monkeypatch 의존 축소(헬퍼/스모크 분리) |
 | RB-111 | P3 | 완료 | 운영성 | 이벤트 사전 문서(`docs/EVENTS.md`) 신설 |
 | RB-112 | P3 | 완료 | 운영성 | JSON->SQLite 마이그레이션 유틸 추가 |
+| RB-201 | P0 | 완료 | 정확성/데이터무결성 | 마이그레이션 타임스탬프/전송상태 보존 |
+| RB-202 | P0 | 완료 | 안정성/운영성 | CLI 실패 경로 표준화 + 실패 이벤트 추가 |
+| RB-203 | P1 | 완료 | 테스트가능성 | `service_loop/commands` 테스트 보강 |
+| RB-204 | P1 | 완료 | 일관성/관측성 | health_state 저장소 로그 구조화 |
+| RB-205 | P1 | 완료 | 문서품질 | TESTING 문서 정합성 갱신 |
+| RB-206 | P2 | 완료 | 성능/안정성 | SQLite cleanup SQL 최적화 + bulk 테스트 |
+| RB-207 | P2 | 완료 | 보안/운영 | 로그 민감정보 redaction 가드 |
+| RB-208 | P3 | 완료 | 운영성 | 마이그레이션/롤백 runbook 확장 |
 
 ## 6) Maintenance Rules
 
