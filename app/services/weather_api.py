@@ -9,6 +9,8 @@ from typing import Final
 import requests
 
 from app.domain.models import AlertEvent
+from app.logging_utils import log_event
+from app.observability import events
 from app.settings import (
     CANCEL_MAPPING,
     COMMAND_MAPPING,
@@ -45,6 +47,7 @@ API_ERROR_HTTP_STATUS: Final[str] = "http_status"
 API_ERROR_PARSE: Final[str] = "parse_error"
 API_ERROR_RESULT: Final[str] = "api_result_error"
 API_ERROR_UNKNOWN: Final[str] = "unknown_error"
+DEFAULT_PAGE_SIZE: Final[int] = 100
 
 
 class WeatherAlertClient:
@@ -65,14 +68,80 @@ class WeatherAlertClient:
         end_date: str,
         area_name: str,
     ) -> list[AlertEvent]:
-        root = self._fetch_xml_root(area_code=area_code, start_date=start_date, end_date=end_date)
-        return self._parse_alerts(root=root, area_code=area_code, area_name=area_name)
+        page_no = 1
+        page_size = DEFAULT_PAGE_SIZE
+        total_count: int | None = None
+        all_alerts: list[AlertEvent] = []
+        page_count = 0
 
-    def _fetch_xml_root(self, area_code: str, start_date: str, end_date: str) -> ET.Element:
+        while True:
+            root = self._fetch_xml_root(
+                area_code=area_code,
+                start_date=start_date,
+                end_date=end_date,
+                page_no=page_no,
+                page_size=page_size,
+            )
+            result_code = self._extract_result_code(root)
+            if result_code == "03":
+                # NODATA can be returned for out-of-range pages.
+                if page_no == 1:
+                    self.logger.info(
+                        log_event(
+                            events.AREA_FETCH_SUMMARY,
+                            area_code=area_code,
+                            area_name=area_name,
+                            fetched_items=0,
+                            page_count=1,
+                            total_count=0,
+                        )
+                    )
+                    return []
+                break
+
+            self._raise_for_result_code(result_code)
+            items = root.findall(".//item")
+            alerts = self._parse_items(items=items, area_code=area_code, area_name=area_name)
+            all_alerts.extend(alerts)
+            page_count += 1
+
+            if total_count is None:
+                total_count = self._extract_total_count(root)
+
+            if not self._has_next_page(
+                page_no=page_no,
+                page_size=page_size,
+                items_on_page=len(items),
+                total_count=total_count,
+            ):
+                break
+            page_no += 1
+
+        self.logger.info(
+            log_event(
+                events.AREA_FETCH_SUMMARY,
+                area_code=area_code,
+                area_name=area_name,
+                fetched_items=len(all_alerts),
+                page_count=max(page_count, 1),
+                total_count=total_count,
+            )
+        )
+        return all_alerts
+
+    def _fetch_xml_root(
+        self,
+        area_code: str,
+        start_date: str,
+        end_date: str,
+        *,
+        page_no: int,
+        page_size: int,
+    ) -> ET.Element:
         params: dict[str, str | int] = {
             "serviceKey": self.settings.service_api_key,
-            "numOfRows": 100,
-            "pageNo": 1,
+            "numOfRows": page_size,
+            "pageNo": page_no,
             "fromTmFc": start_date,
             "toTmFc": end_date,
             "areaCode": area_code,
@@ -145,22 +214,19 @@ class WeatherAlertClient:
         area_code: str,
         area_name: str,
     ) -> list[AlertEvent]:
-        result_code_elem = root.find(".//resultCode")
-        result_code = "N/A"
-        if result_code_elem is not None and result_code_elem.text:
-            result_code = result_code_elem.text.strip()
-        if result_code not in {"00", "03"}:
-            result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
-            raise WeatherApiError(
-                f"API response error {result_code}: {result_msg}",
-                code=API_ERROR_RESULT,
-                result_code=result_code,
-            )
-
-        items = root.findall(".//item")
-        if not items:
+        result_code = self._extract_result_code(root)
+        if result_code == "03":
             return []
+        self._raise_for_result_code(result_code)
+        return self._parse_items(root.findall(".//item"), area_code=area_code, area_name=area_name)
 
+    def _parse_items(
+        self,
+        items: list[ET.Element],
+        *,
+        area_code: str,
+        area_name: str,
+    ) -> list[AlertEvent]:
         alerts: list[AlertEvent] = []
         for item in items:
             warn_var_code = item.findtext("warnVar", "N/A")
@@ -183,6 +249,49 @@ class WeatherAlertClient:
                 )
             )
         return alerts
+
+    @staticmethod
+    def _extract_result_code(root: ET.Element) -> str:
+        result_code_elem = root.find(".//resultCode")
+        if result_code_elem is None or not result_code_elem.text:
+            return "N/A"
+        return result_code_elem.text.strip()
+
+    @staticmethod
+    def _extract_total_count(root: ET.Element) -> int | None:
+        total_count_text = root.findtext(".//totalCount")
+        if not total_count_text:
+            return None
+        try:
+            value = int(total_count_text.strip())
+        except ValueError:
+            return None
+        return max(value, 0)
+
+    @staticmethod
+    def _has_next_page(
+        *,
+        page_no: int,
+        page_size: int,
+        items_on_page: int,
+        total_count: int | None,
+    ) -> bool:
+        if items_on_page <= 0:
+            return False
+        if total_count is not None:
+            return page_no * page_size < total_count
+        return items_on_page >= page_size
+
+    @staticmethod
+    def _raise_for_result_code(result_code: str) -> None:
+        if result_code in {"00", "03"}:
+            return
+        result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
+        raise WeatherApiError(
+            f"API response error {result_code}: {result_msg}",
+            code=API_ERROR_RESULT,
+            result_code=result_code,
+        )
 
     @staticmethod
     def _format_datetime(date_str: str | None) -> str | None:

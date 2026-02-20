@@ -68,6 +68,8 @@ AREA_CODE_MAPPING={"L1012000":"판교(성남)","L1070100":"대구"}
 ### 상태 파일
 
 - `SENT_MESSAGES_FILE` (기본: `./data/sent_messages.json`)
+- `STATE_REPOSITORY_TYPE` (기본: `json`, 값: `json` 또는 `sqlite`)
+- `SQLITE_STATE_FILE` (기본: `./data/sent_messages.db`)
 - `HEALTH_STATE_FILE` (기본: `./data/api_health_state.json`)
 - `CLEANUP_ENABLED` (기본: `true`)
 - `CLEANUP_RETENTION_DAYS` (기본: `30`)

@@ -73,11 +73,15 @@ def _xml_with_item(
     result_code: str = "00",
     warn_var: str = "4",
     start_time: str = "202602181000",
+    total_count: int | None = None,
+    tm_seq: str = "46",
 ) -> bytes:
+    total_count_part = f"<totalCount>{total_count}</totalCount>" if total_count is not None else ""
     return f"""
     <response>
       <header><resultCode>{result_code}</resultCode></header>
       <body>
+        {total_count_part}
         <items>
           <item>
             <warnVar>{warn_var}</warnVar>
@@ -88,7 +92,7 @@ def _xml_with_item(
             <endTime>0</endTime>
             <stnId>143</stnId>
             <tmFc>202602181000</tmFc>
-            <tmSeq>46</tmSeq>
+            <tmSeq>{tm_seq}</tmSeq>
           </item>
         </items>
       </body>
@@ -148,6 +152,34 @@ def test_fetch_alerts_retries_then_succeeds(tmp_path, monkeypatch: pytest.Monkey
     assert len(alerts) == 1
     assert len(session.calls) == 2
     assert sleep_calls == [1]
+
+
+def test_fetch_alerts_supports_pagination(tmp_path) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(200, _xml_with_item(total_count=101, tm_seq="1")),
+            DummyResponse(200, _xml_with_item(total_count=101, tm_seq="2")),
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logging.getLogger("test.weather.api.pagination"),
+    )
+
+    alerts = client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    assert len(alerts) == 2
+    assert alerts[0].tm_seq == "1"
+    assert alerts[1].tm_seq == "2"
+    assert len(session.calls) == 2
+    assert session.calls[0][1]["pageNo"] == 1
+    assert session.calls[1][1]["pageNo"] == 2
 
 
 def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:

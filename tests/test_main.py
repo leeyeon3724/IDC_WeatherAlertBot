@@ -418,3 +418,92 @@ def test_run_service_runs_backfill_after_recovery(
     assert result == 0
     assert processor is not None
     assert processor.lookback_calls == [None, 2]
+
+
+def test_run_service_uses_sqlite_state_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings(
+        tmp_path,
+        state_repository_type="sqlite",
+        sqlite_state_file=tmp_path / "state.db",
+    )
+
+    class FakeDateTime:
+        @classmethod
+        def now(cls, tz: ZoneInfo | None = None) -> datetime:
+            return datetime(2026, 2, 21, 10, 0, tzinfo=tz)
+
+    class FakeSqliteRepo:
+        last_instance: FakeSqliteRepo | None = None
+
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+            self.total_count = 0
+            self.pending_count = 0
+            FakeSqliteRepo.last_instance = self
+
+        def cleanup_stale(self, days: int, include_unsent: bool, dry_run: bool = False) -> int:
+            return 0
+
+    class FakeHealthStateRepo:
+        def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
+            self.file_path = file_path
+            self.logger = logger
+
+    class FakeWeatherClient:
+        def __init__(self, settings: Settings, logger: logging.Logger | None = None) -> None:
+            self.settings = settings
+            self.logger = logger
+
+    class FakeNotifier:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def send(self, message: str, report_url: str | None = None) -> None:
+            return None
+
+    class FakeProcessor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
+            return CycleStats(
+                start_date="20260221",
+                end_date="20260222",
+                area_count=1,
+            )
+
+    class FakeHealthMonitor:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+        def observe_cycle(self, **kwargs: object) -> ApiHealthDecision:
+            return ApiHealthDecision(incident_open=False)
+
+        def suggested_cycle_interval_sec(self, base_interval_sec: int) -> int:
+            return base_interval_sec
+
+    logger = logging.getLogger("test.main.sqlite")
+    monkeypatch.setattr(entrypoint, "setup_logging", lambda *args, **kwargs: logger)
+    monkeypatch.setattr(entrypoint, "datetime", FakeDateTime)
+    monkeypatch.setattr(entrypoint, "SqliteStateRepository", FakeSqliteRepo)
+    monkeypatch.setattr(entrypoint, "JsonHealthStateRepository", FakeHealthStateRepo)
+    monkeypatch.setattr(entrypoint, "ApiHealthMonitor", FakeHealthMonitor)
+    monkeypatch.setattr(entrypoint, "WeatherAlertClient", FakeWeatherClient)
+    monkeypatch.setattr(entrypoint, "DoorayNotifier", FakeNotifier)
+    monkeypatch.setattr(entrypoint, "ProcessCycleUseCase", FakeProcessor)
+    monkeypatch.setattr(
+        entrypoint.Settings,
+        "from_env",
+        classmethod(lambda cls, env_file=".env": settings),
+    )
+
+    result = entrypoint._run_service()
+    repo = FakeSqliteRepo.last_instance
+
+    assert result == 0
+    assert repo is not None
+    assert repo.file_path == settings.sqlite_state_file

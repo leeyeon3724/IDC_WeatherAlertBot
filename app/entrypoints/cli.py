@@ -1,39 +1,55 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import math
 import os
 import time
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from app.domain.health import HealthPolicy
+from app.domain.health import ApiHealthDecision, HealthPolicy
 from app.domain.health_message_builder import build_health_notification_message
 from app.logging_utils import log_event, setup_logging
+from app.observability import events
 from app.repositories.health_state_repo import JsonHealthStateRepository
+from app.repositories.sqlite_state_repo import SqliteStateRepository
 from app.repositories.state_repo import JsonStateRepository
+from app.repositories.state_repository import StateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
 from app.services.weather_api import WeatherAlertClient
 from app.settings import Settings, SettingsError
 from app.usecases.health_monitor import ApiHealthMonitor
-from app.usecases.process_cycle import ProcessCycleUseCase
+from app.usecases.process_cycle import CycleStats, ProcessCycleUseCase
 
 
-def _run_service() -> int:
-    bootstrap_logger = setup_logging()
-    try:
-        settings = Settings.from_env()
-    except SettingsError as exc:
-        bootstrap_logger.critical(log_event("startup.invalid_config", error=str(exc)))
-        return 1
+@dataclass(frozen=True)
+class ServiceRuntime:
+    settings: Settings
+    logger: logging.Logger
+    state_repo: StateRepository
+    notifier: DoorayNotifier
+    processor: ProcessCycleUseCase
+    health_monitor: ApiHealthMonitor
 
-    logger = setup_logging(settings.log_level, settings.timezone)
-    state_repo = JsonStateRepository(
+
+def _build_state_repository(settings: Settings, logger: logging.Logger) -> StateRepository:
+    if settings.state_repository_type == "sqlite":
+        return SqliteStateRepository(
+            file_path=settings.sqlite_state_file,
+            logger=logger.getChild("state"),
+        )
+    return JsonStateRepository(
         file_path=settings.sent_messages_file,
         logger=logger.getChild("state"),
     )
+
+
+def _build_runtime(settings: Settings) -> ServiceRuntime:
+    logger = setup_logging(settings.log_level, settings.timezone)
+    state_repo = _build_state_repository(settings=settings, logger=logger)
     weather_client = WeatherAlertClient(
         settings=settings,
         logger=logger.getChild("weather_api"),
@@ -74,11 +90,24 @@ def _run_service() -> int:
         ),
         logger=logger.getChild("health_monitor"),
     )
+    return ServiceRuntime(
+        settings=settings,
+        logger=logger,
+        state_repo=state_repo,
+        notifier=notifier,
+        processor=processor,
+        health_monitor=health_monitor,
+    )
 
-    logger.info(
+
+def _log_startup(runtime: ServiceRuntime) -> None:
+    settings = runtime.settings
+    runtime.logger.info(
         log_event(
-            "startup.ready",
+            events.STARTUP_READY,
             state_file=str(settings.sent_messages_file),
+            state_repository_type=settings.state_repository_type,
+            sqlite_state_file=str(settings.sqlite_state_file),
             health_state_file=str(settings.health_state_file),
             area_count=len(settings.area_codes),
             area_max_workers=settings.area_max_workers,
@@ -94,131 +123,205 @@ def _run_service() -> int:
         )
     )
 
+
+def _maybe_auto_cleanup(
+    *,
+    runtime: ServiceRuntime,
+    last_cleanup_date: str | None,
+) -> str | None:
+    settings = runtime.settings
+    if not settings.cleanup_enabled or settings.dry_run:
+        return last_cleanup_date
+
+    current_date = datetime.now(ZoneInfo(settings.timezone)).strftime("%Y-%m-%d")
+    if current_date == last_cleanup_date:
+        return last_cleanup_date
+
+    removed = runtime.state_repo.cleanup_stale(
+        days=settings.cleanup_retention_days,
+        include_unsent=settings.cleanup_include_unsent,
+    )
+    runtime.logger.info(
+        log_event(
+            events.STATE_CLEANUP_AUTO,
+            date=current_date,
+            days=settings.cleanup_retention_days,
+            include_unsent=settings.cleanup_include_unsent,
+            removed=removed,
+            total=runtime.state_repo.total_count,
+            pending=runtime.state_repo.pending_count,
+        )
+    )
+    return current_date
+
+
+def _evaluate_health(*, runtime: ServiceRuntime, stats: CycleStats) -> ApiHealthDecision:
+    decision = runtime.health_monitor.observe_cycle(
+        now=datetime.now(UTC),
+        total_areas=stats.area_count,
+        failed_areas=stats.area_failures,
+        error_counts=stats.api_error_counts,
+        representative_error=stats.last_api_error,
+    )
+    runtime.logger.info(
+        log_event(
+            events.HEALTH_EVALUATE,
+            incident_open=decision.incident_open,
+            health_event=decision.event,
+            should_notify=decision.should_notify,
+            outage_window_fail_ratio=round(decision.outage_window_fail_ratio, 4),
+            recovery_window_fail_ratio=round(decision.recovery_window_fail_ratio, 4),
+            consecutive_severe_failures=decision.consecutive_severe_failures,
+            consecutive_stable_successes=decision.consecutive_stable_successes,
+        )
+    )
+    return decision
+
+
+def _maybe_send_health_notification(
+    *,
+    runtime: ServiceRuntime,
+    health_decision: ApiHealthDecision,
+) -> None:
+    settings = runtime.settings
+    if (
+        not settings.health_alert_enabled
+        or not health_decision.should_notify
+        or settings.dry_run
+        or not health_decision.event
+    ):
+        return
+
+    health_message = build_health_notification_message(health_decision)
+    if not health_message:
+        return
+
+    try:
+        runtime.notifier.send(health_message)
+        runtime.logger.info(
+            log_event(
+                events.HEALTH_NOTIFICATION_SENT,
+                health_event=health_decision.event,
+            )
+        )
+    except NotificationError as exc:
+        runtime.logger.error(
+            log_event(
+                events.HEALTH_NOTIFICATION_FAILED,
+                health_event=health_decision.event,
+                attempts=exc.attempts,
+                error=str(exc.last_error or exc),
+            )
+        )
+
+
+def _maybe_run_recovery_backfill(
+    *,
+    runtime: ServiceRuntime,
+    health_decision: ApiHealthDecision,
+) -> None:
+    settings = runtime.settings
+    if (
+        health_decision.event != "recovered"
+        or settings.health_recovery_backfill_max_days <= settings.lookback_days
+    ):
+        return
+
+    outage_days = max(1, math.ceil(health_decision.incident_duration_sec / 86400))
+    backfill_days = min(outage_days, settings.health_recovery_backfill_max_days)
+    if backfill_days <= settings.lookback_days:
+        return
+
+    runtime.logger.info(
+        log_event(
+            events.HEALTH_BACKFILL_START,
+            lookback_days=backfill_days,
+            incident_duration_sec=health_decision.incident_duration_sec,
+        )
+    )
+    try:
+        backfill_stats = runtime.processor.run_once(lookback_days_override=backfill_days)
+        runtime.logger.info(
+            log_event(
+                events.HEALTH_BACKFILL_COMPLETE,
+                lookback_days=backfill_days,
+                sent_count=backfill_stats.sent_count,
+                pending_total=backfill_stats.pending_total,
+            )
+        )
+    except Exception as exc:
+        runtime.logger.error(
+            log_event(
+                events.HEALTH_BACKFILL_FAILED,
+                lookback_days=backfill_days,
+                error=str(exc),
+            )
+        )
+
+
+def _sleep_until_next_cycle(
+    *,
+    runtime: ServiceRuntime,
+    health_decision: ApiHealthDecision,
+) -> None:
+    sleep_sec = runtime.health_monitor.suggested_cycle_interval_sec(
+        runtime.settings.cycle_interval_sec
+    )
+    if sleep_sec <= 0:
+        return
+
+    if sleep_sec != runtime.settings.cycle_interval_sec:
+        runtime.logger.info(
+            log_event(
+                events.CYCLE_INTERVAL_ADJUSTED,
+                base_interval_sec=runtime.settings.cycle_interval_sec,
+                adjusted_interval_sec=sleep_sec,
+                incident_open=health_decision.incident_open,
+            )
+        )
+    time.sleep(sleep_sec)
+
+
+def _run_loop(runtime: ServiceRuntime) -> int:
     last_cleanup_date: str | None = None
     try:
         while True:
-            if settings.cleanup_enabled and not settings.dry_run:
-                current_date = datetime.now(ZoneInfo(settings.timezone)).strftime("%Y-%m-%d")
-                if current_date != last_cleanup_date:
-                    removed = state_repo.cleanup_stale(
-                        days=settings.cleanup_retention_days,
-                        include_unsent=settings.cleanup_include_unsent,
-                    )
-                    logger.info(
-                        log_event(
-                            "state.cleanup.auto",
-                            date=current_date,
-                            days=settings.cleanup_retention_days,
-                            include_unsent=settings.cleanup_include_unsent,
-                            removed=removed,
-                            total=state_repo.total_count,
-                            pending=state_repo.pending_count,
-                        )
-                    )
-                    last_cleanup_date = current_date
+            last_cleanup_date = _maybe_auto_cleanup(
+                runtime=runtime,
+                last_cleanup_date=last_cleanup_date,
+            )
+            stats = runtime.processor.run_once()
+            health_decision = _evaluate_health(runtime=runtime, stats=stats)
+            _maybe_send_health_notification(runtime=runtime, health_decision=health_decision)
+            _maybe_run_recovery_backfill(runtime=runtime, health_decision=health_decision)
 
-            stats = processor.run_once()
-            health_decision = health_monitor.observe_cycle(
-                now=datetime.now(UTC),
-                total_areas=stats.area_count,
-                failed_areas=stats.area_failures,
-                error_counts=stats.api_error_counts,
-                representative_error=stats.last_api_error,
-            )
-            logger.info(
-                log_event(
-                    "health.evaluate",
-                    incident_open=health_decision.incident_open,
-                    health_event=health_decision.event,
-                    should_notify=health_decision.should_notify,
-                    outage_window_fail_ratio=round(health_decision.outage_window_fail_ratio, 4),
-                    recovery_window_fail_ratio=round(health_decision.recovery_window_fail_ratio, 4),
-                    consecutive_severe_failures=health_decision.consecutive_severe_failures,
-                    consecutive_stable_successes=health_decision.consecutive_stable_successes,
-                )
-            )
-            if (
-                settings.health_alert_enabled
-                and health_decision.should_notify
-                and not settings.dry_run
-                and health_decision.event
-            ):
-                health_message = build_health_notification_message(health_decision)
-                if health_message:
-                    try:
-                        notifier.send(health_message)
-                        logger.info(
-                            log_event(
-                                "health.notification.sent",
-                                health_event=health_decision.event,
-                            )
-                        )
-                    except NotificationError as exc:
-                        logger.error(
-                            log_event(
-                                "health.notification.failed",
-                                health_event=health_decision.event,
-                                attempts=exc.attempts,
-                                error=str(exc.last_error or exc),
-                            )
-                        )
-            if (
-                health_decision.event == "recovered"
-                and settings.health_recovery_backfill_max_days > settings.lookback_days
-            ):
-                outage_days = max(1, math.ceil(health_decision.incident_duration_sec / 86400))
-                backfill_days = min(outage_days, settings.health_recovery_backfill_max_days)
-                if backfill_days > settings.lookback_days:
-                    logger.info(
-                        log_event(
-                            "health.backfill.start",
-                            lookback_days=backfill_days,
-                            incident_duration_sec=health_decision.incident_duration_sec,
-                        )
-                    )
-                    try:
-                        backfill_stats = processor.run_once(lookback_days_override=backfill_days)
-                        logger.info(
-                            log_event(
-                                "health.backfill.complete",
-                                lookback_days=backfill_days,
-                                sent_count=backfill_stats.sent_count,
-                                pending_total=backfill_stats.pending_total,
-                            )
-                        )
-                    except Exception as exc:
-                        logger.error(
-                            log_event(
-                                "health.backfill.failed",
-                                lookback_days=backfill_days,
-                                error=str(exc),
-                            )
-                        )
-            logger.info(log_event("cycle.complete", **asdict(stats)))
-            if settings.run_once:
-                logger.info(log_event("shutdown.run_once_complete"))
+            runtime.logger.info(log_event(events.CYCLE_COMPLETE, **asdict(stats)))
+            if runtime.settings.run_once:
+                runtime.logger.info(log_event(events.SHUTDOWN_RUN_ONCE_COMPLETE))
                 return 0
-            sleep_sec = health_monitor.suggested_cycle_interval_sec(settings.cycle_interval_sec)
-            if sleep_sec > 0:
-                if sleep_sec != settings.cycle_interval_sec:
-                    logger.info(
-                        log_event(
-                            "cycle.interval.adjusted",
-                            base_interval_sec=settings.cycle_interval_sec,
-                            adjusted_interval_sec=sleep_sec,
-                            incident_open=health_decision.incident_open,
-                        )
-                    )
-                time.sleep(sleep_sec)
+            _sleep_until_next_cycle(runtime=runtime, health_decision=health_decision)
     except KeyboardInterrupt:
-        logger.info(log_event("shutdown.interrupt"))
+        runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
         return 0
     except Exception as exc:  # pragma: no cover
-        logger.critical(
-            log_event("shutdown.unexpected_error", error=str(exc)),
+        runtime.logger.critical(
+            log_event(events.SHUTDOWN_UNEXPECTED_ERROR, error=str(exc)),
             exc_info=True,
         )
         return 1
+
+
+def _run_service() -> int:
+    bootstrap_logger = setup_logging()
+    try:
+        settings = Settings.from_env()
+    except SettingsError as exc:
+        bootstrap_logger.critical(log_event("startup.invalid_config", error=str(exc)))
+        return 1
+
+    runtime = _build_runtime(settings)
+    _log_startup(runtime)
+    return _run_loop(runtime)
 
 
 def _cleanup_state(state_file: str, days: int, include_unsent: bool, dry_run: bool) -> int:
@@ -230,7 +333,7 @@ def _cleanup_state(state_file: str, days: int, include_unsent: bool, dry_run: bo
     removed = repo.cleanup_stale(days=days, include_unsent=include_unsent, dry_run=dry_run)
     logger.info(
         log_event(
-            "state.cleanup.complete",
+            events.STATE_CLEANUP_COMPLETE,
             state_file=state_file,
             days=days,
             include_unsent=include_unsent,

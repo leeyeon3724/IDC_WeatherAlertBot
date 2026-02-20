@@ -11,6 +11,8 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SERVICE_HOOK_URL",
         "WEATHER_ALERT_DATA_API_URL",
         "SENT_MESSAGES_FILE",
+        "STATE_REPOSITORY_TYPE",
+        "SQLITE_STATE_FILE",
         "AREA_CODES",
         "AREA_CODE_MAPPING",
         "REQUEST_TIMEOUT_SEC",
@@ -63,6 +65,8 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.area_codes == ["11B00000"]
     assert settings.area_code_mapping["11B00000"] == "서울"
     assert settings.sent_messages_file.as_posix().endswith("data/sent_messages.json")
+    assert settings.state_repository_type == "json"
+    assert settings.sqlite_state_file.as_posix().endswith("data/sent_messages.db")
     assert settings.notifier_max_retries == 3
     assert settings.notifier_retry_delay_sec == 1
     assert settings.request_connect_timeout_sec == 5
@@ -213,6 +217,18 @@ def test_settings_invalid_health_ratio(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AREA_CODES", '["11B00000"]')
     monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
     monkeypatch.setenv("HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD", "1.5")
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_invalid_repository_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("STATE_REPOSITORY_TYPE", "postgres")
 
     with pytest.raises(SettingsError):
         Settings.from_env(env_file=None)

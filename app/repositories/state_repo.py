@@ -3,48 +3,15 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha1
 from pathlib import Path
 from typing import Any
 
 from app.domain.models import AlertNotification
+from app.repositories.state_models import StoredNotification, parse_iso_to_utc, utc_now_iso
 
 STATE_SCHEMA_VERSION = 2
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _parse_iso_to_utc(value: object) -> datetime | None:
-    if not isinstance(value, str):
-        return None
-    text = value.strip()
-    if not text:
-        return None
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-    try:
-        dt = datetime.fromisoformat(text)
-    except ValueError:
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
-
-
-@dataclass(frozen=True)
-class StoredNotification:
-    event_id: str
-    area_code: str
-    message: str
-    report_url: str | None
-    sent: bool
-    first_seen_at: str
-    updated_at: str
-    last_sent_at: str | None
 
 
 class JsonStateRepository:
@@ -106,7 +73,7 @@ class JsonStateRepository:
             return {}, True
 
         migrated = False
-        now = _utc_now_iso()
+        now = utc_now_iso()
         normalized: dict[str, dict[str, Any]] = {}
 
         if "events" in raw:
@@ -170,7 +137,7 @@ class JsonStateRepository:
         temp_path.replace(self.file_path)
 
     def upsert_notifications(self, notifications: Iterable[AlertNotification]) -> int:
-        now = _utc_now_iso()
+        now = utc_now_iso()
         changed = False
         new_count = 0
 
@@ -238,7 +205,7 @@ class JsonStateRepository:
         return self.mark_many_sent([event_id]) > 0
 
     def mark_many_sent(self, event_ids: Iterable[str]) -> int:
-        now = _utc_now_iso()
+        now = utc_now_iso()
         changed = False
         marked_count = 0
 
@@ -279,9 +246,9 @@ class JsonStateRepository:
                 continue
 
             reference_time = (
-                _parse_iso_to_utc(record.get("updated_at"))
-                or _parse_iso_to_utc(record.get("last_sent_at"))
-                or _parse_iso_to_utc(record.get("first_seen_at"))
+                parse_iso_to_utc(record.get("updated_at"))
+                or parse_iso_to_utc(record.get("last_sent_at"))
+                or parse_iso_to_utc(record.get("first_seen_at"))
             )
             if reference_time is None:
                 continue

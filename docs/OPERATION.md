@@ -70,6 +70,7 @@
 
 - API 키/웹훅 유효성 확인
 - `AREA_CODES`, `AREA_CODE_MAPPING` JSON 형식 확인
+- `STATE_REPOSITORY_TYPE`에 맞는 상태 파일 경로/권한 확인
 - `data/` 볼륨 영속화 확인(컨테이너 운영 시)
 - 실패 로그(`area.failed`, `notification.final_failure`) 증가 추이 확인
 

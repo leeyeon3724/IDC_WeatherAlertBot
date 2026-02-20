@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 from app.domain.message_builder import build_notification
 from app.domain.models import AlertEvent
 from app.logging_utils import log_event
-from app.repositories.state_repo import JsonStateRepository
+from app.observability import events
+from app.repositories.state_repository import StateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
 from app.services.weather_api import WeatherAlertClient, WeatherApiError
 from app.settings import Settings
@@ -46,7 +47,7 @@ class ProcessCycleUseCase:
         settings: Settings,
         weather_client: WeatherAlertClient,
         notifier: DoorayNotifier,
-        state_repo: JsonStateRepository,
+        state_repo: StateRepository,
         logger: logging.Logger | None = None,
     ) -> None:
         self.settings = settings
@@ -98,12 +99,12 @@ class ProcessCycleUseCase:
 
         max_workers = min(self.settings.area_max_workers, area_count)
         self.logger.info(
-            log_event("cycle.parallel_fetch", workers=max_workers, area_count=area_count)
+            log_event(events.CYCLE_PARALLEL_FETCH, workers=max_workers, area_count=area_count)
         )
         if self.settings.area_interval_sec > 0:
             self.logger.info(
                 log_event(
-                    "cycle.area_interval_ignored",
+                    events.CYCLE_AREA_INTERVAL_IGNORED,
                     reason="parallel_fetch_enabled",
                     area_interval_sec=self.settings.area_interval_sec,
                 )
@@ -143,6 +144,111 @@ class ProcessCycleUseCase:
                     )
         return results
 
+    def _resolve_area_result(
+        self,
+        area_code: str,
+        area_results: dict[str, AreaFetchResult],
+    ) -> AreaFetchResult:
+        return area_results.get(
+            area_code,
+            AreaFetchResult(
+                area_code=area_code,
+                area_name=self.settings.area_code_mapping.get(area_code, "알 수 없는 지역"),
+                alerts=None,
+                error=WeatherApiError("missing_area_result"),
+            ),
+        )
+
+    def _handle_area_failure(
+        self,
+        *,
+        area_code: str,
+        result: AreaFetchResult,
+        stats: CycleStats,
+    ) -> None:
+        stats.area_failures += 1
+        error_code = self._api_error_code(result.error or WeatherApiError("unknown"))
+        stats.api_error_counts[error_code] = stats.api_error_counts.get(error_code, 0) + 1
+        stats.last_api_error = str(result.error or "unknown")
+        self.logger.error(
+            log_event(
+                events.AREA_FAILED,
+                area_code=area_code,
+                error_code=error_code,
+                error=str(result.error),
+            )
+        )
+
+    def _track_area_notifications(
+        self,
+        *,
+        area_code: str,
+        result: AreaFetchResult,
+        stats: CycleStats,
+    ) -> None:
+        alerts = result.alerts or []
+        stats.alerts_fetched += len(alerts)
+        self.logger.info(
+            log_event(
+                events.AREA_FETCH_SUMMARY,
+                area_code=area_code,
+                area_name=result.area_name,
+                fetched_items=len(alerts),
+            )
+        )
+
+        notifications = [build_notification(alert) for alert in alerts]
+        for notification in notifications:
+            if notification.url_validation_error:
+                self.logger.warning(
+                    log_event(
+                        events.NOTIFICATION_URL_ATTACHMENT_BLOCKED,
+                        event_id=notification.event_id,
+                        area_code=notification.area_code,
+                        reason=notification.url_validation_error,
+                    )
+                )
+        stats.newly_tracked += self.state_repo.upsert_notifications(notifications)
+
+    def _dispatch_unsent_for_area(self, *, area_code: str, stats: CycleStats) -> None:
+        successful_event_ids: list[str] = []
+        for row in self.state_repo.get_unsent(area_code=area_code):
+            if self.settings.dry_run:
+                self.logger.info(
+                    log_event(
+                        events.NOTIFICATION_DRY_RUN,
+                        event_id=row.event_id,
+                        area_code=row.area_code,
+                    )
+                )
+                continue
+            try:
+                self.notifier.send(row.message, report_url=row.report_url)
+                successful_event_ids.append(row.event_id)
+            except NotificationError as exc:
+                stats.send_failures += 1
+                self.logger.error(
+                    log_event(
+                        events.NOTIFICATION_FINAL_FAILURE,
+                        event_id=row.event_id,
+                        area_code=row.area_code,
+                        attempts=exc.attempts,
+                        error=str(exc.last_error or exc),
+                    )
+                )
+
+        if successful_event_ids:
+            marked_count = self.state_repo.mark_many_sent(successful_event_ids)
+            stats.sent_count += marked_count
+            for event_id in successful_event_ids:
+                self.logger.info(
+                    log_event(
+                        events.NOTIFICATION_SENT,
+                        event_id=event_id,
+                        area_code=area_code,
+                    )
+                )
+
     def run_once(
         self,
         now: datetime | None = None,
@@ -167,7 +273,7 @@ class ProcessCycleUseCase:
 
         self.logger.info(
             log_event(
-                "cycle.start",
+                events.CYCLE_START,
                 start_date=start_date,
                 end_date=end_date,
                 area_count=len(self.settings.area_codes),
@@ -177,84 +283,15 @@ class ProcessCycleUseCase:
         area_results = self._fetch_alerts_for_areas(start_date=start_date, end_date=end_date)
         for area_code in self.settings.area_codes:
             stats.areas_processed += 1
-            result = area_results.get(
-                area_code,
-                AreaFetchResult(
-                    area_code=area_code,
-                    area_name=self.settings.area_code_mapping.get(area_code, "알 수 없는 지역"),
-                    alerts=None,
-                    error=WeatherApiError("missing_area_result"),
-                ),
-            )
+            result = self._resolve_area_result(area_code=area_code, area_results=area_results)
             self.logger.info(
-                log_event("area.start", area_code=area_code, area_name=result.area_name)
+                log_event(events.AREA_START, area_code=area_code, area_name=result.area_name)
             )
             if result.error is not None:
-                stats.area_failures += 1
-                error_code = self._api_error_code(result.error)
-                stats.api_error_counts[error_code] = stats.api_error_counts.get(error_code, 0) + 1
-                stats.last_api_error = str(result.error)
-                self.logger.error(
-                    log_event(
-                        "area.failed",
-                        area_code=area_code,
-                        error_code=error_code,
-                        error=str(result.error),
-                    )
-                )
+                self._handle_area_failure(area_code=area_code, result=result, stats=stats)
                 continue
 
-            alerts = result.alerts or []
-            stats.alerts_fetched += len(alerts)
-            notifications = [build_notification(alert) for alert in alerts]
-            for notification in notifications:
-                if notification.url_validation_error:
-                    self.logger.warning(
-                        log_event(
-                            "notification.url_attachment_blocked",
-                            event_id=notification.event_id,
-                            area_code=notification.area_code,
-                            reason=notification.url_validation_error,
-                        )
-                    )
-            stats.newly_tracked += self.state_repo.upsert_notifications(notifications)
-
-            successful_event_ids: list[str] = []
-            for row in self.state_repo.get_unsent(area_code=area_code):
-                if self.settings.dry_run:
-                    self.logger.info(
-                        log_event(
-                            "notification.dry_run",
-                            event_id=row.event_id,
-                            area_code=row.area_code,
-                        )
-                    )
-                    continue
-                try:
-                    self.notifier.send(row.message, report_url=row.report_url)
-                    successful_event_ids.append(row.event_id)
-                except NotificationError as exc:
-                    stats.send_failures += 1
-                    self.logger.error(
-                        log_event(
-                            "notification.final_failure",
-                            event_id=row.event_id,
-                            area_code=row.area_code,
-                            attempts=exc.attempts,
-                            error=str(exc.last_error or exc),
-                        )
-                    )
-
-            if successful_event_ids:
-                marked_count = self.state_repo.mark_many_sent(successful_event_ids)
-                stats.sent_count += marked_count
-                for event_id in successful_event_ids:
-                    self.logger.info(
-                        log_event(
-                            "notification.sent",
-                            event_id=event_id,
-                            area_code=area_code,
-                        )
-                    )
+            self._track_area_notifications(area_code=area_code, result=result, stats=stats)
+            self._dispatch_unsent_for_area(area_code=area_code, stats=stats)
         stats.pending_total = self.state_repo.pending_count
         return stats

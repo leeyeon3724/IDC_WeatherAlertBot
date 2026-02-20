@@ -153,6 +153,17 @@ def _parse_bool_env(name: str, default: bool = False) -> bool:
     )
 
 
+def _parse_choice_env(name: str, default: str, allowed: set[str]) -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value not in allowed:
+        allowed_text = ", ".join(sorted(allowed))
+        raise SettingsError(f"{name} must be one of: {allowed_text}. Received: {raw}")
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     service_api_key: str
@@ -161,6 +172,8 @@ class Settings:
     sent_messages_file: Path
     area_codes: list[str]
     area_code_mapping: dict[str, str]
+    state_repository_type: str = "json"
+    sqlite_state_file: Path = Path("./data/sent_messages.db")
     request_timeout_sec: int = 5
     request_connect_timeout_sec: int = 5
     request_read_timeout_sec: int = 5
@@ -225,6 +238,15 @@ class Settings:
             os.getenv("SENT_MESSAGES_FILE", DEFAULT_SENT_MESSAGES_FILE).strip()
             or DEFAULT_SENT_MESSAGES_FILE
         )
+        state_repository_type = _parse_choice_env(
+            "STATE_REPOSITORY_TYPE",
+            "json",
+            {"json", "sqlite"},
+        )
+        sqlite_state_file = Path(
+            os.getenv("SQLITE_STATE_FILE", "./data/sent_messages.db").strip()
+            or "./data/sent_messages.db"
+        )
 
         request_timeout_sec = _parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1)
         request_connect_timeout_sec = _parse_int_env(
@@ -258,6 +280,8 @@ class Settings:
             service_hook_url=service_hook_url,
             weather_alert_data_api_url=weather_alert_data_api_url,
             sent_messages_file=sent_messages_file,
+            state_repository_type=state_repository_type,
+            sqlite_state_file=sqlite_state_file,
             area_codes=area_codes,
             area_code_mapping=area_code_mapping,
             request_timeout_sec=request_timeout_sec,
