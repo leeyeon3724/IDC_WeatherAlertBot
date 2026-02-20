@@ -38,4 +38,6 @@ HEALTH_BACKFILL_FAILED = "health.backfill.failed"
 # State
 STATE_CLEANUP_AUTO = "state.cleanup.auto"
 STATE_CLEANUP_COMPLETE = "state.cleanup.complete"
+STATE_CLEANUP_FAILED = "state.cleanup.failed"
 STATE_MIGRATION_COMPLETE = "state.migration.complete"
+STATE_MIGRATION_FAILED = "state.migration.failed"

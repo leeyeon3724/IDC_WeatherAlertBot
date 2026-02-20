@@ -9,7 +9,7 @@ from app.entrypoints.runtime_builder import ServiceRuntime
 from app.logging_utils import log_event, setup_logging
 from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
-from app.repositories.state_migration import migrate_json_to_sqlite
+from app.repositories.state_migration import JsonToSqliteMigrationResult, migrate_json_to_sqlite
 from app.settings import Settings, SettingsError
 
 
@@ -45,8 +45,22 @@ def cleanup_state(
     json_repo_factory: Callable[..., JsonStateRepository] = JsonStateRepository,
 ) -> int:
     logger = setup_logging_fn(log_level=log_level, timezone=timezone)
-    repo = json_repo_factory(Path(state_file), logger=logger.getChild("state"))
-    removed = repo.cleanup_stale(days=days, include_unsent=include_unsent, dry_run=dry_run)
+    try:
+        repo = json_repo_factory(Path(state_file), logger=logger.getChild("state"))
+        removed = repo.cleanup_stale(days=days, include_unsent=include_unsent, dry_run=dry_run)
+    except Exception as exc:
+        logger.error(
+            log_event(
+                events.STATE_CLEANUP_FAILED,
+                state_file=state_file,
+                days=days,
+                include_unsent=include_unsent,
+                dry_run=dry_run,
+                error=str(exc),
+            )
+        )
+        return 1
+
     logger.info(
         log_event(
             events.STATE_CLEANUP_COMPLETE,
@@ -69,13 +83,26 @@ def migrate_state(
     log_level: str = "INFO",
     timezone: str = "Asia/Seoul",
     setup_logging_fn: Callable[..., logging.Logger] = setup_logging,
+    migrate_fn: Callable[..., JsonToSqliteMigrationResult] = migrate_json_to_sqlite,
 ) -> int:
     logger = setup_logging_fn(log_level=log_level, timezone=timezone)
-    result = migrate_json_to_sqlite(
-        json_state_file=Path(json_state_file),
-        sqlite_state_file=Path(sqlite_state_file),
-        logger=logger.getChild("migration"),
-    )
+    try:
+        result = migrate_fn(
+            json_state_file=Path(json_state_file),
+            sqlite_state_file=Path(sqlite_state_file),
+            logger=logger.getChild("migration"),
+        )
+    except Exception as exc:
+        logger.error(
+            log_event(
+                events.STATE_MIGRATION_FAILED,
+                json_state_file=json_state_file,
+                sqlite_state_file=sqlite_state_file,
+                error=str(exc),
+            )
+        )
+        return 1
+
     logger.info(
         log_event(
             events.STATE_MIGRATION_COMPLETE,

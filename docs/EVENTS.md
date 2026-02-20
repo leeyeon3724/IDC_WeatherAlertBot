@@ -52,4 +52,6 @@
 
 - `state.cleanup.auto`: `date`, `days`, `include_unsent`, `removed`, `total`, `pending`
 - `state.cleanup.complete`: `state_file`, `days`, `include_unsent`, `dry_run`, `removed`, `total`, `pending`
+- `state.cleanup.failed`: `state_file`, `days`, `include_unsent`, `dry_run`, `error`
 - `state.migration.complete`: `json_state_file`, `sqlite_state_file`, `total_records`, `inserted_records`, `sent_records`, `marked_sent_records`
+- `state.migration.failed`: `json_state_file`, `sqlite_state_file`, `error`
