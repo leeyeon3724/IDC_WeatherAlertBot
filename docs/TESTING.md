@@ -26,9 +26,9 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 리스크/보완 포인트:
 
-- 진입점(`cli.py`)은 monkeypatch 중심 테스트 비중이 높아 리팩토링 내성이 낮을 수 있음
-- 파서/시간 유틸처럼 작은 단위 모듈은 경계값 테스트가 누락되기 쉬움
-- 페이지네이션 분기는 외부 API 변형(예: NODATA 페이지, 잘못된 totalCount) 대응 테스트가 필요함
+- 엔트리포인트 분리 후에도 `service_loop/commands`의 예외 분기 테스트 밀도가 낮음
+- `health_state_repo` 손상 파일/마이그레이션 경계 케이스는 커버리지 개선 여지가 있음
+- 마이그레이션은 상태 개수/sent 여부는 검증되지만 타임스탬프 보존 검증이 부족함
 
 ## 4. 최근 보완 사항
 
@@ -39,6 +39,6 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 ## 5. 다음 개선 우선순위
 
-1. `cli.py`의 helper 단위 테스트 추가(루프 내부 분기별)
-2. JSON->SQLite 마이그레이션 유틸 도입 시 회귀 테스트 템플릿 추가
+1. `service_loop.py`, `commands.py` 분기/예외 테스트 보강
+2. JSON->SQLite 마이그레이션 타임스탬프 보존 회귀 테스트 추가
 3. 운영 장애 시나리오(장애 감지 -> heartbeat -> 복구 -> backfill) 통합 성격 테스트 강화
