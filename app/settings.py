@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 DEFAULT_ALERT_API_URL = "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd"
 DEFAULT_SENT_MESSAGES_FILE = "./data/sent_messages.json"
@@ -112,6 +113,19 @@ def _parse_str_env(name: str, default: str) -> str:
     """
     raw = os.getenv(name, "").strip()
     return raw if raw else default
+
+
+def _parse_timezone_env(name: str, default: str) -> str:
+    """환경변수를 timezone 문자열로 파싱하고 유효성을 검증합니다.
+
+    잘못된 timezone 이름이면 기동 시점에 SettingsError를 발생시킵니다.
+    """
+    value = _parse_str_env(name, default)
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, KeyError):
+        raise SettingsError(f"{name} is not a valid IANA timezone name. Received: {value}")
+    return value
 
 
 def _parse_choice_env(name: str, default: str, allowed: set[str]) -> str:
@@ -380,7 +394,7 @@ def _parse_runtime_config() -> _RuntimeConfig:
         cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
         cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=True),
         bot_name=_parse_str_env("BOT_NAME", "기상특보알림"),
-        timezone=_parse_str_env("TIMEZONE", "Asia/Seoul"),
+        timezone=_parse_timezone_env("TIMEZONE", "Asia/Seoul"),
         log_level=_parse_str_env("LOG_LEVEL", "INFO").upper(),
         dry_run=_parse_bool_env("DRY_RUN", default=False),
         run_once=_parse_bool_env("RUN_ONCE", default=False),

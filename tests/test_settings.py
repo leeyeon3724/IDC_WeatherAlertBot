@@ -384,3 +384,29 @@ def test_settings_rejects_invalid_notifier_circuit_failure_threshold(
 
     with pytest.raises(SettingsError):
         Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_invalid_timezone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """잘못된 TIMEZONE 값은 Settings.from_env() 시점에 SettingsError를 발생시켜야 한다."""
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("TIMEZONE", "Invalid/Zone")
+
+    with pytest.raises(SettingsError, match="TIMEZONE"):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_accepts_valid_timezone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """유효한 TIMEZONE 값은 SettingsError 없이 로드되어야 한다."""
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("TIMEZONE", "America/New_York")
+
+    settings = Settings.from_env(env_file=None)
+    assert settings.timezone == "America/New_York"
