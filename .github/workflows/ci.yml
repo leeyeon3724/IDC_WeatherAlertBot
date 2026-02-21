@@ -71,11 +71,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-      - name: Lint
-        run: ruff check .
-      - name: Type check
-        run: mypy
-      - name: Check event/docs consistency
+      - name: Release quality gate
+        run: make gate
+      - name: Generate event/docs consistency summary
         run: |
           set -euo pipefail
           mkdir -p artifacts/docs-check
@@ -83,8 +81,6 @@ jobs:
             --json-output artifacts/docs-check/events-sync.json \
             --markdown-output artifacts/docs-check/events-sync.md
           cat artifacts/docs-check/events-sync.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Run tests with coverage gate
-        run: pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
       - name: Generate lightweight perf report
         run: |
           set -euo pipefail

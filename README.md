@@ -31,7 +31,7 @@ DRY_RUN=true RUN_ONCE=true python3 main.py
 make install
 make install-dev
 make test
-make quality
+make gate
 make perf-report
 make perf-baseline
 make check-docs
@@ -50,9 +50,7 @@ python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqli
 ## 품질 게이트
 
 ```bash
-python3 -m ruff check .
-python3 -m mypy
-python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+make gate
 ```
 
 ## 디렉터리 구조

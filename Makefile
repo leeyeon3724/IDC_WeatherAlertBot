@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test test-cov lint typecheck quality clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline check-docs
+.PHONY: install install-dev run dry-run test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline check-docs
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -26,7 +26,9 @@ lint:
 typecheck:
 	$(PYTHON) -m mypy
 
-quality: lint typecheck test-cov
+gate: lint typecheck check-docs test-cov
+
+quality: gate
 
 setup-hooks:
 	git config core.hooksPath .githooks

@@ -5,10 +5,7 @@
 ## 1) 실행 명령
 
 ```bash
-python3 -m ruff check .
-python3 -m mypy
-python3 -m scripts.check_event_docs_sync
-python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+make gate
 python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
 ```
@@ -38,10 +35,10 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 - `settings.from_env` 섹션 분해 + 정책별 테스트 강화
 - `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장
 - redaction 통합 시나리오(`area.failed`, `notification.final_failure`) 테스트 추가
-- CI: perf report/compare/baseline + docs consistency check + PR 체크리스트 도입
+- CI: `make gate` 단일 품질 게이트 + perf report/compare/baseline + docs consistency check + PR 체크리스트 도입
 
 ## 5) 다음 우선순위
 
-1. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
-2. perf 리포트 보존 기간/샘플 정책 표준화 (`RB-507`)
-3. 배포 신뢰성 관점의 Python 버전 매트릭스 smoke 검증 도입 (`RB-601`)
+1. 아키텍처 의존성 규칙 자동검사 도입 (`RB-701`)
+2. 계약 안정성 테스트 계층 도입 (`RB-702`)
+3. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
