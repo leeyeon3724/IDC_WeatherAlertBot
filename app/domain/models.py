@@ -21,20 +21,27 @@ class AlertEvent:
     @property
     def event_id(self) -> str:
         if self.stn_id and self.tm_fc and self.tm_seq:
+            # Include area + warning dimensions so same bulletin metadata does not collide
+            # across different regions or warning categories.
             return (
                 f"event:{self.stn_id}:{self.tm_fc}:{self.tm_seq}:"
+                f"{self.area_code}:{self.warn_var}:{self.warn_stress}:"
                 f"{self.command}:{self.cancel}"
             )
 
         fallback_source = "|".join(
             [
                 self.area_code,
+                self.area_name,
                 self.warn_var,
                 self.warn_stress,
                 self.command,
                 self.cancel,
                 self.start_time or "",
                 self.end_time or "",
+                self.stn_id,
+                self.tm_fc,
+                self.tm_seq,
             ]
         )
         digest = sha1(fallback_source.encode("utf-8")).hexdigest()[:20]

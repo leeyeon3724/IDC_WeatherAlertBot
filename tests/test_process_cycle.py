@@ -65,20 +65,22 @@ def _settings(tmp_path) -> Settings:
     )
 
 
-def _sample_alert() -> AlertEvent:
-    return AlertEvent(
-        area_code="11B00000",
-        area_name="서울",
-        warn_var="호우",
-        warn_stress="주의보",
-        command="발표",
-        cancel="정상",
-        start_time="2026년 2월 20일 오전 9시",
-        end_time="2026년 2월 20일 오후 6시",
-        stn_id="109",
-        tm_fc="202602200900",
-        tm_seq="1",
-    )
+def _sample_alert(**overrides: object) -> AlertEvent:
+    base: dict[str, object] = {
+        "area_code": "11B00000",
+        "area_name": "서울",
+        "warn_var": "호우",
+        "warn_stress": "주의보",
+        "command": "발표",
+        "cancel": "정상",
+        "start_time": "2026년 2월 20일 오전 9시",
+        "end_time": "2026년 2월 20일 오후 6시",
+        "stn_id": "109",
+        "tm_fc": "202602200900",
+        "tm_seq": "1",
+    }
+    base.update(overrides)
+    return AlertEvent(**base)
 
 
 def test_process_cycle_tracks_and_sends_once(tmp_path) -> None:
@@ -110,6 +112,41 @@ def test_process_cycle_tracks_and_sends_once(tmp_path) -> None:
     assert second.notification_dry_run_skips == 0
     assert second.sent_count == 0
     assert len(notifier.sent_messages) == 1
+
+
+def test_process_cycle_tracks_distinct_ids_for_same_bulletin_across_areas(tmp_path) -> None:
+    settings = Settings(
+        **{
+            **_settings(tmp_path).__dict__,
+            "area_codes": ["11B00000", "11H20000"],
+            "area_code_mapping": {"11B00000": "서울", "11H20000": "부산"},
+        }
+    )
+    repo = JsonStateRepository(settings.sent_messages_file)
+    seoul_alert = _sample_alert(area_code="11B00000", area_name="서울")
+    busan_alert = _sample_alert(area_code="11H20000", area_name="부산")
+    assert seoul_alert.stn_id == busan_alert.stn_id
+    assert seoul_alert.tm_fc == busan_alert.tm_fc
+    assert seoul_alert.tm_seq == busan_alert.tm_seq
+
+    weather_client = FakeWeatherClient({"11B00000": [seoul_alert], "11H20000": [busan_alert]})
+    notifier = FakeNotifier(should_fail=False)
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.event_id_collision_guard"),
+    )
+
+    now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    stats = usecase.run_once(now=now)
+
+    assert stats.newly_tracked == 2
+    assert stats.sent_count == 2
+    assert stats.pending_total == 0
+    assert len(repo.all_notifications()) == 2
+    assert seoul_alert.event_id != busan_alert.event_id
 
 
 def test_process_cycle_retries_unsent_on_next_cycle(tmp_path) -> None:

@@ -26,13 +26,22 @@ def _sample_alert(**overrides: object) -> AlertEvent:
 
 def test_event_id_uses_station_identifiers() -> None:
     alert = _sample_alert()
-    assert alert.event_id == "event:109:202602200900:1:발표:정상"
+    assert alert.event_id == "event:109:202602200900:1:11B00000:호우:주의보:발표:정상"
 
 
 def test_event_id_fallback_is_stable() -> None:
     alert = _sample_alert(stn_id="", tm_fc="", tm_seq="")
     assert alert.event_id.startswith("fallback:")
     assert alert.event_id == _sample_alert(stn_id="", tm_fc="", tm_seq="").event_id
+
+
+def test_event_id_differs_for_same_bulletin_metadata_across_areas() -> None:
+    seoul = _sample_alert(area_code="11B00000", area_name="서울")
+    busan = _sample_alert(area_code="11H20000", area_name="부산")
+    assert seoul.stn_id == busan.stn_id
+    assert seoul.tm_fc == busan.tm_fc
+    assert seoul.tm_seq == busan.tm_seq
+    assert seoul.event_id != busan.event_id
 
 
 def test_build_message_and_notification() -> None:
