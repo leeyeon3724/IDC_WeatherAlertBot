@@ -12,7 +12,7 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 ## 2. 현재 스냅샷
 
-- 테스트 수: `128`
+- 테스트 수: `129`
 - 전체 커버리지: `92.64%`
 - 최소 커버리지 기준: `80%`
 
@@ -26,7 +26,6 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 리스크/보완 포인트:
 
-- SQLite 저장소는 기능 테스트는 충분하지만 성능 회귀를 탐지하는 기준선 테스트는 아직 없음
 - 운영 문서의 알람 룰과 실제 이벤트 필드 변경 간 정합성을 자동 점검하는 장치가 부족함
 
 ## 4. 최근 보완 사항
@@ -45,10 +44,11 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 - `settings.from_env`를 섹션별 파서로 분해하고 네트워크/런타임 경계 테스트 추가 (`tests/test_settings.py`)
 - `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장 (`tests/test_weather_api.py`)
 - `process_cycle` 에러 이벤트의 민감정보 redaction 통합 시나리오 테스트 추가 (`tests/test_process_cycle.py`)
+- `sqlite_state_repo` 대량 경로 배치 실행(`executemany`) 회귀 가드 테스트 추가 (`tests/test_sqlite_state_repo.py`)
 - 장애 감지→heartbeat→복구→backfill 통합 스모크 테스트 추가 (`tests/test_service_loop_integration.py`)
 
 ## 5. 다음 개선 우선순위
 
-1. SQLite bulk upsert/cleanup 성능 회귀 기준선(간이 벤치) 추가
-2. 이벤트 기반 알람 룰과 운영 대응(runbook) 간 매핑 자동 점검 보강
-3. `health_monitor` 정책 파라미터 조합(긴 윈도우/짧은 heartbeat)에 대한 시뮬레이션성 테스트 보강
+1. 이벤트 기반 알람 룰과 운영 대응(runbook) 간 매핑 자동 점검 보강
+2. `health_monitor` 정책 파라미터 조합(긴 윈도우/짧은 heartbeat)에 대한 시뮬레이션성 테스트 보강
+3. CI에서 Python 버전/실행 환경 차이에도 안정적인 성능 회귀 신호를 남길 수 있는 경량 벤치 리포트 추가

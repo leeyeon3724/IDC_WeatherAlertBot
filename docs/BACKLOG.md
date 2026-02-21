@@ -14,11 +14,11 @@
 | 응집도/결합도 | 4.3 | 프로토콜 기반 의존으로 저장소 결합도 완화, 경계가 명확함 |
 | 테스트 가능성 | 4.7 | `service_loop/commands/health/json_state_repo/weather_api` 분기 테스트 보강으로 회귀 탐지력 향상 |
 | 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
-| 성능 | 4.4 | SQLite WAL/busy_timeout/batch + cleanup SQL 필터링 최적화 적용 |
-| 안정성 | 4.4 | CLI 실패 경로 이벤트/종료코드 표준화로 운영 복원력 향상 |
+| 성능 | 4.5 | SQLite WAL/busy_timeout/batch + 배치 실행 회귀 가드 테스트로 성능 퇴화 위험 축소 |
+| 안정성 | 4.5 | CLI 실패 경로 이벤트/종료코드 표준화와 상태 저장소 실패 가드로 운영 복원력 향상 |
 | 보안 | 4.4 | redaction 단위+통합 테스트로 민감정보 로그 비노출을 회귀 검증 |
-| 일관성 | 4.4 | health_state 포함 주요 오류 로그가 구조화 이벤트로 통일 |
-| 기술부채 | 4.5 | RB-201~RB-405 완료, 다음 부채는 성능 기준선/운영 자동화 중심 |
+| 일관성 | 4.5 | health/state 오류 로그가 구조화 이벤트로 통일되고 운영 매핑 문서가 정렬됨 |
+| 기술부채 | 4.5 | RB-201~RB-406 완료, 다음 부채는 운영 자동화 중심 |
 
 ## 2) Evidence Snapshot
 
@@ -27,7 +27,7 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `128 passed`
+- `129 passed`
 - 총 커버리지 `92.64%`
 - 주요 커버리지 지표
 - `app/entrypoints/service_loop.py` 98%
@@ -55,8 +55,9 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-406 | P2 | 예정 | 성능 | SQLite bulk upsert/cleanup 경로의 성능 회귀 체크(간이 벤치/기준선) 추가 | 기준선 대비 회귀 감지 규칙 문서화 |
-| RB-407 | P3 | 예정 | 운영성 | 이벤트 기반 알람 룰 템플릿을 실행 가능한 체크리스트/대시보드 매핑으로 고도화 | `docs/OPERATION.md`에 알람-대응 매핑 완성 |
+| RB-501 | P2 | 예정 | 테스트가능성 | `health_monitor` 정책 파라미터 조합(긴 윈도우/짧은 heartbeat) 시뮬레이션 테스트 보강 | 정책 조합별 상태 전이 회귀 테스트 추가 |
+| RB-502 | P2 | 예정 | 성능/운영 | CI에서 경량 성능 벤치 리포트(참고용)를 생성해 추세를 저장 | PR 단위 성능 지표 비교가 가능한 리포트 산출 |
+| RB-503 | P3 | 예정 | 문서품질/운영 | `EVENTS.md`와 `OPERATION.md` 알람-대응 매핑 정합성 점검 체크리스트 자동화 | 이벤트 추가/변경 시 문서 누락 탐지 규칙 정립 |
 
 ## 5) Completed History
 
@@ -91,6 +92,8 @@
 | RB-403 | P1 | 완료 | 복잡성/유지보수성 | `settings.from_env`를 섹션 파서로 분해하고 정책별 테스트를 보강 |
 | RB-404 | P1 | 완료 | 정확성/안정성 | `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장 |
 | RB-405 | P2 | 완료 | 보안/운영 | redaction 이벤트 통합 시나리오 테스트 추가(`area.failed`, `notification.final_failure`) |
+| RB-406 | P2 | 완료 | 성능 | SQLite bulk 경로에 배치 실행(`executemany`) 회귀 가드 테스트 추가 |
+| RB-407 | P3 | 완료 | 운영성 | `docs/OPERATION.md`에 이벤트-알람-즉시조치 매핑 표 추가 |
 
 ## 6) Maintenance Rules
 

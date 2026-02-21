@@ -130,3 +130,20 @@ python3 main.py migrate-state \
 - 지표: `state.cleanup.failed`, `state.migration.failed`
 - 예시 조건: 단일 이벤트 발생 시 즉시 경고
 - 대응: 파일 권한/디스크 상태/경로 오설정 우선 확인
+
+## 9. 알람-대응 매핑 표
+
+| 신호(Event) | 기본 임계값(예시) | 확인 필드 | 1차 대응 | 후속 조치 |
+|---|---|---|---|---|
+| `area.failed` | 5분 합계 `>= 20` | `error_code`, `area_code`, `error` | 네트워크/API 상태 점검, 실패 지역 편중 여부 확인 | 임시로 `CYCLE_INTERVAL_SEC` 상향 후 장애 원인 분리 |
+| `notification.final_failure` | 10분 합계 `>= 5` | `attempts`, `event_id`, `error` | Webhook URL/권한/수신 시스템 상태 점검 | 실패 이벤트 재전송 여부 확인, 웹훅 교체 시 설정 반영 |
+| `health.notification.sent` (`outage_detected`) | 단일 이벤트 즉시 경고 | `health_event`, `incident_duration_sec` | 장애 공지 전파, 외부 의존성 상태 확인 | heartbeat 발생 추세 모니터링 및 복구 조건 점검 |
+| `health.notification.sent` (`outage_heartbeat`) | 2회 연속 발생 | `health_event`, `incident_failed_cycles` | 장기 장애로 분류, 우회 경로 검토 | API 실패 코드 분포 기준으로 공급자/네트워크 이슈 분리 |
+| `state.cleanup.failed` | 단일 이벤트 즉시 경고 | `state_file`, `error` | 파일 권한/경로/디스크 용량 확인 | 스토리지 정책 수정 및 cleanup 재실행 |
+| `state.migration.failed` | 단일 이벤트 즉시 경고 | `json_state_file`, `sqlite_state_file`, `error` | 마이그레이션 중지 후 JSON 모드 롤백 | 원인 제거 후 재마이그레이션, 완료 이벤트 확인 |
+
+운영 규칙:
+
+- 알람 설명에는 반드시 해당 이벤트명과 핵심 필드(`error_code`, `attempts`, `state_file`)를 포함
+- 런북 링크는 각 알람에 `8.x` 절차 번호를 명시
+- 임계값은 고정값으로 두지 말고 최근 2주 평균 대비 비율로 주기 재조정
