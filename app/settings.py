@@ -104,6 +104,16 @@ def _parse_bool_env(name: str, default: bool = False) -> bool:
     )
 
 
+def _parse_str_env(name: str, default: str) -> str:
+    """환경변수를 문자열로 파싱합니다.
+
+    값이 없거나 공백만 있으면 default를 반환합니다.
+    os.getenv의 두 번째 인자와 달리, 빈 문자열·공백 전용 값도 default로 처리합니다.
+    """
+    raw = os.getenv(name, "").strip()
+    return raw if raw else default
+
+
 def _parse_choice_env(name: str, default: str, allowed: set[str]) -> str:
     raw = os.getenv(name)
     if raw is None:
@@ -369,9 +379,9 @@ def _parse_runtime_config() -> _RuntimeConfig:
         cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),
         cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
         cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=True),
-        bot_name=os.getenv("BOT_NAME", "기상특보알림").strip() or "기상특보알림",
-        timezone=os.getenv("TIMEZONE", "Asia/Seoul").strip() or "Asia/Seoul",
-        log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
+        bot_name=_parse_str_env("BOT_NAME", "기상특보알림"),
+        timezone=_parse_str_env("TIMEZONE", "Asia/Seoul"),
+        log_level=_parse_str_env("LOG_LEVEL", "INFO").upper(),
         dry_run=_parse_bool_env("DRY_RUN", default=False),
         run_once=_parse_bool_env("RUN_ONCE", default=False),
     )
