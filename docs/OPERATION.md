@@ -85,6 +85,7 @@ python3 main.py migrate-state \
 
 - 워크플로: `.github/workflows/canary.yml`
 - 트리거: `schedule(매일)`, `pull_request(main, 관련 경로)`, `workflow_dispatch`
+- 목적: 스테이징 성격의 실 API + 분리 webhook 채널 건전성 점검
 - 필수 시크릿: `SERVICE_API_KEY`, `CANARY_SERVICE_HOOK_URL`
 - 결과 산출물: `artifacts/canary/service.log`, `artifacts/canary/webhook_probe.json`, `artifacts/canary/report.json`, `artifacts/canary/report.md`
 
@@ -92,7 +93,20 @@ python3 main.py migrate-state \
 - 성공 조건: `startup.ready`, `cycle.start`, `cycle.complete`, `shutdown.run_once_complete` 이벤트 존재 + webhook probe 성공 + 주요 실패 이벤트 부재
 - 실패 이벤트: `startup.invalid_config`, `shutdown.unexpected_error`, `area.failed`, `notification.final_failure`, `state.read_failed`, `state.persist_failed`
 
-## 8. Soak 안정성 검증
+## 8. Live E2E 운영 검증(보호 환경)
+
+- 워크플로: `.github/workflows/live-e2e.yml`
+- 트리거: `schedule(주 1회)`, `workflow_dispatch`
+- 목적: 테스트용 실자격증명(API/Webhook)으로 실제 전송 경로를 보호 환경에서 검증
+- 필수 시크릿: `LIVE_E2E_SERVICE_API_KEY`, `LIVE_E2E_WEBHOOK_URL`
+- 필수 조건: GitHub Environment `live-e2e` 보호 규칙(승인자/브랜치 제한) 적용
+- 결과 산출물: `artifacts/live-e2e/service.log`, `artifacts/live-e2e/webhook_probe.json`, `artifacts/live-e2e/report.json`, `artifacts/live-e2e/report.md`
+
+판정 규칙:
+- 성공 조건: canary와 동일한 필수 이벤트 집합 + webhook probe 성공 + 주요 실패 이벤트 부재
+- 실패 시 분리 원칙: 코드 회귀(서비스 exit code, 필수 이벤트 누락)와 외부 장애(webhook/API 네트워크)를 각각 분류
+
+## 9. Soak 안정성 검증
 
 - 워크플로: `.github/workflows/soak.yml`
 - 트리거: `schedule(매일)`, `workflow_dispatch`, `pull_request(quick soak)`
@@ -105,26 +119,26 @@ python3 main.py migrate-state \
 - `max_state_growth=0` (`new_event_every=0` 기준)
 - `max_memory_growth_kib=8192`
 
-## 9. SLO 리포트 자동화
+## 10. SLO 리포트 자동화
 
 - 스크립트: `scripts/slo_report.py`
-- 자동 생성: `.github/workflows/canary.yml` 내 `Build canary SLO report` 단계
-- 산출물: `artifacts/canary/slo_report.json`, `artifacts/canary/slo_report.md`
+- 자동 생성: `.github/workflows/canary.yml`, `.github/workflows/live-e2e.yml` 내 SLO 리포트 단계
+- 산출물: `artifacts/canary/slo_report.json`, `artifacts/canary/slo_report.md`, `artifacts/live-e2e/slo_report.json`, `artifacts/live-e2e/slo_report.md`
 - 로컬 실행: `make slo-report` 또는 `python3 -m scripts.slo_report --log-file <service.log>`
 
 기본 SLO 임계:
-- 성공률(`success_rate`) `>= 1.0` (canary 기준)
-- 실패율(`failure_rate`) `<= 0.0` (canary 기준)
+- 성공률(`success_rate`) `>= 1.0` (canary/live-e2e 기준)
+- 실패율(`failure_rate`) `<= 0.0` (canary/live-e2e 기준)
 - p95 사이클 지연(`cycle_latency_p95_sec`) `<= 600`
 - 최신 미전송 잔량(`pending_latest`) `<= 0`
 
-## 10. 배포 전 상태 무결성 게이트
+## 11. 배포 전 상태 무결성 게이트
 
 - CI 연동: `.github/workflows/ci.yml`의 `State integrity verification smoke` 단계
 - 검증 경로: `migrate-state` -> `verify-state --strict`
 - 산출물: `artifacts/state-check/verify.log`, `artifacts/state-check/verify.md`
 
-## 11. PR/Nightly 검증 전략
+## 12. PR/Nightly 검증 전략
 
 - PR fast gate: `.github/workflows/pr-fast.yml`
   - 변경 파일 목록(`git diff`)을 `scripts/select_tests.py`로 분석해 관련 테스트 우선 실행
@@ -132,7 +146,7 @@ python3 main.py migrate-state \
 - Nightly full gate: `.github/workflows/nightly-full.yml`
   - `make gate` 주기 실행으로 전체 회귀 탐지력 유지
 
-## 12. GitHub Secrets/Vars 설정 가이드
+## 13. GitHub Secrets/Vars 설정 가이드
 
 설정 경로:
 - GitHub 저장소 -> `Settings` -> `Secrets and variables` -> `Actions`
@@ -142,8 +156,10 @@ python3 main.py migrate-state \
 
 | 이름 | 사용 워크플로 | 용도 | 비고 |
 |---|---|---|---|
-| SERVICE_API_KEY | `canary.yml` | 기상청 API 호출 인증 | 실제 운영 키 |
+| SERVICE_API_KEY | `canary.yml` | 기상청 API 호출 인증 | canary/staging 검증용 |
 | CANARY_SERVICE_HOOK_URL | `canary.yml` | canary webhook 검증 채널 | 운영 알림 채널과 분리 권장 |
+| LIVE_E2E_SERVICE_API_KEY | `live-e2e.yml` | live-e2e API 호출 인증 | 보호 환경에서만 사용 |
+| LIVE_E2E_WEBHOOK_URL | `live-e2e.yml` | live-e2e webhook 채널 | canary/운영 채널과 분리 |
 
 권장 `Variables`:
 
@@ -151,6 +167,8 @@ python3 main.py migrate-state \
 |---|---|---:|---|
 | CANARY_AREA_CODES | `canary.yml` | `["L1090000"]` | canary 대상 지역코드 |
 | CANARY_AREA_CODE_MAPPING | `canary.yml` | `{"L1090000":"서울"}` | canary 지역명 매핑 |
+| LIVE_E2E_AREA_CODES | `live-e2e.yml` | `["L1090000"]` | live-e2e 대상 지역코드 |
+| LIVE_E2E_AREA_CODE_MAPPING | `live-e2e.yml` | `{"L1090000":"서울"}` | live-e2e 지역명 매핑 |
 | SOAK_CYCLES | `soak.yml` | `6000` | soak 사이클 수 |
 | SOAK_AREA_COUNT | `soak.yml` | `3` | soak 합성 지역 수 |
 | SOAK_NEW_EVENT_EVERY | `soak.yml` | `0` | 주기적 신규 이벤트 주입 간격 |
@@ -158,5 +176,6 @@ python3 main.py migrate-state \
 
 설정 검증 순서:
 1. `Canary` 워크플로를 `workflow_dispatch`로 1회 실행
-2. `Soak` 워크플로를 `workflow_dispatch`로 1회 실행
-3. 아티팩트(`artifacts/canary/*`, `artifacts/soak/*`)와 Step Summary에서 PASS 확인
+2. `Live E2E` 워크플로를 보호 환경 승인 후 `workflow_dispatch`로 1회 실행
+3. `Soak` 워크플로를 `workflow_dispatch`로 1회 실행
+4. 아티팩트(`artifacts/canary/*`, `artifacts/live-e2e/*`, `artifacts/soak/*`)와 Step Summary에서 PASS 확인

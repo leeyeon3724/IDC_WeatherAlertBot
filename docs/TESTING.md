@@ -27,6 +27,7 @@ python3 -m scripts.select_tests --changed-files-file artifacts/pr-fast/changed_f
 - 야간 full gate: `.github/workflows/nightly-full.yml`에서 `make gate`를 주기 실행
 - CI 상태 무결성 스모크: `migrate-state` + `verify-state --strict` 경로를 샘플 상태 파일로 자동 검증
 - 외부 연동 canary: `.github/workflows/canary.yml`에서 실 API + webhook 경로를 주기/PR 단위로 검증하고 리포트 아티팩트(`artifacts/canary`)를 남김
+- 보호 환경 live-e2e: `.github/workflows/live-e2e.yml`에서 전용 시크릿 기반 실연동 검증을 수행하고 아티팩트(`artifacts/live-e2e`)를 남김
 - 장시간 안정성 soak: `.github/workflows/soak.yml`에서 합성 장기부하 리포트(`artifacts/soak/report.json`)를 생성하고 예산 초과 시 실패 처리
 - 운영 SLO 리포트: `scripts/slo_report.py`로 성공률/실패율/지연/미전송 잔량을 계산하고 canary에서 자동 생성
 - 폭주 완화 검증: `tests/test_notifier.py`, `tests/test_process_cycle.py`에서 circuit-breaker/backpressure 동작 회귀 검증
@@ -37,6 +38,7 @@ python3 -m scripts.select_tests --changed-files-file artifacts/pr-fast/changed_f
 - 이벤트 문서 정합성은 이벤트 이름/존재 중심 검증이며 필드 의미 변경은 리뷰 보완이 필요
 - 성능 baseline은 추세 지표이며 절대 성능 SLA 판정 용도로는 사용하지 않음
 - soak는 합성 워크로드 기반이므로 실트래픽/실의존성 시나리오는 canary/운영 지표와 함께 해석 필요
+- live-e2e는 외부 의존성 상태에 영향받으므로 실패 시 코드 회귀와 외부 장애를 분리해서 해석해야 함
 
 ## 5) 우선순위
 
