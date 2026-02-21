@@ -5,6 +5,7 @@
   "AREA_START": "area.start",
   "CYCLE_AREA_INTERVAL_IGNORED": "cycle.area_interval_ignored",
   "CYCLE_COMPLETE": "cycle.complete",
+  "CYCLE_COST_METRICS": "cycle.cost.metrics",
   "CYCLE_INTERVAL_ADJUSTED": "cycle.interval.adjusted",
   "CYCLE_PARALLEL_FETCH": "cycle.parallel_fetch",
   "CYCLE_START": "cycle.start",

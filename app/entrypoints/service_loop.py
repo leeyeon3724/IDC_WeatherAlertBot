@@ -204,6 +204,18 @@ def run_loop(
             maybe_run_recovery_backfill(runtime=runtime, health_decision=health_decision)
 
             runtime.logger.info(log_event(events.CYCLE_COMPLETE, **asdict(stats)))
+            runtime.logger.info(
+                log_event(
+                    events.CYCLE_COST_METRICS,
+                    api_fetch_calls=stats.api_fetch_calls,
+                    alerts_fetched=stats.alerts_fetched,
+                    notification_attempts=stats.notification_attempts,
+                    notification_sent=stats.sent_count,
+                    notification_failures=stats.send_failures,
+                    notification_dry_run_skips=stats.notification_dry_run_skips,
+                    pending_total=stats.pending_total,
+                )
+            )
             if runtime.settings.run_once:
                 runtime.logger.info(log_event(events.SHUTDOWN_RUN_ONCE_COMPLETE))
                 return 0

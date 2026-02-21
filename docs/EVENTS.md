@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `1`
+- schema_version: `2`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -18,6 +18,7 @@
 | version | date | change | compatibility |
 |---|---|---|---|
 | 1 | 2026-02-21 | 이벤트 스키마 버전 기준 수립 및 동기화 검증 도입 | Initial |
+| 2 | 2026-02-21 | 비용 관점 사이클 지표(`cycle.cost.metrics`) 추가 및 `cycle.complete` 필드 확장 | Backward-compatible |
 
 ## Runtime Lifecycle
 
@@ -30,10 +31,11 @@
 ## Cycle
 
 - `cycle.start`: `start_date`, `end_date`, `area_count`
-- `cycle.complete`: `start_date`, `end_date`, `area_count`, `area_failures`, `sent_count`
+- `cycle.complete`: `start_date`, `end_date`, `area_count`, `areas_processed`, `area_failures`, `alerts_fetched`, `api_fetch_calls`, `newly_tracked`, `notification_attempts`, `sent_count`, `send_failures`, `notification_dry_run_skips`, `pending_total`
 - `cycle.parallel_fetch`: `workers`, `area_count`
 - `cycle.area_interval_ignored`: `area_interval_sec`
 - `cycle.interval.adjusted`: `base_interval_sec`, `adjusted_interval_sec`, `incident_open`
+- `cycle.cost.metrics`: `api_fetch_calls`, `alerts_fetched`, `notification_attempts`, `notification_sent`, `notification_failures`, `notification_dry_run_skips`, `pending_total`
 
 ## Area Processing
 

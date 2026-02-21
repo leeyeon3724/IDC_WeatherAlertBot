@@ -15,6 +15,7 @@ def _operation_doc_with_required_events() -> str:
     return """
     | Signal | Note |
     |---|---|
+    | `cycle.cost.metrics` | cost |
     | `area.failed` | fail |
     | `notification.final_failure` | fail |
     | `health.notification.sent` | health |
@@ -32,6 +33,7 @@ def test_build_report_passes_with_schema_version_and_changelog(tmp_path: Path) -
         events_py,
         """
         EVENT_SCHEMA_VERSION = 2
+        CYCLE_COST_METRICS = "cycle.cost.metrics"
         AREA_FAILED = "area.failed"
         NOTIFICATION_FINAL_FAILURE = "notification.final_failure"
         HEALTH_NOTIFICATION_SENT = "health.notification.sent"
@@ -49,6 +51,7 @@ def test_build_report_passes_with_schema_version_and_changelog(tmp_path: Path) -
         | 1 | 2026-02-20 | init | initial |
         | 2 | 2026-02-21 | update | backward-compatible |
 
+        - `cycle.cost.metrics`: fields
         - `area.failed`: fields
         - `notification.final_failure`: fields
         - `health.notification.sent`: fields
@@ -80,6 +83,7 @@ def test_build_report_fails_when_schema_version_not_in_changelog(tmp_path: Path)
         events_py,
         """
         EVENT_SCHEMA_VERSION = 3
+        CYCLE_COST_METRICS = "cycle.cost.metrics"
         AREA_FAILED = "area.failed"
         NOTIFICATION_FINAL_FAILURE = "notification.final_failure"
         HEALTH_NOTIFICATION_SENT = "health.notification.sent"
@@ -97,6 +101,7 @@ def test_build_report_fails_when_schema_version_not_in_changelog(tmp_path: Path)
         | 1 | 2026-02-20 | init | initial |
         | 2 | 2026-02-21 | update | backward-compatible |
 
+        - `cycle.cost.metrics`: fields
         - `area.failed`: fields
         - `notification.final_failure`: fields
         - `health.notification.sent`: fields

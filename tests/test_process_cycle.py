@@ -95,9 +95,14 @@ def test_process_cycle_tracks_and_sends_once(tmp_path) -> None:
     second = usecase.run_once(now=now)
 
     assert first.newly_tracked == 1
+    assert first.api_fetch_calls == 1
+    assert first.notification_attempts == 1
+    assert first.notification_dry_run_skips == 0
     assert first.sent_count == 1
     assert first.pending_total == 0
     assert second.newly_tracked == 0
+    assert second.notification_attempts == 0
+    assert second.notification_dry_run_skips == 0
     assert second.sent_count == 0
     assert len(notifier.sent_messages) == 1
 
@@ -118,6 +123,8 @@ def test_process_cycle_retries_unsent_on_next_cycle(tmp_path) -> None:
 
     now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
     fail_stats = failing_usecase.run_once(now=now)
+    assert fail_stats.api_fetch_calls == 1
+    assert fail_stats.notification_attempts == 1
     assert fail_stats.send_failures == 1
     assert fail_stats.pending_total == 1
 
@@ -130,6 +137,7 @@ def test_process_cycle_retries_unsent_on_next_cycle(tmp_path) -> None:
         logger=logging.getLogger("test.processor.retry"),
     )
     success_stats = retry_usecase.run_once(now=now)
+    assert success_stats.notification_attempts == 1
     assert success_stats.sent_count == 1
     assert success_stats.pending_total == 0
 
@@ -154,6 +162,9 @@ def test_process_cycle_dry_run_does_not_send_or_mark(tmp_path) -> None:
     now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
     stats = usecase.run_once(now=now)
     assert stats.newly_tracked == 1
+    assert stats.api_fetch_calls == 1
+    assert stats.notification_attempts == 0
+    assert stats.notification_dry_run_skips == 1
     assert stats.sent_count == 0
     assert stats.pending_total == 1
     assert notifier.sent_messages == []
@@ -254,6 +265,8 @@ def test_process_cycle_records_api_error_codes(tmp_path) -> None:
     stats = usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
     assert stats.area_count == 1
     assert stats.areas_processed == 1
+    assert stats.api_fetch_calls == 1
+    assert stats.notification_attempts == 0
     assert stats.area_failures == 1
     assert stats.api_error_counts[API_ERROR_TIMEOUT] == 1
     assert stats.last_api_error is not None

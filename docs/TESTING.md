@@ -12,8 +12,8 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `138`
-- 전체 커버리지: `92.64%`
+- 테스트 수: `139`
+- 전체 커버리지: `92.67%`
 - 최소 커버리지 기준: `80%`
 
 ## 3) 적절성 평가
@@ -40,9 +40,10 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 - 이벤트/설정/CLI 계약 스냅샷 테스트 도입 (`tests/test_contract_snapshots.py`, `tests/contracts/*.json`)
 - CI 런타임 smoke 매트릭스 도입 (Python 3.11/3.12, `tests/test_main.py`, `tests/test_main_smoke.py`, `tests/test_commands.py`, `main.py --help`)
 - 이벤트 스키마 버전/Change Log 동기화 검증 도입 (`EVENT_SCHEMA_VERSION`, `scripts/check_event_docs_sync.py`, `tests/test_event_docs_sync.py`)
+- 비용 관점 사이클 지표 이벤트 도입 (`cycle.cost.metrics`, `api_fetch_calls`, `notification_attempts`, `notification_failures`)
 
 ## 5) 다음 우선순위
 
 1. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
 2. perf 리포트 보존 기간/샘플 정책 표준화 (`RB-507`)
-3. API 호출량/전송량 비용 지표 이벤트 추가 (`RB-603`)
+3. 미사용 코드/설정/문서 정리 루틴 도입 (`RB-703`)

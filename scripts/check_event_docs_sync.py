@@ -13,6 +13,7 @@ RE_EVENTS_DOC_CHANGELOG_ROW = re.compile(r"^\|\s*([0-9]+)\s*\|")
 RE_OPERATION_TABLE_EVENT = re.compile(r"^\|\s*`([^`]+)`")
 
 OPERATION_REQUIRED_EVENTS = {
+    "cycle.cost.metrics",
     "area.failed",
     "notification.final_failure",
     "health.notification.sent",

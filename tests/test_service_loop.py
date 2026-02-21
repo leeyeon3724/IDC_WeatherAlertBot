@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,9 +10,19 @@ import pytest
 from app.domain.health import ApiHealthDecision
 from app.entrypoints import service_loop
 from app.entrypoints.runtime_builder import ServiceRuntime
+from app.observability import events
 from app.services.notifier import NotificationError
 from app.usecases.process_cycle import CycleStats
 from tests.main_test_harness import make_settings
+
+
+class _CaptureHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
 
 
 class _FakeStateRepo:
@@ -204,3 +215,41 @@ def test_run_loop_non_run_once_executes_sleep_then_interrupt(tmp_path: Path) -> 
 
     assert result == 0
     assert sleep_calls == [10.0]
+
+
+def test_run_loop_emits_cycle_cost_metrics_event(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    runtime.processor.stats = CycleStats(
+        start_date="20260220",
+        end_date="20260221",
+        area_count=2,
+        areas_processed=2,
+        alerts_fetched=3,
+        api_fetch_calls=2,
+        notification_attempts=2,
+        sent_count=1,
+        send_failures=1,
+        notification_dry_run_skips=0,
+        pending_total=1,
+    )
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+    )
+
+    assert result == 0
+    payloads = [json.loads(message) for message in handler.messages]
+    cycle_cost = [
+        payload for payload in payloads if payload.get("event") == events.CYCLE_COST_METRICS
+    ]
+    assert len(cycle_cost) == 1
+    assert cycle_cost[0]["api_fetch_calls"] == 2
+    assert cycle_cost[0]["notification_attempts"] == 2
+    assert cycle_cost[0]["notification_sent"] == 1
+    assert cycle_cost[0]["notification_failures"] == 1

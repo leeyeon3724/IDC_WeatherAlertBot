@@ -25,9 +25,12 @@ class CycleStats:
     areas_processed: int = 0
     area_failures: int = 0
     alerts_fetched: int = 0
+    api_fetch_calls: int = 0
     newly_tracked: int = 0
+    notification_attempts: int = 0
     sent_count: int = 0
     send_failures: int = 0
+    notification_dry_run_skips: int = 0
     pending_total: int = 0
     api_error_counts: dict[str, int] = field(default_factory=dict)
     last_api_error: str | None = None
@@ -206,6 +209,7 @@ class ProcessCycleUseCase:
         successful_event_ids: list[str] = []
         for row in self.state_repo.get_unsent(area_code=area_code):
             if self.settings.dry_run:
+                stats.notification_dry_run_skips += 1
                 self.logger.info(
                     log_event(
                         events.NOTIFICATION_DRY_RUN,
@@ -215,6 +219,7 @@ class ProcessCycleUseCase:
                 )
                 continue
             try:
+                stats.notification_attempts += 1
                 self.notifier.send(row.message, report_url=row.report_url)
                 successful_event_ids.append(row.event_id)
             except NotificationError as exc:
@@ -273,6 +278,7 @@ class ProcessCycleUseCase:
         )
 
         area_results = self._fetch_alerts_for_areas(start_date=start_date, end_date=end_date)
+        stats.api_fetch_calls = len(area_results)
         for area_code in self.settings.area_codes:
             stats.areas_processed += 1
             result = self._resolve_area_result(area_code=area_code, area_results=area_results)
