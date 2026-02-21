@@ -46,6 +46,7 @@ cp .env.example .env
 주의: `API_SOFT_RATE_LIMIT_PER_SEC` 기본값은 `30`이며(`0`은 비활성), 병렬 조회(`AREA_MAX_WORKERS>1`)에서도 전체 호출률 상한으로 적용됩니다.
 주의: `NOTIFIER_SEND_RATE_LIMIT_PER_SEC` 기본값은 `1.0`이며, 두레이 발송을 전역 기준 초당 1회로 제한합니다(`0`은 비활성).
 주의: `CLEANUP_INCLUDE_UNSENT` 기본값은 `false`이며, 자동 cleanup은 기본적으로 전송완료(`sent=true`) 데이터만 삭제합니다.
+주의: `SHUTDOWN_TIMEOUT_SEC` 기본값은 `30`이며, graceful shutdown 대기 예산(초)입니다(`0`은 시간 제한 비활성).
 주의: `ALERT_RULES_FILE` 기본값은 `./config/alert_rules.v1.json`이며, 기상청 코드맵/메시지 규칙/미매핑 정책을 파일 단위로 관리합니다.
 
 ### 4.1 ALERT_RULES_FILE 스키마 마이그레이션(v1 -> v2)

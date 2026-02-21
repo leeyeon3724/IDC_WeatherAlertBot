@@ -42,6 +42,7 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "AREA_MAX_WORKERS",
         "LOOKBACK_DAYS",
         "CYCLE_INTERVAL_SEC",
+        "SHUTDOWN_TIMEOUT_SEC",
         "AREA_INTERVAL_SEC",
         "CLEANUP_ENABLED",
         "CLEANUP_RETENTION_DAYS",
@@ -100,6 +101,7 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.notifier_read_timeout_sec == 5
     assert settings.area_max_workers == 1
     assert settings.lookback_days == 0
+    assert settings.shutdown_timeout_sec == 30
     assert settings.cleanup_enabled is True
     assert settings.cleanup_retention_days == 30
     assert settings.cleanup_include_unsent is False
@@ -336,6 +338,7 @@ def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NOTIFIER_CIRCUIT_RESET_SEC", "120")
     monkeypatch.setenv("API_SOFT_RATE_LIMIT_PER_SEC", "12")
     monkeypatch.setenv("AREA_MAX_WORKERS", "4")
+    monkeypatch.setenv("SHUTDOWN_TIMEOUT_SEC", "45")
 
     settings = Settings.from_env(env_file=None)
     assert settings.request_timeout_sec == 7
@@ -351,6 +354,7 @@ def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.notifier_circuit_reset_sec == 120
     assert settings.api_soft_rate_limit_per_sec == 12
     assert settings.area_max_workers == 4
+    assert settings.shutdown_timeout_sec == 45
 
 
 def test_settings_invalid_health_ratio(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -41,18 +41,105 @@ def close_runtime_resources(runtime: ServiceRuntime) -> None:
     _maybe_close_resource(runtime, "notifier")
 
 
+def _resolve_signal_reason(signum: int | signal.Signals) -> str:
+    try:
+        signal_id = signum if isinstance(signum, signal.Signals) else signal.Signals(signum)
+        return signal_id.name.lower()
+    except ValueError:
+        return "signal"
+
+
+def _shutdown_timeout_sec(runtime: ServiceRuntime) -> int:
+    return max(0, runtime.settings.shutdown_timeout_sec)
+
+
+def _shutdown_elapsed_sec(shutdown_state: dict[str, Any]) -> float:
+    requested_at = shutdown_state.get("requested_at_monotonic")
+    if not isinstance(requested_at, float):
+        return 0.0
+    return max(0.0, time.monotonic() - requested_at)
+
+
+def _request_shutdown(
+    *,
+    runtime: ServiceRuntime,
+    shutdown_state: dict[str, Any],
+    reason: str,
+) -> None:
+    if shutdown_state["requested"]:
+        return
+
+    timeout_sec = _shutdown_timeout_sec(runtime)
+    shutdown_state["requested"] = True
+    shutdown_state["reason"] = reason
+    shutdown_state["requested_at_monotonic"] = time.monotonic()
+    shutdown_state["forced"] = False
+
+    runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
+    runtime.logger.info(
+        log_event(
+            events.SHUTDOWN_START,
+            reason=reason,
+            timeout_sec=timeout_sec,
+        )
+    )
+
+
+def _maybe_force_shutdown(
+    *,
+    runtime: ServiceRuntime,
+    shutdown_state: dict[str, Any],
+) -> bool:
+    if not shutdown_state["requested"] or shutdown_state["forced"]:
+        return False
+
+    timeout_sec = _shutdown_timeout_sec(runtime)
+    if timeout_sec <= 0:
+        return False
+
+    elapsed_sec = _shutdown_elapsed_sec(shutdown_state)
+    if elapsed_sec < float(timeout_sec):
+        return False
+
+    shutdown_state["forced"] = True
+    runtime.logger.warning(
+        log_event(
+            events.SHUTDOWN_FORCED,
+            reason=shutdown_state.get("reason", "unknown"),
+            timeout_sec=timeout_sec,
+            elapsed_sec=round(elapsed_sec, 3),
+        )
+    )
+    return True
+
+
+def _log_shutdown_complete(*, runtime: ServiceRuntime, shutdown_state: dict[str, Any]) -> None:
+    if not shutdown_state["requested"]:
+        return
+
+    runtime.logger.info(
+        log_event(
+            events.SHUTDOWN_COMPLETE,
+            reason=shutdown_state.get("reason", "unknown"),
+            elapsed_sec=round(_shutdown_elapsed_sec(shutdown_state), 3),
+            forced=bool(shutdown_state.get("forced", False)),
+        )
+    )
+
+
 def _install_shutdown_signal_handlers(
     *,
     runtime: ServiceRuntime,
-    shutdown_state: dict[str, bool],
+    shutdown_state: dict[str, Any],
 ) -> Callable[[], None]:
     previous_handlers: dict[signal.Signals, Any] = {}
 
-    def _mark_shutdown(*_: object) -> None:
-        if shutdown_state["requested"]:
-            return
-        shutdown_state["requested"] = True
-        runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
+    def _mark_shutdown(signum: int, _frame: Any) -> None:
+        _request_shutdown(
+            runtime=runtime,
+            shutdown_state=shutdown_state,
+            reason=_resolve_signal_reason(signum),
+        )
 
     try:
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -464,7 +551,12 @@ def run_loop(
     local_date = now_local_date_fn or (
         lambda timezone: datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d")
     )
-    shutdown_state = {"requested": False}
+    shutdown_state: dict[str, Any] = {
+        "requested": False,
+        "reason": None,
+        "requested_at_monotonic": None,
+        "forced": False,
+    }
     restore_signal_handlers = _install_shutdown_signal_handlers(
         runtime=runtime,
         shutdown_state=shutdown_state,
@@ -472,6 +564,8 @@ def run_loop(
     last_cleanup_date: str | None = None
     try:
         while True:
+            if _maybe_force_shutdown(runtime=runtime, shutdown_state=shutdown_state):
+                return 0
             if shutdown_state["requested"]:
                 return 0
             try:
@@ -499,6 +593,8 @@ def run_loop(
                         pending_total=stats.pending_total,
                     )
                 )
+                if _maybe_force_shutdown(runtime=runtime, shutdown_state=shutdown_state):
+                    return 0
                 if shutdown_state["requested"]:
                     return 0
                 if runtime.settings.run_once:
@@ -520,6 +616,8 @@ def run_loop(
                     )
                     return 1
 
+                if _maybe_force_shutdown(runtime=runtime, shutdown_state=shutdown_state):
+                    return 0
                 if shutdown_state["requested"]:
                     return 0
                 runtime.logger.error(
@@ -532,7 +630,11 @@ def run_loop(
                 backoff_sec = max(runtime.settings.cycle_interval_sec, MIN_EXCEPTION_BACKOFF_SEC)
                 sleep_fn(float(backoff_sec))
     except KeyboardInterrupt:
-        runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
+        _request_shutdown(
+            runtime=runtime,
+            shutdown_state=shutdown_state,
+            reason="keyboard_interrupt",
+        )
         return 0
     except Exception as exc:  # pragma: no cover
         runtime.logger.critical(
@@ -543,3 +645,4 @@ def run_loop(
     finally:
         restore_signal_handlers()
         close_runtime_resources(runtime)
+        _log_shutdown_complete(runtime=runtime, shutdown_state=shutdown_state)

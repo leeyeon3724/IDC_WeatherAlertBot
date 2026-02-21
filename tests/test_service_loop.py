@@ -378,7 +378,12 @@ def test_install_shutdown_signal_handlers_marks_state_and_restores(
     runtime.logger.handlers = [handler]
     runtime.logger.setLevel(logging.INFO)
     runtime.logger.propagate = False
-    shutdown_state = {"requested": False}
+    shutdown_state: dict[str, object] = {
+        "requested": False,
+        "reason": None,
+        "requested_at_monotonic": None,
+        "forced": False,
+    }
 
     previous_handlers: dict[signal.Signals, object] = {}
     assigned_handlers: dict[signal.Signals, list[object]] = {}
@@ -404,8 +409,10 @@ def test_install_shutdown_signal_handlers_marks_state_and_restores(
     sigterm_handler(signal.SIGTERM, None)  # type: ignore[misc]
 
     assert shutdown_state["requested"] is True
+    assert shutdown_state["reason"] == "sigterm"
     payloads = [json.loads(message) for message in handler.messages]
     assert sum(payload.get("event") == events.SHUTDOWN_INTERRUPT for payload in payloads) == 1
+    assert sum(payload.get("event") == events.SHUTDOWN_START for payload in payloads) == 1
 
     restore()
     assert assigned_handlers[signal.SIGTERM][-1] is previous_handlers[signal.SIGTERM]
@@ -435,12 +442,12 @@ def test_run_loop_gracefully_stops_when_shutdown_state_is_requested(
         settings_overrides={"run_once": False, "cycle_interval_sec": 10},
         suggested_sec=10,
     )
-    state_ref: dict[str, dict[str, bool]] = {}
+    state_ref: dict[str, dict[str, object]] = {}
 
     def _fake_install(
         *,
         runtime: ServiceRuntime,
-        shutdown_state: dict[str, bool],
+        shutdown_state: dict[str, object],
     ):
         state_ref["value"] = shutdown_state
         return lambda: None
@@ -466,6 +473,58 @@ def test_run_loop_gracefully_stops_when_shutdown_state_is_requested(
     assert runtime.notifier.closed is True
 
 
+def test_request_shutdown_logs_start_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime = _runtime(tmp_path, settings_overrides={"shutdown_timeout_sec": 12})
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+    monkeypatch.setattr(service_loop.time, "monotonic", lambda: 100.0)
+    shutdown_state: dict[str, object] = {
+        "requested": False,
+        "reason": None,
+        "requested_at_monotonic": None,
+        "forced": False,
+    }
+
+    service_loop._request_shutdown(
+        runtime=runtime,
+        shutdown_state=shutdown_state,
+        reason="sigterm",
+    )
+
+    assert shutdown_state["requested"] is True
+    assert shutdown_state["reason"] == "sigterm"
+    assert shutdown_state["requested_at_monotonic"] == 100.0
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(payload.get("event") == events.SHUTDOWN_START for payload in payloads) == 1
+
+
+def test_maybe_force_shutdown_emits_forced_event(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _runtime(tmp_path, settings_overrides={"shutdown_timeout_sec": 3})
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+    monkeypatch.setattr(service_loop.time, "monotonic", lambda: 13.5)
+    shutdown_state: dict[str, object] = {
+        "requested": True,
+        "reason": "sigterm",
+        "requested_at_monotonic": 10.0,
+        "forced": False,
+    }
+
+    forced = service_loop._maybe_force_shutdown(runtime=runtime, shutdown_state=shutdown_state)
+
+    assert forced is True
+    assert shutdown_state["forced"] is True
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(payload.get("event") == events.SHUTDOWN_FORCED for payload in payloads) == 1
+
+
 def test_run_loop_non_run_once_executes_sleep_then_interrupt(tmp_path: Path) -> None:
     runtime = _runtime(
         tmp_path,
@@ -487,6 +546,34 @@ def test_run_loop_non_run_once_executes_sleep_then_interrupt(tmp_path: Path) -> 
 
     assert result == 0
     assert sleep_calls == [10.0]
+
+
+def test_run_loop_emits_shutdown_complete_event_on_interrupt(tmp_path: Path) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": False, "cycle_interval_sec": 5},
+        suggested_sec=5,
+    )
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+        sleep_fn=lambda _: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+
+    assert result == 0
+    payloads = [json.loads(message) for message in handler.messages]
+    complete_payloads = [
+        payload for payload in payloads if payload.get("event") == events.SHUTDOWN_COMPLETE
+    ]
+    assert len(complete_payloads) == 1
+    assert complete_payloads[0]["reason"] == "keyboard_interrupt"
+    assert complete_payloads[0]["forced"] is False
 
 
 def test_run_loop_non_fatal_exception_continues_next_iteration(tmp_path: Path) -> None:

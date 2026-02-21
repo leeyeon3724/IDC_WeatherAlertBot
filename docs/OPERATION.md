@@ -16,6 +16,7 @@
 - 자동 cleanup 기본값은 전송완료(`sent=true`) 데이터만 삭제(`CLEANUP_INCLUDE_UNSENT=false`)
 - 복구 backfill 기본 예산: `HEALTH_RECOVERY_BACKFILL_WINDOW_DAYS=1`, `HEALTH_RECOVERY_BACKFILL_MAX_WINDOWS_PER_CYCLE=3`
 - `SIGTERM`/`SIGINT` 수신 시 현재 사이클 경계에서 안전 종료 후 리소스(`processor`, `notifier`)를 정리
+- graceful 종료 대기 예산은 `SHUTDOWN_TIMEOUT_SEC`(기본 30초)로 제어하며, 초과 시 `shutdown.forced` 이벤트를 기록
 - 컨테이너 `HEALTHCHECK`는 `scripts/container_healthcheck.py`로 `HEALTH_STATE_FILE` 최신성(최근 사이클 기록) 기반 상태를 판단
 
 핵심 코드:

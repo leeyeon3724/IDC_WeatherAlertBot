@@ -250,6 +250,7 @@ class _RuntimeConfig:
     area_max_workers: int
     lookback_days: int
     cycle_interval_sec: int
+    shutdown_timeout_sec: int
     area_interval_sec: int
     cleanup_enabled: bool
     cleanup_retention_days: int
@@ -445,6 +446,7 @@ def _parse_runtime_config() -> _RuntimeConfig:
         area_max_workers=_parse_int_env("AREA_MAX_WORKERS", 1, minimum=1),
         lookback_days=_parse_int_env("LOOKBACK_DAYS", 0, minimum=0),
         cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
+        shutdown_timeout_sec=_parse_int_env("SHUTDOWN_TIMEOUT_SEC", 30, minimum=0),
         area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
         cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),
         cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
@@ -545,6 +547,7 @@ class Settings:
     area_max_workers: int = 1
     lookback_days: int = 0
     cycle_interval_sec: int = 10
+    shutdown_timeout_sec: int = 30
     area_interval_sec: int = 5
     cleanup_enabled: bool = True
     cleanup_retention_days: int = 30
@@ -611,6 +614,7 @@ class Settings:
             area_max_workers=runtime.area_max_workers,
             lookback_days=runtime.lookback_days,
             cycle_interval_sec=runtime.cycle_interval_sec,
+            shutdown_timeout_sec=runtime.shutdown_timeout_sec,
             area_interval_sec=runtime.area_interval_sec,
             cleanup_enabled=runtime.cleanup_enabled,
             cleanup_retention_days=runtime.cleanup_retention_days,

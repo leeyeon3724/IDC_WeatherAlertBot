@@ -181,8 +181,22 @@
     "event_id",
     "reason"
   ],
+  "shutdown.complete": [
+    "elapsed_sec",
+    "forced",
+    "reason"
+  ],
+  "shutdown.forced": [
+    "elapsed_sec",
+    "reason",
+    "timeout_sec"
+  ],
   "shutdown.interrupt": [],
   "shutdown.run_once_complete": [],
+  "shutdown.start": [
+    "reason",
+    "timeout_sec"
+  ],
   "shutdown.unexpected_error": [
     "error"
   ],

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-EVENT_SCHEMA_VERSION = 10
+EVENT_SCHEMA_VERSION = 11
 
 # Runtime lifecycle
 STARTUP_INVALID_CONFIG = "startup.invalid_config"
 STARTUP_READY = "startup.ready"
 SHUTDOWN_INTERRUPT = "shutdown.interrupt"
+SHUTDOWN_START = "shutdown.start"
+SHUTDOWN_COMPLETE = "shutdown.complete"
+SHUTDOWN_FORCED = "shutdown.forced"
 SHUTDOWN_RUN_ONCE_COMPLETE = "shutdown.run_once_complete"
 SHUTDOWN_UNEXPECTED_ERROR = "shutdown.unexpected_error"
 

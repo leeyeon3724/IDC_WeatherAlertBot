@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `10`
+- schema_version: `11`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -27,12 +27,16 @@
 | 8 | 2026-02-21 | 미매핑 특보 코드 감지 이벤트(`area.code_unmapped`) 추가 | Backward-compatible |
 | 9 | 2026-02-21 | 지역명 매핑 경고 이벤트(`area.name_mapping_warning`) 추가 | Backward-compatible |
 | 10 | 2026-02-21 | 지역코드 매핑 커버리지 경고(`area.mapping_coverage_warning`) 및 startup rate-limit 필드 확장 | Backward-compatible |
+| 11 | 2026-02-21 | 종료 단계 이벤트(`shutdown.start`, `shutdown.complete`, `shutdown.forced`) 및 graceful timeout 필드 추가 | Backward-compatible |
 
 ## Runtime Lifecycle
 
 - `startup.invalid_config`: `error`
 - `startup.ready`: `state_file`, `state_repository_type`, `sqlite_state_file`, `health_state_file`, `area_count`, `area_max_workers`, `api_soft_rate_limit_per_sec`, `notifier_send_rate_limit_per_sec`, `health_recovery_backfill_window_days`, `health_recovery_backfill_max_windows_per_cycle`
 - `shutdown.interrupt`: 없음
+- `shutdown.start`: `reason`, `timeout_sec`
+- `shutdown.complete`: `reason`, `elapsed_sec`, `forced`
+- `shutdown.forced`: `reason`, `timeout_sec`, `elapsed_sec`
 - `shutdown.run_once_complete`: 없음
 - `shutdown.unexpected_error`: `error`
 

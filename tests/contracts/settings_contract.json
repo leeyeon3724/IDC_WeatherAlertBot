@@ -240,6 +240,14 @@
     "default": 10
   },
   {
+    "name": "shutdown_timeout_sec",
+    "annotation": "int",
+    "required": false,
+    "has_default": true,
+    "has_default_factory": false,
+    "default": 30
+  },
+  {
     "name": "area_interval_sec",
     "annotation": "int",
     "required": false,
