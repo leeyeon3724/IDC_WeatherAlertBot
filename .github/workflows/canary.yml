@@ -169,6 +169,20 @@ jobs:
             --markdown-output artifacts/canary/report.md
           cat artifacts/canary/report.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Build canary SLO report
+        if: steps.preflight.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+          python -m scripts.slo_report \
+            --log-file artifacts/canary/service.log \
+            --min-success-rate 1.0 \
+            --max-failure-rate 0.0 \
+            --max-p95-cycle-latency-sec 600 \
+            --max-pending-latest 0 \
+            --json-output artifacts/canary/slo_report.json \
+            --markdown-output artifacts/canary/slo_report.md
+          cat artifacts/canary/slo_report.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload canary artifacts
         if: always() && steps.preflight.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4

@@ -104,3 +104,16 @@ python3 main.py migrate-state \
 - `max_duplicate_deliveries=0`
 - `max_state_growth=0` (`new_event_every=0` 기준)
 - `max_memory_growth_kib=8192`
+
+## 9. SLO 리포트 자동화
+
+- 스크립트: `scripts/slo_report.py`
+- 자동 생성: `.github/workflows/canary.yml` 내 `Build canary SLO report` 단계
+- 산출물: `artifacts/canary/slo_report.json`, `artifacts/canary/slo_report.md`
+- 로컬 실행: `make slo-report` 또는 `python3 -m scripts.slo_report --log-file <service.log>`
+
+기본 SLO 임계:
+- 성공률(`success_rate`) `>= 1.0` (canary 기준)
+- 실패율(`failure_rate`) `<= 0.0` (canary 기준)
+- p95 사이클 지연(`cycle_latency_p95_sec`) `<= 600`
+- 최신 미전송 잔량(`pending_latest`) `<= 0`
