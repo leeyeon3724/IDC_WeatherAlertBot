@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -82,17 +80,8 @@ def patch_service_runtime(
     logger_name: str,
     cycle_stats: CycleStats,
     health_decision: ApiHealthDecision,
-    fixed_now: datetime | None = None,
 ) -> ServiceRuntimeProbe:
     probe = ServiceRuntimeProbe()
-    now = fixed_now or datetime(2026, 2, 21, 10, 0, tzinfo=UTC)
-
-    class FakeDateTime:
-        @classmethod
-        def now(cls, tz: ZoneInfo | None = None) -> datetime:
-            if tz is None:
-                return now
-            return now.astimezone(tz)
 
     class FakeStateRepo:
         def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
@@ -157,7 +146,6 @@ def patch_service_runtime(
 
     logger = logging.getLogger(logger_name)
     monkeypatch.setattr(entrypoint, "setup_logging", lambda *args, **kwargs: logger)
-    monkeypatch.setattr(entrypoint, "datetime", FakeDateTime)
     monkeypatch.setattr(entrypoint, "JsonStateRepository", FakeStateRepo)
     monkeypatch.setattr(entrypoint, "SqliteStateRepository", FakeSqliteRepo)
     monkeypatch.setattr(entrypoint, "JsonHealthStateRepository", FakeHealthStateRepo)
