@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.domain.models import AlertNotification
+from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
 
 
@@ -211,7 +212,8 @@ def test_state_repo_logs_read_failure_when_open_fails(
         repo = JsonStateRepository(state_file)
 
     assert repo.total_count == 0
-    assert any("state.read_failed" in record.message for record in caplog.records)
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(payload.get("event") == events.STATE_READ_FAILED for payload in payloads)
 
 
 def test_state_repo_logs_backup_failure_when_replace_fails(
@@ -234,8 +236,9 @@ def test_state_repo_logs_backup_failure_when_replace_fails(
         repo = JsonStateRepository(state_file)
 
     assert repo.total_count == 0
-    assert any("state.backup_failed" in record.message for record in caplog.records)
-    assert any("state.invalid_json" in record.message for record in caplog.records)
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(payload.get("event") == events.STATE_BACKUP_FAILED for payload in payloads)
+    assert any(payload.get("event") == events.STATE_INVALID_JSON for payload in payloads)
 
 
 def test_state_repo_drops_invalid_records_and_persists(tmp_path) -> None:

@@ -53,6 +53,9 @@
 
 ## State
 
+- `state.invalid_json`: `file`, `backup`, `error`
+- `state.read_failed`: `file`, `error`
+- `state.backup_failed`: `file`, `error`
 - `state.cleanup.auto`: `date`, `days`, `include_unsent`, `removed`, `total`, `pending`
 - `state.cleanup.complete`: `state_file`, `days`, `include_unsent`, `dry_run`, `removed`, `total`, `pending`
 - `state.cleanup.failed`: `state_file`, `days`, `include_unsent`, `dry_run`, `error`

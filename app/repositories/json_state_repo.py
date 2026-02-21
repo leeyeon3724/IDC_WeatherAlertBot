@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from app.domain.models import AlertNotification
+from app.logging_utils import log_event
+from app.observability import events
 from app.repositories.state_models import StoredNotification, parse_iso_to_utc, utc_now_iso
 
 STATE_SCHEMA_VERSION = 2
@@ -33,19 +35,23 @@ class JsonStateRepository:
         except json.JSONDecodeError as exc:
             backup_path = self._backup_corrupted_file()
             self.logger.error(
-                "state.invalid_json file=%s backup=%s error=%s",
-                self.file_path,
-                backup_path,
-                exc,
+                log_event(
+                    events.STATE_INVALID_JSON,
+                    file=str(self.file_path),
+                    backup=str(backup_path) if backup_path is not None else None,
+                    error=str(exc),
+                )
             )
             self._state = {}
             self._persist()
             return
         except OSError as exc:
             self.logger.error(
-                "state.read_failed file=%s error=%s",
-                self.file_path,
-                exc,
+                log_event(
+                    events.STATE_READ_FAILED,
+                    file=str(self.file_path),
+                    error=str(exc),
+                )
             )
             self._state = {}
             return
@@ -62,9 +68,11 @@ class JsonStateRepository:
             return backup_path
         except OSError as exc:
             self.logger.error(
-                "state.backup_failed file=%s error=%s",
-                self.file_path,
-                exc,
+                log_event(
+                    events.STATE_BACKUP_FAILED,
+                    file=str(self.file_path),
+                    error=str(exc),
+                )
             )
             return None
 
