@@ -21,12 +21,6 @@
 
 상태: 진행중
 중요도: 중간
-항목: `cleanup-state` CLI 인자/동작 정합성 개선
-근거: `STATE_REPOSITORY_TYPE=sqlite`일 때 `--state-file`이 사실상 무시되어 운영자가 정리 대상 파일을 오인할 수 있음.
-완료 기준: 저장소 타입별 인자 체계를 분리하거나(예: `--json-state-file`, `--sqlite-state-file`) 무시되는 인자 사용 시 명시 오류를 반환하고, 도움말/운영 문서/테스트를 함께 갱신함.
-
-상태: 진행중
-중요도: 중간
 항목: 런타임 리소스 생명주기(HTTP Session) 정리
 근거: 외부 연동 클라이언트의 세션 close 경로가 서비스 종료 흐름에 일관되게 연결되어 있지 않아 장기 실행/테스트에서 리소스 누수 위험이 있음.
 완료 기준: notifier/weather client에 일관된 close 인터페이스를 부여하고, `run_loop` 종료(`run_once`, `KeyboardInterrupt`, fatal error) 시 `finally`에서 정리되도록 연결하며, 종료 경로 테스트를 추가함.

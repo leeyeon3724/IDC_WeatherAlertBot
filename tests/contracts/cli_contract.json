@@ -18,10 +18,26 @@
           "required": false
         },
         {
-          "default": "./data/sent_messages.json",
-          "dest": "state_file",
+          "default": null,
+          "dest": "state_repository_type",
           "flags": [
-            "--state-file"
+            "--state-repository-type"
+          ],
+          "required": false
+        },
+        {
+          "default": "./data/sent_messages.json",
+          "dest": "json_state_file",
+          "flags": [
+            "--json-state-file"
+          ],
+          "required": false
+        },
+        {
+          "default": "./data/sent_messages.db",
+          "dest": "sqlite_state_file",
+          "flags": [
+            "--sqlite-state-file"
           ],
           "required": false
         },
@@ -54,7 +70,9 @@
         "days": 30,
         "dry_run": false,
         "include_unsent": false,
-        "state_file": "./data/sent_messages.json"
+        "json_state_file": "./data/sent_messages.json",
+        "sqlite_state_file": "./data/sent_messages.db",
+        "state_repository_type": null
       }
     },
     "migrate-state": {

@@ -39,12 +39,13 @@ def test_cleanup_state_returns_1_and_logs_failed_event() -> None:
         raise OSError("disk unavailable")
 
     result = commands.cleanup_state(
-        state_file="./data/state.json",
         days=30,
         include_unsent=False,
         dry_run=False,
         setup_logging_fn=lambda **kwargs: logger,
         json_repo_factory=_failing_factory,
+        state_repository_type="json",
+        json_state_file="./data/state.json",
     )
 
     assert result == 1
@@ -82,7 +83,7 @@ def test_cleanup_state_uses_sqlite_repo_when_configured(tmp_path: Path) -> None:
         return _FakeSqliteRepo()
 
     result = commands.cleanup_state(
-        state_file="./data/state.json",
+        json_state_file="./data/state.json",
         sqlite_state_file=str(sqlite_file),
         state_repository_type="sqlite",
         days=30,
@@ -104,6 +105,78 @@ def test_cleanup_state_uses_sqlite_repo_when_configured(tmp_path: Path) -> None:
     assert payload["removed"] == 4
     assert payload["total"] == 12
     assert payload["pending"] == 3
+
+
+def test_cleanup_state_uses_json_repo_when_configured(tmp_path: Path) -> None:
+    logger, handler = _captured_logger("test.commands.cleanup.json")
+    json_file = tmp_path / "state.json"
+    captured: dict[str, object] = {}
+
+    class _FakeJsonRepo:
+        def __init__(self) -> None:
+            self.total_count = 9
+            self.pending_count = 1
+
+        def cleanup_stale(
+            self,
+            *,
+            days: int,
+            include_unsent: bool,
+            dry_run: bool,
+            now=None,
+        ) -> int:
+            captured["days"] = days
+            captured["include_unsent"] = include_unsent
+            captured["dry_run"] = dry_run
+            return 2
+
+    def _fake_json_factory(file_path: Path, logger: logging.Logger | None = None):
+        captured["file_path"] = file_path
+        return _FakeJsonRepo()
+
+    result = commands.cleanup_state(
+        state_repository_type="json",
+        json_state_file=str(json_file),
+        sqlite_state_file="./data/ignored.db",
+        days=30,
+        include_unsent=True,
+        dry_run=True,
+        setup_logging_fn=lambda **kwargs: logger,
+        json_repo_factory=_fake_json_factory,
+    )
+
+    assert result == 0
+    assert captured["file_path"] == json_file
+    assert captured["days"] == 30
+    assert captured["include_unsent"] is True
+    assert captured["dry_run"] is True
+
+    payload = json.loads(handler.messages[-1])
+    assert payload["event"] == events.STATE_CLEANUP_COMPLETE
+    assert payload["state_file"] == str(json_file)
+    assert payload["removed"] == 2
+    assert payload["total"] == 9
+    assert payload["pending"] == 1
+
+
+def test_cleanup_state_returns_1_when_repository_type_is_invalid() -> None:
+    logger, handler = _captured_logger("test.commands.cleanup.invalid_repo_type")
+
+    result = commands.cleanup_state(
+        state_repository_type="postgres",
+        json_state_file="./data/state.json",
+        sqlite_state_file="./data/state.db",
+        days=30,
+        include_unsent=False,
+        dry_run=False,
+        setup_logging_fn=lambda **kwargs: logger,
+    )
+
+    assert result == 1
+    payload = json.loads(handler.messages[-1])
+    assert payload["event"] == events.STATE_CLEANUP_FAILED
+    assert payload["state_file"] == "./data/state.json"
+    assert "state_repository_type must be one of: json, sqlite" in payload["error"]
 
 
 def test_migrate_state_returns_1_and_logs_failed_event() -> None:

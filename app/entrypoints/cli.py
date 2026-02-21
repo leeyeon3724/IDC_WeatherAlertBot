@@ -66,9 +66,21 @@ def _run_service() -> int:
     )
 
 
-def _cleanup_state(state_file: str, days: int, include_unsent: bool, dry_run: bool) -> int:
+def _cleanup_state(
+    *,
+    state_repository_type: str | None,
+    json_state_file: str,
+    sqlite_state_file: str,
+    days: int,
+    include_unsent: bool,
+    dry_run: bool,
+) -> int:
+    resolved_repository_type = (
+        state_repository_type
+        if state_repository_type is not None
+        else os.getenv("STATE_REPOSITORY_TYPE", "sqlite")
+    ).strip().lower()
     return commands.cleanup_state(
-        state_file=state_file,
         days=days,
         include_unsent=include_unsent,
         dry_run=dry_run,
@@ -77,8 +89,9 @@ def _cleanup_state(state_file: str, days: int, include_unsent: bool, dry_run: bo
         setup_logging_fn=setup_logging,
         json_repo_factory=JsonStateRepository,
         sqlite_repo_factory=SqliteStateRepository,
-        state_repository_type=os.getenv("STATE_REPOSITORY_TYPE", "sqlite").strip().lower(),
-        sqlite_state_file=os.getenv("SQLITE_STATE_FILE", "./data/sent_messages.db"),
+        state_repository_type=resolved_repository_type,
+        json_state_file=json_state_file,
+        sqlite_state_file=sqlite_state_file,
     )
 
 
@@ -116,7 +129,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.days < 0:
             parser.error("--days must be >= 0")
         return _cleanup_state(
-            state_file=args.state_file,
+            state_repository_type=args.state_repository_type,
+            json_state_file=args.json_state_file,
+            sqlite_state_file=args.sqlite_state_file,
             days=args.days,
             include_unsent=args.include_unsent,
             dry_run=args.dry_run,

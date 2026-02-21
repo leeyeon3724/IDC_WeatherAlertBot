@@ -79,9 +79,19 @@ make live-e2e-local
 상태 정리:
 
 ```bash
-python3 main.py cleanup-state --days 30
-python3 main.py cleanup-state --days 30 --include-unsent
+python3 main.py cleanup-state \
+  --state-repository-type sqlite \
+  --sqlite-state-file ./data/sent_messages.db \
+  --days 30
+
+python3 main.py cleanup-state \
+  --state-repository-type json \
+  --json-state-file ./data/sent_messages.json \
+  --days 30 \
+  --include-unsent
 ```
+
+- `--state-repository-type`를 생략하면 `STATE_REPOSITORY_TYPE`(없으면 `sqlite`)를 사용합니다.
 
 JSON -> SQLite 상태 마이그레이션:
 

@@ -26,14 +26,19 @@ def test_cleanup_state_command_dispatch(monkeypatch: pytest.MonkeyPatch) -> None
     captured: dict[str, object] = {}
 
     def _fake_cleanup_state(
-        state_file: str,
+        *,
+        state_repository_type: str | None,
+        json_state_file: str,
+        sqlite_state_file: str,
         days: int,
         include_unsent: bool,
         dry_run: bool,
     ) -> int:
         captured.update(
             {
-                "state_file": state_file,
+                "state_repository_type": state_repository_type,
+                "json_state_file": json_state_file,
+                "sqlite_state_file": sqlite_state_file,
                 "days": days,
                 "include_unsent": include_unsent,
                 "dry_run": dry_run,
@@ -46,8 +51,12 @@ def test_cleanup_state_command_dispatch(monkeypatch: pytest.MonkeyPatch) -> None
     result = entrypoint.main(
         [
             "cleanup-state",
-            "--state-file",
+            "--state-repository-type",
+            "json",
+            "--json-state-file",
             "tmp/state.json",
+            "--sqlite-state-file",
+            "tmp/state.db",
             "--days",
             "5",
             "--include-unsent",
@@ -57,7 +66,9 @@ def test_cleanup_state_command_dispatch(monkeypatch: pytest.MonkeyPatch) -> None
 
     assert result == 0
     assert captured == {
-        "state_file": "tmp/state.json",
+        "state_repository_type": "json",
+        "json_state_file": "tmp/state.json",
+        "sqlite_state_file": "tmp/state.db",
         "days": 5,
         "include_unsent": True,
         "dry_run": True,
@@ -149,7 +160,9 @@ def test_cleanup_state_uses_repository_type_from_env(
     monkeypatch.setattr(entrypoint.commands, "cleanup_state", _fake_cleanup_state)
 
     result = entrypoint._cleanup_state(
-        state_file="tmp/state.json",
+        state_repository_type=None,
+        json_state_file="tmp/state.json",
+        sqlite_state_file="tmp/clean.db",
         days=7,
         include_unsent=True,
         dry_run=True,
@@ -158,7 +171,7 @@ def test_cleanup_state_uses_repository_type_from_env(
     assert result == 0
     assert captured["state_repository_type"] == "sqlite"
     assert captured["sqlite_state_file"] == "tmp/clean.db"
-    assert captured["state_file"] == "tmp/state.json"
+    assert captured["json_state_file"] == "tmp/state.json"
     assert captured["days"] == 7
     assert captured["include_unsent"] is True
     assert captured["dry_run"] is True

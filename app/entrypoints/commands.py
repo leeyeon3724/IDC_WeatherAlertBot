@@ -39,7 +39,6 @@ def run_service(
 
 
 def cleanup_state(
-    state_file: str,
     days: int,
     include_unsent: bool,
     dry_run: bool,
@@ -49,18 +48,26 @@ def cleanup_state(
     setup_logging_fn: Callable[..., logging.Logger] = setup_logging,
     json_repo_factory: Callable[..., JsonStateRepository] = JsonStateRepository,
     sqlite_repo_factory: Callable[..., SqliteStateRepository] = SqliteStateRepository,
-    state_repository_type: str = "json",
+    state_repository_type: str = "sqlite",
+    json_state_file: str = "./data/sent_messages.json",
     sqlite_state_file: str = "./data/sent_messages.db",
 ) -> int:
     logger = setup_logging_fn(log_level=log_level, timezone=timezone)
-    target_state_file = state_file
+    normalized_repository_type = state_repository_type.strip().lower()
+    target_state_file = json_state_file
     try:
         repo: StateRepository
-        if state_repository_type == "sqlite":
+        if normalized_repository_type == "sqlite":
             target_state_file = sqlite_state_file
             repo = sqlite_repo_factory(Path(sqlite_state_file), logger=logger.getChild("state"))
+        elif normalized_repository_type == "json":
+            target_state_file = json_state_file
+            repo = json_repo_factory(Path(json_state_file), logger=logger.getChild("state"))
         else:
-            repo = json_repo_factory(Path(state_file), logger=logger.getChild("state"))
+            raise ValueError(
+                "state_repository_type must be one of: json, sqlite. "
+                f"received={state_repository_type!r}"
+            )
         removed = repo.cleanup_stale(days=days, include_unsent=include_unsent, dry_run=dry_run)
     except Exception as exc:
         logger.error(
@@ -203,12 +210,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     cleanup_parser = subparsers.add_parser(
         "cleanup-state",
-        help="Delete stale entries from state file",
+        help="Delete stale entries from selected state repository",
     )
     cleanup_parser.add_argument(
-        "--state-file",
+        "--state-repository-type",
+        choices=["json", "sqlite"],
+        default=None,
+        help="Repository type to cleanup (default: STATE_REPOSITORY_TYPE or sqlite)",
+    )
+    cleanup_parser.add_argument(
+        "--json-state-file",
         default="./data/sent_messages.json",
         help="Path to state JSON file",
+    )
+    cleanup_parser.add_argument(
+        "--sqlite-state-file",
+        default="./data/sent_messages.db",
+        help="Path to state SQLite DB file",
     )
     cleanup_parser.add_argument(
         "--days",
