@@ -163,6 +163,65 @@ def test_verify_sqlite_state_handles_open_failed(
     assert issues[0].code == "open_failed"
 
 
+def test_verify_sqlite_state_closes_connection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sqlite_state_file = tmp_path / "state.db"
+    with sqlite3.connect(sqlite_state_file) as conn:
+        conn.execute(
+            """
+            CREATE TABLE notifications (
+              event_id TEXT PRIMARY KEY,
+              area_code TEXT NOT NULL,
+              message TEXT NOT NULL,
+              report_url TEXT,
+              sent INTEGER NOT NULL DEFAULT 0,
+              first_seen_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              last_sent_at TEXT
+            )
+            """
+        )
+
+    original_connect = sqlite3.connect
+    tracking: dict[str, bool] = {"closed": False}
+
+    class _TrackingConnection:
+        def __init__(self, conn: sqlite3.Connection) -> None:
+            object.__setattr__(self, "_conn", conn)
+
+        def __setattr__(self, name: str, value: object) -> None:
+            if name == "_conn":
+                object.__setattr__(self, name, value)
+                return
+            setattr(self._conn, name, value)
+
+        def __getattr__(self, name: str):
+            return getattr(self._conn, name)
+
+        def __enter__(self):
+            self._conn.__enter__()
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return self._conn.__exit__(exc_type, exc, tb)
+
+        def close(self) -> None:
+            tracking["closed"] = True
+            self._conn.close()
+
+    def _tracking_connect(*args: object, **kwargs: object):
+        return _TrackingConnection(original_connect(*args, **kwargs))
+
+    monkeypatch.setattr("app.repositories.state_verifier.sqlite3.connect", _tracking_connect)
+    summary, issues = verify_sqlite_state(sqlite_state_file, strict=True)
+
+    assert summary.exists is True
+    assert issues == []
+    assert tracking["closed"] is True
+
+
 def test_verify_sqlite_state_fails_when_notifications_table_missing(tmp_path: Path) -> None:
     sqlite_state_file = tmp_path / "state.db"
     with sqlite3.connect(sqlite_state_file):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -261,103 +262,107 @@ def verify_sqlite_state(file_path: Path, *, strict: bool = False) -> tuple[
             issues,
         )
 
-    with conn:
-        table_row = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'"
-        ).fetchone()
-        if table_row is None:
-            issues.append(_issue(repository, "error", "missing_table", "notifications"))
-            return (
-                RepositoryVerificationSummary(
-                    repository=repository,
-                    file_path=str(path),
-                    exists=True,
-                    records=0,
-                    sent=0,
-                    pending=0,
-                ),
-                issues,
-            )
-
-        column_rows = conn.execute("PRAGMA table_info(notifications)").fetchall()
-        columns = {str(row["name"]) for row in column_rows}
-        missing_columns = sorted(REQUIRED_SQLITE_COLUMNS - columns)
-        if missing_columns:
-            issues.append(
-                _issue(
-                    repository,
-                    "error",
-                    "missing_columns",
-                    ",".join(missing_columns),
+    with closing(conn):
+        with conn:
+            table_row = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'"
+            ).fetchone()
+            if table_row is None:
+                issues.append(_issue(repository, "error", "missing_table", "notifications"))
+                return (
+                    RepositoryVerificationSummary(
+                        repository=repository,
+                        file_path=str(path),
+                        exists=True,
+                        records=0,
+                        sent=0,
+                        pending=0,
+                    ),
+                    issues,
                 )
-            )
-            return (
-                RepositoryVerificationSummary(
-                    repository=repository,
-                    file_path=str(path),
-                    exists=True,
-                    records=0,
-                    sent=0,
-                    pending=0,
-                ),
-                issues,
-            )
 
-        count_row = conn.execute("SELECT COUNT(*) AS count FROM notifications").fetchone()
-        sent_row = conn.execute(
-            "SELECT COUNT(*) AS count FROM notifications WHERE sent = 1"
-        ).fetchone()
-        pending_row = conn.execute(
-            "SELECT COUNT(*) AS count FROM notifications WHERE sent = 0"
-        ).fetchone()
-        records = int(count_row["count"]) if count_row else 0
-        sent = int(sent_row["count"]) if sent_row else 0
-        pending = int(pending_row["count"]) if pending_row else 0
-
-        invalid_sent = conn.execute(
-            "SELECT COUNT(*) AS count FROM notifications WHERE sent NOT IN (0, 1)"
-        ).fetchone()
-        if invalid_sent and int(invalid_sent["count"]) > 0:
-            issues.append(
-                _issue(repository, "error", "invalid_sent_value", str(invalid_sent["count"]))
-            )
-
-        invalid_required = conn.execute(
-            """
-            SELECT COUNT(*) AS count
-            FROM notifications
-            WHERE event_id IS NULL OR TRIM(event_id) = ''
-               OR area_code IS NULL OR TRIM(area_code) = ''
-               OR message IS NULL OR TRIM(message) = ''
-            """
-        ).fetchone()
-        if invalid_required and int(invalid_required["count"]) > 0:
-            issues.append(
-                _issue(
-                    repository,
-                    "error",
-                    "invalid_required_field",
-                    str(invalid_required["count"]),
+            column_rows = conn.execute("PRAGMA table_info(notifications)").fetchall()
+            columns = {str(row["name"]) for row in column_rows}
+            missing_columns = sorted(REQUIRED_SQLITE_COLUMNS - columns)
+            if missing_columns:
+                issues.append(
+                    _issue(
+                        repository,
+                        "error",
+                        "missing_columns",
+                        ",".join(missing_columns),
+                    )
                 )
-            )
+                return (
+                    RepositoryVerificationSummary(
+                        repository=repository,
+                        file_path=str(path),
+                        exists=True,
+                        records=0,
+                        sent=0,
+                        pending=0,
+                    ),
+                    issues,
+                )
 
-        timestamp_rows = conn.execute(
-            "SELECT event_id, first_seen_at, updated_at, last_sent_at FROM notifications"
-        ).fetchall()
-        invalid_timestamps = 0
-        for row in timestamp_rows:
-            if parse_iso_to_utc(row["first_seen_at"]) is None:
-                invalid_timestamps += 1
-                continue
-            if parse_iso_to_utc(row["updated_at"]) is None:
-                invalid_timestamps += 1
-                continue
-            if row["last_sent_at"] is not None and parse_iso_to_utc(row["last_sent_at"]) is None:
-                invalid_timestamps += 1
-        if invalid_timestamps > 0:
-            issues.append(
-                _issue(repository, "error", "invalid_timestamp", str(invalid_timestamps))
-            )
+            count_row = conn.execute("SELECT COUNT(*) AS count FROM notifications").fetchone()
+            sent_row = conn.execute(
+                "SELECT COUNT(*) AS count FROM notifications WHERE sent = 1"
+            ).fetchone()
+            pending_row = conn.execute(
+                "SELECT COUNT(*) AS count FROM notifications WHERE sent = 0"
+            ).fetchone()
+            records = int(count_row["count"]) if count_row else 0
+            sent = int(sent_row["count"]) if sent_row else 0
+            pending = int(pending_row["count"]) if pending_row else 0
+
+            invalid_sent = conn.execute(
+                "SELECT COUNT(*) AS count FROM notifications WHERE sent NOT IN (0, 1)"
+            ).fetchone()
+            if invalid_sent and int(invalid_sent["count"]) > 0:
+                issues.append(
+                    _issue(repository, "error", "invalid_sent_value", str(invalid_sent["count"]))
+                )
+
+            invalid_required = conn.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM notifications
+                WHERE event_id IS NULL OR TRIM(event_id) = ''
+                   OR area_code IS NULL OR TRIM(area_code) = ''
+                   OR message IS NULL OR TRIM(message) = ''
+                """
+            ).fetchone()
+            if invalid_required and int(invalid_required["count"]) > 0:
+                issues.append(
+                    _issue(
+                        repository,
+                        "error",
+                        "invalid_required_field",
+                        str(invalid_required["count"]),
+                    )
+                )
+
+            timestamp_rows = conn.execute(
+                "SELECT event_id, first_seen_at, updated_at, last_sent_at FROM notifications"
+            ).fetchall()
+            invalid_timestamps = 0
+            for row in timestamp_rows:
+                if parse_iso_to_utc(row["first_seen_at"]) is None:
+                    invalid_timestamps += 1
+                    continue
+                if parse_iso_to_utc(row["updated_at"]) is None:
+                    invalid_timestamps += 1
+                    continue
+                if (
+                    row["last_sent_at"] is not None
+                    and parse_iso_to_utc(row["last_sent_at"]) is None
+                ):
+                    invalid_timestamps += 1
+            if invalid_timestamps > 0:
+                issues.append(
+                    _issue(repository, "error", "invalid_timestamp", str(invalid_timestamps))
+                )
 
     return (
         RepositoryVerificationSummary(
