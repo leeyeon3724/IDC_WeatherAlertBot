@@ -19,6 +19,42 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
+상태: 진행중
+중요도: 중간
+항목: Alert 규칙 파일 스키마 진화(v2) 대비 로더 확장
+근거: 현재 `app/domain/alert_rules.py`는 v1 고정이라 규칙 구조 변경 시 즉시 배포/수정 부담이 큼.
+완료 기준: v1/v2 호환 로더를 추가하고, 스키마별 검증 테스트와 마이그레이션 가이드를 문서화함.
+
+상태: 진행중
+중요도: 낮음
+항목: `app/domain/code_maps.py` 호환 레이어 정리(Deprecation)
+근거: 규칙 외부화 이후에도 호환 상수가 남아 있어 규칙 소스 이중화 리스크가 존재함.
+완료 기준: 런타임 비즈니스 경로의 `code_maps.py` 직접 의존을 제거하고 단일 소스(`alert_rules`)로 통일함.
+
+상태: 진행중
+중요도: 중간
+항목: `ProcessCycle` 컴포넌트 계약(Protocol) 고정
+근거: `app/usecases/process_cycle_components.py` 인터페이스가 암묵적이라 교체/확장 시 회귀 가능성이 있음.
+완료 기준: fetch/track/dispatch/stats 컴포넌트 Protocol을 명시하고 생성자 계약 및 테스트 대역을 표준화함.
+
+상태: 진행중
+중요도: 중간
+항목: 종료 시그널 처리 이벤트 세분화 및 종료 타임아웃 정책 추가
+근거: SIGTERM/SIGINT 처리 경로가 추가되었으나 shutdown 단계별 관측(start/complete/forced)과 시간 예산 정책이 부족함.
+완료 기준: shutdown 단계 이벤트를 추가하고 종료 최대 대기시간 설정을 도입하며 관련 테스트를 보강함.
+
+상태: 진행중
+중요도: 중간
+항목: 컨테이너 헬스체크 정책 고도화(실행 모드 인지)
+근거: `scripts/container_healthcheck.py`는 최신성 기준 중심이라 `RUN_ONCE=true` 같은 모드에서 오탐 가능성이 있음.
+완료 기준: 실행 모드별 헬스 정책 분기를 추가하고 Docker/운영 문서 및 테스트 케이스를 함께 정비함.
+
+상태: 진행중
+중요도: 낮음
+항목: 설정/문서 동기화 자동 생성 도구화
+근거: `app/settings.py`, `.env.example`, `.env.live-e2e.example`, `docs/SETUP.md` 간 수동 동기화는 누락 리스크가 큼.
+완료 기준: 설정 메타데이터 기반 env/doc 생성 스크립트와 CI diff 검증을 도입함.
+
 신규 리스크 등록 템플릿:
 
 ```text
