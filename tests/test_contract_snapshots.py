@@ -6,12 +6,15 @@ from dataclasses import MISSING, fields
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from app.entrypoints.commands import build_parser
 from app.observability import events
 from app.settings import Settings
 from scripts.event_payload_contract import build_event_payload_contract
 
 CONTRACTS_DIR = Path(__file__).resolve().parent / "contracts"
+PROJECT_ROOT = CONTRACTS_DIR.parent.parent
 
 
 def _load_contract(file_name: str) -> Any:
@@ -33,6 +36,14 @@ def _current_events_contract() -> dict[str, str]:
         for name, value in sorted(vars(events).items())
         if name.isupper() and isinstance(value, str)
     }
+
+
+def _event_payload_source_root() -> Path:
+    return PROJECT_ROOT / "app"
+
+
+def _current_event_payload_contract() -> dict[str, list[str]]:
+    return build_event_payload_contract(_event_payload_source_root())
 
 
 def _current_settings_contract() -> list[dict[str, Any]]:
@@ -108,4 +119,12 @@ def test_cli_contract_snapshot() -> None:
 
 def test_event_payload_contract_snapshot() -> None:
     expected = _load_contract("event_payload_contract.json")
-    assert build_event_payload_contract(Path("app")) == expected
+    assert _current_event_payload_contract() == expected
+
+
+def test_event_payload_contract_snapshot_is_cwd_independent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = _load_contract("event_payload_contract.json")
+    monkeypatch.chdir(CONTRACTS_DIR.parent)
+    assert _current_event_payload_contract() == expected
