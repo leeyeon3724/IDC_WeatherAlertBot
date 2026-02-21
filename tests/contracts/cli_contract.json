@@ -1,0 +1,108 @@
+{
+  "command_names": [
+    "cleanup-state",
+    "migrate-state",
+    "run"
+  ],
+  "commands": {
+    "cleanup-state": {
+      "options": [
+        {
+          "default": "==SUPPRESS==",
+          "dest": "help",
+          "flags": [
+            "-h",
+            "--help"
+          ],
+          "required": false
+        },
+        {
+          "default": "./data/sent_messages.json",
+          "dest": "state_file",
+          "flags": [
+            "--state-file"
+          ],
+          "required": false
+        },
+        {
+          "default": 30,
+          "dest": "days",
+          "flags": [
+            "--days"
+          ],
+          "required": false
+        },
+        {
+          "default": false,
+          "dest": "include_unsent",
+          "flags": [
+            "--include-unsent"
+          ],
+          "required": false
+        },
+        {
+          "default": false,
+          "dest": "dry_run",
+          "flags": [
+            "--dry-run"
+          ],
+          "required": false
+        }
+      ],
+      "parse_defaults": {
+        "days": 30,
+        "dry_run": false,
+        "include_unsent": false,
+        "state_file": "./data/sent_messages.json"
+      }
+    },
+    "migrate-state": {
+      "options": [
+        {
+          "default": "==SUPPRESS==",
+          "dest": "help",
+          "flags": [
+            "-h",
+            "--help"
+          ],
+          "required": false
+        },
+        {
+          "default": "./data/sent_messages.json",
+          "dest": "json_state_file",
+          "flags": [
+            "--json-state-file"
+          ],
+          "required": false
+        },
+        {
+          "default": "./data/sent_messages.db",
+          "dest": "sqlite_state_file",
+          "flags": [
+            "--sqlite-state-file"
+          ],
+          "required": false
+        }
+      ],
+      "parse_defaults": {
+        "json_state_file": "./data/sent_messages.json",
+        "sqlite_state_file": "./data/sent_messages.db"
+      }
+    },
+    "run": {
+      "options": [
+        {
+          "default": "==SUPPRESS==",
+          "dest": "help",
+          "flags": [
+            "-h",
+            "--help"
+          ],
+          "required": false
+        }
+      ],
+      "parse_defaults": {}
+    }
+  },
+  "default_command": "run"
+}

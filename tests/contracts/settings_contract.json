@@ -1,0 +1,212 @@
+[
+  {
+    "default": null,
+    "has_default": false,
+    "name": "service_api_key"
+  },
+  {
+    "default": null,
+    "has_default": false,
+    "name": "service_hook_url"
+  },
+  {
+    "default": null,
+    "has_default": false,
+    "name": "weather_alert_data_api_url"
+  },
+  {
+    "default": null,
+    "has_default": false,
+    "name": "sent_messages_file"
+  },
+  {
+    "default": null,
+    "has_default": false,
+    "name": "area_codes"
+  },
+  {
+    "default": null,
+    "has_default": false,
+    "name": "area_code_mapping"
+  },
+  {
+    "default": "json",
+    "has_default": true,
+    "name": "state_repository_type"
+  },
+  {
+    "default": "data/sent_messages.db",
+    "has_default": true,
+    "name": "sqlite_state_file"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "request_timeout_sec"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "request_connect_timeout_sec"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "request_read_timeout_sec"
+  },
+  {
+    "default": 3,
+    "has_default": true,
+    "name": "max_retries"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "retry_delay_sec"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "notifier_timeout_sec"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "notifier_connect_timeout_sec"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "notifier_read_timeout_sec"
+  },
+  {
+    "default": 3,
+    "has_default": true,
+    "name": "notifier_max_retries"
+  },
+  {
+    "default": 1,
+    "has_default": true,
+    "name": "notifier_retry_delay_sec"
+  },
+  {
+    "default": 1,
+    "has_default": true,
+    "name": "area_max_workers"
+  },
+  {
+    "default": 0,
+    "has_default": true,
+    "name": "lookback_days"
+  },
+  {
+    "default": 10,
+    "has_default": true,
+    "name": "cycle_interval_sec"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "area_interval_sec"
+  },
+  {
+    "default": true,
+    "has_default": true,
+    "name": "cleanup_enabled"
+  },
+  {
+    "default": 30,
+    "has_default": true,
+    "name": "cleanup_retention_days"
+  },
+  {
+    "default": true,
+    "has_default": true,
+    "name": "cleanup_include_unsent"
+  },
+  {
+    "default": "기상특보알림",
+    "has_default": true,
+    "name": "bot_name"
+  },
+  {
+    "default": "Asia/Seoul",
+    "has_default": true,
+    "name": "timezone"
+  },
+  {
+    "default": "INFO",
+    "has_default": true,
+    "name": "log_level"
+  },
+  {
+    "default": false,
+    "has_default": true,
+    "name": "dry_run"
+  },
+  {
+    "default": false,
+    "has_default": true,
+    "name": "run_once"
+  },
+  {
+    "default": true,
+    "has_default": true,
+    "name": "health_alert_enabled"
+  },
+  {
+    "default": 600,
+    "has_default": true,
+    "name": "health_outage_window_sec"
+  },
+  {
+    "default": 0.7,
+    "has_default": true,
+    "name": "health_outage_fail_ratio_threshold"
+  },
+  {
+    "default": 6,
+    "has_default": true,
+    "name": "health_outage_min_failed_cycles"
+  },
+  {
+    "default": 4,
+    "has_default": true,
+    "name": "health_outage_consecutive_failures"
+  },
+  {
+    "default": 900,
+    "has_default": true,
+    "name": "health_recovery_window_sec"
+  },
+  {
+    "default": 0.1,
+    "has_default": true,
+    "name": "health_recovery_max_fail_ratio"
+  },
+  {
+    "default": 8,
+    "has_default": true,
+    "name": "health_recovery_consecutive_successes"
+  },
+  {
+    "default": 3600,
+    "has_default": true,
+    "name": "health_heartbeat_interval_sec"
+  },
+  {
+    "default": 900,
+    "has_default": true,
+    "name": "health_backoff_max_sec"
+  },
+  {
+    "default": 3,
+    "has_default": true,
+    "name": "health_recovery_backfill_max_days"
+  },
+  {
+    "default": "data/api_health_state.json",
+    "has_default": true,
+    "name": "health_state_file"
+  }
+]
