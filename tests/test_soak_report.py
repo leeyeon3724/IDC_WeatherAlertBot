@@ -87,7 +87,9 @@ def test_run_soak_rejects_invalid_cycles_and_area_count(tmp_path: Path) -> None:
         )
 
 
-def test_run_soak_budget_checks_include_pending_duplicate_and_memory_branches(tmp_path: Path) -> None:
+def test_run_soak_budget_checks_include_pending_duplicate_and_memory_branches(
+    tmp_path: Path,
+) -> None:
     report = run_soak(
         cycles=5,
         area_count=1,
@@ -101,6 +103,13 @@ def test_run_soak_budget_checks_include_pending_duplicate_and_memory_branches(tm
     )
 
     assert report["passed"] is False
-    assert any("pending_total exceeded budget" in reason for reason in report["failed_reasons"])
-    assert any("duplicate deliveries exceeded budget" in reason for reason in report["failed_reasons"])
-    assert any("memory_growth_kib exceeded budget" in reason for reason in report["failed_reasons"])
+    assert any(
+        "pending_total exceeded budget" in reason for reason in report["failed_reasons"]
+    )
+    assert any(
+        "duplicate deliveries exceeded budget" in reason
+        for reason in report["failed_reasons"]
+    )
+    assert any(
+        "memory_growth_kib exceeded budget" in reason for reason in report["failed_reasons"]
+    )
