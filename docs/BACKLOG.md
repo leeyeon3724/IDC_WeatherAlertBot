@@ -41,7 +41,7 @@
     - `suggested_cycle_interval_sec`의 임계 단계 및 cap 단정 추가
     - 장애 중 누적 카운터/에러 집계와 recovery 시 reset 동작 단정 추가
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 로깅 유틸 테스트의 전역 logger 상태 격리(순서 의존 제거)
   - 근거: `tests/test_logging_utils.py`가 `weather_alert_bot` logger의 handler/propagate를 전역으로 변경해, `tests/test_json_state_repo.py`/`tests/test_health_state_repo.py`의 caplog 검증이 실행 순서에 따라 실패할 수 있음(재현: logging_utils 선실행 시 7건 실패)
   - 완료 기준:

@@ -2,8 +2,34 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
+
+import pytest
 
 from app.logging_utils import TimezoneFormatter, log_event, redact_sensitive_text, setup_logging
+from app.observability import events
+from app.repositories.json_state_repo import JsonStateRepository
+
+
+@pytest.fixture(autouse=True)
+def _restore_weather_alert_bot_logger() -> None:
+    logger = logging.getLogger("weather_alert_bot")
+    original_handlers = list(logger.handlers)
+    original_level = logger.level
+    original_propagate = logger.propagate
+    yield
+    current_handlers = list(logger.handlers)
+    for handler in current_handlers:
+        logger.removeHandler(handler)
+        if handler not in original_handlers:
+            try:
+                handler.close()
+            except Exception:
+                pass
+    for handler in original_handlers:
+        logger.addHandler(handler)
+    logger.setLevel(original_level)
+    logger.propagate = original_propagate
 
 
 def _reset_logger() -> logging.Logger:
@@ -90,3 +116,25 @@ def test_redact_sensitive_text_masks_dooray_webhook_url() -> None:
     assert "TOKEN123" not in redacted
     assert "12345" not in redacted
     assert "https://***" in redacted
+
+
+def test_setup_logging_does_not_break_following_caplog_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    state_file = tmp_path / "state.json"
+    state_file.write_text("{}", encoding="utf-8")
+    original_open = Path.open
+
+    def _failing_open(self: Path, mode: str = "r", *args: object, **kwargs: object):
+        if self == state_file and "r" in mode:
+            raise OSError("read failed")
+        return original_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _failing_open)
+    with caplog.at_level(logging.ERROR, logger="weather_alert_bot.state"):
+        JsonStateRepository(state_file)
+
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(payload.get("event") == events.STATE_READ_FAILED for payload in payloads)
