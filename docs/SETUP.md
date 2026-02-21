@@ -41,6 +41,7 @@ cp .env.example .env
 
 선택 환경변수는 `.env.example`을 기준으로 관리합니다.
 주의: `WEATHER_ALERT_DATA_API_URL` 기본 엔드포인트는 현재 `http`만 지원합니다.
+주의: `CLEANUP_INCLUDE_UNSENT` 기본값은 `false`이며, 자동 cleanup은 기본적으로 전송완료(`sent=true`) 데이터만 삭제합니다.
 
 ## 5. 로컬 실행
 

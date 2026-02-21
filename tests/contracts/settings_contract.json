@@ -140,7 +140,7 @@
     "name": "cleanup_retention_days"
   },
   {
-    "default": true,
+    "default": false,
     "has_default": true,
     "name": "cleanup_include_unsent"
   },

@@ -18,7 +18,7 @@ services:
       LOOKBACK_DAYS: "0"
       CLEANUP_ENABLED: "true"
       CLEANUP_RETENTION_DAYS: "30"
-      CLEANUP_INCLUDE_UNSENT: "true"
+      CLEANUP_INCLUDE_UNSENT: "false"
     volumes:
       - ./data:/app/data
     command: ["python", "main.py"]

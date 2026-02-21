@@ -48,7 +48,7 @@ def make_settings(tmp_path: Path, **overrides: object) -> Settings:
         "area_interval_sec": 0,
         "cleanup_enabled": True,
         "cleanup_retention_days": 30,
-        "cleanup_include_unsent": True,
+        "cleanup_include_unsent": False,
         "health_alert_enabled": True,
         "health_outage_window_sec": 600,
         "health_outage_fail_ratio_threshold": 0.7,

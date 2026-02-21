@@ -20,7 +20,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 자동 cleanup에서 미전송(`sent=false`) 데이터 보존 기본값으로 전환
   - 근거: `CLEANUP_INCLUDE_UNSENT=true` 기본 설정 시 장기 webhook/API 장애 동안 재시도 대기 알림이 삭제될 수 있음
   - 완료 기준:

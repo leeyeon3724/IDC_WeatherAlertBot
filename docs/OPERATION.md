@@ -26,6 +26,7 @@
 - 이벤트 표준은 `docs/EVENTS.md`를 단일 기준으로 사용
 - 중복 방지 키는 이벤트 ID(불완전 시 해시) 사용
 - 전송 실패는 `sent=false`로 유지되어 다음 사이클 재시도
+- 자동 cleanup 기본값은 전송완료(`sent=true`) 데이터만 삭제(`CLEANUP_INCLUDE_UNSENT=false`)
 - `DRY_RUN=true`는 전송 없이 로그만 기록
 
 ## 3. 운영 체크리스트
@@ -189,4 +190,3 @@ python3 main.py migrate-state \
 | SOAK_AREA_COUNT | `soak.yml` | `3` | soak 합성 지역 수 |
 | SOAK_NEW_EVENT_EVERY | `soak.yml` | `0` | 주기적 신규 이벤트 주입 간격 |
 | SOAK_MAX_MEMORY_GROWTH_KIB | `soak.yml` | `8192` | 메모리 증가 예산 |
-

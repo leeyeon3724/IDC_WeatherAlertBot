@@ -398,7 +398,7 @@ def _parse_runtime_config() -> _RuntimeConfig:
         area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
         cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),
         cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
-        cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=True),
+        cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=False),
         bot_name=_parse_str_env("BOT_NAME", "기상특보알림"),
         timezone=_parse_timezone_env("TIMEZONE", "Asia/Seoul"),
         log_level=_parse_str_env("LOG_LEVEL", "INFO").upper(),
@@ -493,7 +493,7 @@ class Settings:
     area_interval_sec: int = 5
     cleanup_enabled: bool = True
     cleanup_retention_days: int = 30
-    cleanup_include_unsent: bool = True
+    cleanup_include_unsent: bool = False
     bot_name: str = "기상특보알림"
     timezone: str = "Asia/Seoul"
     log_level: str = "INFO"

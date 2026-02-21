@@ -30,7 +30,7 @@ def test_run_service_auto_cleanup_once_on_run_once(
     result = entrypoint._run_service()
 
     assert result == 0
-    assert probe.cleanup_calls == [(30, True, False)]
+    assert probe.cleanup_calls == [(30, False, False)]
     assert probe.processor_lookback_calls == [None]
 
 

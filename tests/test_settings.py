@@ -90,7 +90,7 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.lookback_days == 0
     assert settings.cleanup_enabled is True
     assert settings.cleanup_retention_days == 30
-    assert settings.cleanup_include_unsent is True
+    assert settings.cleanup_include_unsent is False
     assert settings.health_alert_enabled is True
     assert settings.health_outage_window_sec == 600
     assert settings.health_outage_fail_ratio_threshold == 0.7
