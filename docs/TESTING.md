@@ -38,9 +38,10 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 - CI: `make gate` 단일 품질 게이트 + perf report/compare/baseline + docs consistency check + PR 체크리스트 도입
 - 아키텍처 의존성 경계 자동검사 도입 (`scripts/check_architecture_rules.py`, `tests/test_architecture_rules.py`)
 - 이벤트/설정/CLI 계약 스냅샷 테스트 도입 (`tests/test_contract_snapshots.py`, `tests/contracts/*.json`)
+- CI 런타임 smoke 매트릭스 도입 (Python 3.11/3.12, `tests/test_main.py`, `tests/test_main_smoke.py`, `tests/test_commands.py`, `main.py --help`)
 
 ## 5) 다음 우선순위
 
-1. Python 3.11/3.12 smoke 매트릭스 도입 (`RB-601`)
+1. 이벤트 스키마 버전/변경 로그 정책 수립 (`RB-602`)
 2. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
 3. perf 리포트 보존 기간/샘플 정책 표준화 (`RB-507`)

@@ -56,8 +56,53 @@ jobs:
             exit 1
           fi
 
-  test:
+  runtime-smoke:
     needs: commit-message-lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Runtime smoke + startup check
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/smoke
+          smoke_log="artifacts/smoke/smoke-${{ matrix.python-version }}.log"
+          smoke_md="artifacts/smoke/smoke-${{ matrix.python-version }}.md"
+          smoke_json="artifacts/smoke/smoke-${{ matrix.python-version }}.json"
+
+          python -m pytest -q \
+            tests/test_main.py \
+            tests/test_main_smoke.py \
+            tests/test_commands.py | tee "$smoke_log"
+          python main.py --help >/dev/null
+
+          printf '## Runtime Smoke (Python %s)\n\n- status: PASS\n- checks:\n  - `pytest -q tests/test_main.py tests/test_main_smoke.py tests/test_commands.py`\n  - `python main.py --help`\n' \
+            "${{ matrix.python-version }}" > "$smoke_md"
+          printf '{"python_version":"%s","status":"pass","checks":["pytest -q tests/test_main.py tests/test_main_smoke.py tests/test_commands.py","python main.py --help"]}\n' \
+            "${{ matrix.python-version }}" > "$smoke_json"
+
+          cat "$smoke_md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload runtime smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-smoke-py${{ matrix.python-version }}-${{ github.run_id }}
+          path: artifacts/smoke
+          if-no-files-found: warn
+
+  test:
+    needs: [commit-message-lint, runtime-smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
