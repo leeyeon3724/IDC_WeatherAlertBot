@@ -88,6 +88,7 @@ CI 워크플로:
 python3 -m scripts.check_event_docs_sync
 python3 -m scripts.check_alarm_rules_sync
 python3 -m scripts.check_repo_hygiene
+python3 -m scripts.check_env_defaults_sync
 python3 -m scripts.check_area_mapping_sync
 python3 -m scripts.perf_baseline --max-samples 20
 python3 -m scripts.slo_report --log-file <service.log>

@@ -149,5 +149,4 @@ if ($httpCode === 200) {
 - `notification.final_failure.error`에서 `resultCode`/`resultMessage` 확인 가능
 - 연속 실패 시 `notification.circuit.*` 이벤트와 함께 원인 분리
 
-
 주의: 두레이 정책/응답 스키마 변경 가능성이 있으므로 운영 적용 전 공식 도움말을 최우선 기준으로 재확인하세요.
