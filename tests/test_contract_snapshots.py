@@ -9,6 +9,7 @@ from typing import Any
 from app.entrypoints.commands import build_parser
 from app.observability import events
 from app.settings import Settings
+from scripts.event_payload_contract import build_event_payload_contract
 
 CONTRACTS_DIR = Path(__file__).resolve().parent / "contracts"
 
@@ -103,3 +104,8 @@ def test_settings_contract_snapshot() -> None:
 def test_cli_contract_snapshot() -> None:
     expected = _load_contract("cli_contract.json")
     assert _current_cli_contract() == expected
+
+
+def test_event_payload_contract_snapshot() -> None:
+    expected = _load_contract("event_payload_contract.json")
+    assert build_event_payload_contract(Path("app")) == expected

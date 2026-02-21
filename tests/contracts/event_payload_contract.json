@@ -1,0 +1,207 @@
+{
+  "area.failed": [
+    "area_code",
+    "error",
+    "error_code"
+  ],
+  "area.fetch.retry": [
+    "area_code",
+    "attempt",
+    "backoff_sec",
+    "error",
+    "error_code",
+    "max_retries"
+  ],
+  "area.fetch.summary": [
+    "area_code",
+    "area_name",
+    "fetched_items",
+    "page_count",
+    "total_count"
+  ],
+  "area.start": [
+    "area_code",
+    "area_name"
+  ],
+  "cycle.area_interval_ignored": [
+    "area_interval_sec",
+    "reason"
+  ],
+  "cycle.complete": [],
+  "cycle.cost.metrics": [
+    "alerts_fetched",
+    "api_fetch_calls",
+    "notification_attempts",
+    "notification_dry_run_skips",
+    "notification_failures",
+    "notification_sent",
+    "pending_total"
+  ],
+  "cycle.interval.adjusted": [
+    "adjusted_interval_sec",
+    "base_interval_sec",
+    "incident_open"
+  ],
+  "cycle.parallel_fetch": [
+    "area_count",
+    "workers"
+  ],
+  "cycle.start": [
+    "area_count",
+    "end_date",
+    "start_date"
+  ],
+  "health.backfill.complete": [
+    "lookback_days",
+    "pending_total",
+    "sent_count"
+  ],
+  "health.backfill.failed": [
+    "error",
+    "lookback_days"
+  ],
+  "health.backfill.start": [
+    "incident_duration_sec",
+    "lookback_days"
+  ],
+  "health.evaluate": [
+    "consecutive_severe_failures",
+    "consecutive_stable_successes",
+    "health_event",
+    "incident_open",
+    "outage_window_fail_ratio",
+    "recovery_window_fail_ratio",
+    "should_notify"
+  ],
+  "health.notification.failed": [
+    "attempts",
+    "error",
+    "health_event"
+  ],
+  "health.notification.sent": [
+    "health_event"
+  ],
+  "health_state.backup_failed": [
+    "error",
+    "file"
+  ],
+  "health_state.invalid_json": [
+    "backup",
+    "error",
+    "file"
+  ],
+  "health_state.persist_failed": [
+    "error",
+    "file",
+    "temp_file"
+  ],
+  "health_state.read_failed": [
+    "error",
+    "file"
+  ],
+  "notification.dry_run": [
+    "area_code",
+    "event_id"
+  ],
+  "notification.final_failure": [
+    "area_code",
+    "attempts",
+    "error",
+    "event_id"
+  ],
+  "notification.retry": [
+    "attempt",
+    "backoff_sec",
+    "error",
+    "max_retries"
+  ],
+  "notification.sent": [
+    "area_code",
+    "event_id"
+  ],
+  "notification.url_attachment_blocked": [
+    "area_code",
+    "event_id",
+    "reason"
+  ],
+  "shutdown.interrupt": [],
+  "shutdown.run_once_complete": [],
+  "shutdown.unexpected_error": [
+    "error"
+  ],
+  "startup.invalid_config": [
+    "error"
+  ],
+  "startup.ready": [
+    "area_count",
+    "area_max_workers",
+    "cleanup_enabled",
+    "cleanup_include_unsent",
+    "cleanup_retention_days",
+    "dry_run",
+    "health_alert_enabled",
+    "health_backoff_max_sec",
+    "health_recovery_backfill_max_days",
+    "health_state_file",
+    "lookback_days",
+    "run_once",
+    "sqlite_state_file",
+    "state_file",
+    "state_repository_type"
+  ],
+  "state.backup_failed": [
+    "error",
+    "file"
+  ],
+  "state.cleanup.auto": [
+    "date",
+    "days",
+    "include_unsent",
+    "pending",
+    "removed",
+    "total"
+  ],
+  "state.cleanup.complete": [
+    "days",
+    "dry_run",
+    "include_unsent",
+    "pending",
+    "removed",
+    "state_file",
+    "total"
+  ],
+  "state.cleanup.failed": [
+    "days",
+    "dry_run",
+    "error",
+    "include_unsent",
+    "state_file"
+  ],
+  "state.invalid_json": [
+    "backup",
+    "error",
+    "file"
+  ],
+  "state.migration.complete": [
+    "inserted_records",
+    "json_state_file",
+    "marked_sent_records",
+    "sent_records",
+    "sqlite_state_file",
+    "total_records"
+  ],
+  "state.migration.failed": [
+    "error",
+    "json_state_file",
+    "sqlite_state_file"
+  ],
+  "state.persist_failed": [
+    "error",
+    "file",
+    "temp_file"
+  ],
+  "state.read_failed": [
+    "error",
+    "file"
+  ]
+}
