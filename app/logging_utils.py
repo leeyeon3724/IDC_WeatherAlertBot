@@ -75,6 +75,7 @@ def redact_sensitive_text(value: object) -> str:
         (r"(?i)(servicekey=)([^&\s]+)", r"\1***"),
         (r"(?i)(api[_-]?key=)([^&\s]+)", r"\1***"),
         (r"(?i)(service_api_key\s*[=:]\s*)([^\s,}]+)", r"\1***"),
+        (r"(https?://[^\s]*/services/[^\s]+)", r"https://***"),
     )
     for pattern, replacement in patterns:
         text = re.sub(pattern, replacement, text)

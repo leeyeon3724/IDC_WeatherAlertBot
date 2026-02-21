@@ -76,3 +76,17 @@ def test_redact_sensitive_text_masks_key_patterns() -> None:
     assert "serviceKey=***" in redacted
     assert "apiKey=***" in redacted
     assert "SERVICE_API_KEY=***" in redacted
+
+
+def test_redact_sensitive_text_masks_dooray_webhook_url() -> None:
+    """웹훅 URL(Dooray /services/... 경로)이 로그에서 마스킹되어야 한다."""
+    text = (
+        "POST failed for https://hook.dooray.com/services/12345/abcdef/TOKEN123 "
+        "with status 500"
+    )
+
+    redacted = redact_sensitive_text(text)
+
+    assert "TOKEN123" not in redacted
+    assert "12345" not in redacted
+    assert "https://***" in redacted
