@@ -62,7 +62,7 @@
     - json/sqlite 저장소의 음수 days/미존재 event_id 경계 테스트 추가
     - verifier aggregate 경계(strict false warning-only pass, strict true fail) 단정 추가
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 품질 게이트 동기화 테스트의 실패 경로/스키마 불일치 분기 보강
   - 근거: `tests/test_alarm_rules_sync.py`, `tests/test_event_docs_sync.py`, `tests/test_env_defaults_sync.py`가 pass + 단일 불일치 케이스 중심이라 duplicate rule key, unknown/missing 이벤트, 파싱 실패(구조화 로그/compose/env) 경로 회귀 탐지력이 낮음
   - 완료 기준:

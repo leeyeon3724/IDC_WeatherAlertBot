@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.check_env_defaults_sync import build_report
+from scripts.check_env_defaults_sync import build_report, parse_compose_environment, parse_env_map
 
 
 def _write(path: Path, content: str) -> None:
@@ -100,3 +100,43 @@ def test_build_report_detects_non_allowlisted_diff_and_unknown_compose_key(tmp_p
 
     compose_diffs = report["docker_compose_disallowed_diffs"]
     assert compose_diffs == [{"key": "DRY_RUN", "left": "false", "right": "true"}]
+
+
+def test_parse_env_map_supports_export_and_quotes(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env.sample"
+    _write(
+        env_file,
+        """
+        export SERVICE_API_KEY="quoted-key"
+        SERVICE_HOOK_URL='https://hook.example'
+        INVALID-LINE
+        """,
+    )
+
+    parsed = parse_env_map(env_file)
+    assert parsed == {
+        "SERVICE_API_KEY": "quoted-key",
+        "SERVICE_HOOK_URL": "https://hook.example",
+    }
+
+
+def test_parse_compose_environment_ignores_non_mapping_entries(tmp_path: Path) -> None:
+    compose_file = tmp_path / "docker-compose.yml"
+    _write(
+        compose_file,
+        """
+        services:
+          weather-alert-bot:
+            environment:
+              - SERVICE_API_KEY=test
+              - RUN_ONCE=true
+              DRY_RUN: "false"
+              LOOKBACK_DAYS: "0"
+          other:
+            environment:
+              OTHER: "x"
+        """,
+    )
+
+    parsed = parse_compose_environment(compose_file)
+    assert parsed == {"DRY_RUN": "false", "LOOKBACK_DAYS": "0"}
