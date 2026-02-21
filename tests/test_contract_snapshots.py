@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 from dataclasses import MISSING, fields
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
+from app.entrypoints import cli as entrypoint
 from app.entrypoints.commands import build_parser
 from app.observability import events
 from app.settings import Settings
@@ -30,6 +33,31 @@ def _normalize_value(value: Any) -> Any:
     return value
 
 
+def _normalize_annotation(annotation: Any) -> str:
+    if isinstance(annotation, str):
+        return annotation
+    if hasattr(annotation, "__name__"):
+        return str(annotation.__name__)
+    return str(annotation).replace("typing.", "")
+
+
+def _assert_snapshot_matches(*, name: str, current: Any, expected: Any) -> None:
+    if current == expected:
+        return
+    current_text = json.dumps(current, ensure_ascii=False, indent=2, sort_keys=True)
+    expected_text = json.dumps(expected, ensure_ascii=False, indent=2, sort_keys=True)
+    diff = "\n".join(
+        difflib.unified_diff(
+            expected_text.splitlines(),
+            current_text.splitlines(),
+            fromfile=f"{name}:expected",
+            tofile=f"{name}:current",
+            lineterm="",
+        )
+    )
+    raise AssertionError(f"{name} snapshot mismatch\n{diff}")
+
+
 def _current_events_contract() -> dict[str, str]:
     return {
         name: value
@@ -50,11 +78,15 @@ def _current_settings_contract() -> list[dict[str, Any]]:
     contract: list[dict[str, Any]] = []
     for field in fields(Settings):
         has_default = field.default is not MISSING
+        has_default_factory = field.default_factory is not MISSING
         default_value = _normalize_value(field.default) if has_default else None
         contract.append(
             {
                 "name": field.name,
+                "annotation": _normalize_annotation(field.type),
+                "required": not has_default and not has_default_factory,
                 "has_default": has_default,
+                "has_default_factory": has_default_factory,
                 "default": default_value,
             }
         )
@@ -95,8 +127,11 @@ def _current_cli_contract() -> dict[str, Any]:
             "parse_defaults": vars(subparser.parse_args([])),
         }
 
+    with patch.object(entrypoint, "_run_service", return_value=71):
+        default_command = "run" if entrypoint.main([]) == 71 else "unknown"
+
     return {
-        "default_command": "run",
+        "default_command": default_command,
         "command_names": sorted(subparsers.choices.keys()),
         "commands": commands_contract,
     }
@@ -104,22 +139,38 @@ def _current_cli_contract() -> dict[str, Any]:
 
 def test_events_contract_snapshot() -> None:
     expected = _load_contract("events_contract.json")
-    assert _current_events_contract() == expected
+    _assert_snapshot_matches(
+        name="events_contract.json",
+        current=_current_events_contract(),
+        expected=expected,
+    )
 
 
 def test_settings_contract_snapshot() -> None:
     expected = _load_contract("settings_contract.json")
-    assert _current_settings_contract() == expected
+    _assert_snapshot_matches(
+        name="settings_contract.json",
+        current=_current_settings_contract(),
+        expected=expected,
+    )
 
 
 def test_cli_contract_snapshot() -> None:
     expected = _load_contract("cli_contract.json")
-    assert _current_cli_contract() == expected
+    _assert_snapshot_matches(
+        name="cli_contract.json",
+        current=_current_cli_contract(),
+        expected=expected,
+    )
 
 
 def test_event_payload_contract_snapshot() -> None:
     expected = _load_contract("event_payload_contract.json")
-    assert _current_event_payload_contract() == expected
+    _assert_snapshot_matches(
+        name="event_payload_contract.json",
+        current=_current_event_payload_contract(),
+        expected=expected,
+    )
 
 
 def test_event_payload_contract_snapshot_is_cwd_independent(

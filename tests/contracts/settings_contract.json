@@ -1,242 +1,386 @@
 [
   {
-    "default": null,
+    "name": "service_api_key",
+    "annotation": "str",
+    "required": true,
     "has_default": false,
-    "name": "service_api_key"
+    "has_default_factory": false,
+    "default": null
   },
   {
-    "default": null,
+    "name": "service_hook_url",
+    "annotation": "str",
+    "required": true,
     "has_default": false,
-    "name": "service_hook_url"
+    "has_default_factory": false,
+    "default": null
   },
   {
-    "default": null,
+    "name": "weather_alert_data_api_url",
+    "annotation": "str",
+    "required": true,
     "has_default": false,
-    "name": "weather_alert_data_api_url"
+    "has_default_factory": false,
+    "default": null
   },
   {
-    "default": null,
+    "name": "sent_messages_file",
+    "annotation": "Path",
+    "required": true,
     "has_default": false,
-    "name": "sent_messages_file"
+    "has_default_factory": false,
+    "default": null
   },
   {
-    "default": null,
+    "name": "area_codes",
+    "annotation": "list[str]",
+    "required": true,
     "has_default": false,
-    "name": "area_codes"
+    "has_default_factory": false,
+    "default": null
   },
   {
-    "default": null,
+    "name": "area_code_mapping",
+    "annotation": "dict[str, str]",
+    "required": true,
     "has_default": false,
-    "name": "area_code_mapping"
+    "has_default_factory": false,
+    "default": null
   },
   {
-    "default": "sqlite",
+    "name": "state_repository_type",
+    "annotation": "str",
+    "required": false,
     "has_default": true,
-    "name": "state_repository_type"
+    "has_default_factory": false,
+    "default": "sqlite"
   },
   {
-    "default": "data/sent_messages.db",
+    "name": "sqlite_state_file",
+    "annotation": "Path",
+    "required": false,
     "has_default": true,
-    "name": "sqlite_state_file"
+    "has_default_factory": false,
+    "default": "data/sent_messages.db"
   },
   {
-    "default": 5,
+    "name": "request_timeout_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "request_timeout_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 5,
+    "name": "request_connect_timeout_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "request_connect_timeout_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 5,
+    "name": "request_read_timeout_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "request_read_timeout_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 3,
+    "name": "max_retries",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "max_retries"
+    "has_default_factory": false,
+    "default": 3
   },
   {
-    "default": 5,
+    "name": "retry_delay_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "retry_delay_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 5,
+    "name": "notifier_timeout_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_timeout_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 5,
+    "name": "notifier_connect_timeout_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_connect_timeout_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 5,
+    "name": "notifier_read_timeout_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_read_timeout_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 3,
+    "name": "notifier_max_retries",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_max_retries"
+    "has_default_factory": false,
+    "default": 3
   },
   {
-    "default": 1,
+    "name": "notifier_retry_delay_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_retry_delay_sec"
+    "has_default_factory": false,
+    "default": 1
   },
   {
-    "default": 100,
+    "name": "notifier_max_attempts_per_cycle",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_max_attempts_per_cycle"
+    "has_default_factory": false,
+    "default": 100
   },
   {
-    "default": true,
+    "name": "notifier_circuit_breaker_enabled",
+    "annotation": "bool",
+    "required": false,
     "has_default": true,
-    "name": "notifier_circuit_breaker_enabled"
+    "has_default_factory": false,
+    "default": true
   },
   {
-    "default": 5,
+    "name": "notifier_circuit_failure_threshold",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_circuit_failure_threshold"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": 300,
+    "name": "notifier_circuit_reset_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "notifier_circuit_reset_sec"
+    "has_default_factory": false,
+    "default": 300
   },
   {
-    "default": 1,
+    "name": "area_max_workers",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "area_max_workers"
+    "has_default_factory": false,
+    "default": 1
   },
   {
-    "default": 0,
+    "name": "lookback_days",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "lookback_days"
+    "has_default_factory": false,
+    "default": 0
   },
   {
-    "default": 10,
+    "name": "cycle_interval_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "cycle_interval_sec"
+    "has_default_factory": false,
+    "default": 10
   },
   {
-    "default": 5,
+    "name": "area_interval_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "area_interval_sec"
+    "has_default_factory": false,
+    "default": 5
   },
   {
-    "default": true,
+    "name": "cleanup_enabled",
+    "annotation": "bool",
+    "required": false,
     "has_default": true,
-    "name": "cleanup_enabled"
+    "has_default_factory": false,
+    "default": true
   },
   {
-    "default": 30,
+    "name": "cleanup_retention_days",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "cleanup_retention_days"
+    "has_default_factory": false,
+    "default": 30
   },
   {
-    "default": false,
+    "name": "cleanup_include_unsent",
+    "annotation": "bool",
+    "required": false,
     "has_default": true,
-    "name": "cleanup_include_unsent"
+    "has_default_factory": false,
+    "default": false
   },
   {
-    "default": "기상특보알림",
+    "name": "bot_name",
+    "annotation": "str",
+    "required": false,
     "has_default": true,
-    "name": "bot_name"
+    "has_default_factory": false,
+    "default": "기상특보알림"
   },
   {
-    "default": "Asia/Seoul",
+    "name": "timezone",
+    "annotation": "str",
+    "required": false,
     "has_default": true,
-    "name": "timezone"
+    "has_default_factory": false,
+    "default": "Asia/Seoul"
   },
   {
-    "default": "INFO",
+    "name": "log_level",
+    "annotation": "str",
+    "required": false,
     "has_default": true,
-    "name": "log_level"
+    "has_default_factory": false,
+    "default": "INFO"
   },
   {
-    "default": false,
+    "name": "dry_run",
+    "annotation": "bool",
+    "required": false,
     "has_default": true,
-    "name": "dry_run"
+    "has_default_factory": false,
+    "default": false
   },
   {
-    "default": false,
+    "name": "run_once",
+    "annotation": "bool",
+    "required": false,
     "has_default": true,
-    "name": "run_once"
+    "has_default_factory": false,
+    "default": false
   },
   {
-    "default": true,
+    "name": "health_alert_enabled",
+    "annotation": "bool",
+    "required": false,
     "has_default": true,
-    "name": "health_alert_enabled"
+    "has_default_factory": false,
+    "default": true
   },
   {
-    "default": 600,
+    "name": "health_outage_window_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_outage_window_sec"
+    "has_default_factory": false,
+    "default": 600
   },
   {
-    "default": 0.7,
+    "name": "health_outage_fail_ratio_threshold",
+    "annotation": "float",
+    "required": false,
     "has_default": true,
-    "name": "health_outage_fail_ratio_threshold"
+    "has_default_factory": false,
+    "default": 0.7
   },
   {
-    "default": 6,
+    "name": "health_outage_min_failed_cycles",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_outage_min_failed_cycles"
+    "has_default_factory": false,
+    "default": 6
   },
   {
-    "default": 4,
+    "name": "health_outage_consecutive_failures",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_outage_consecutive_failures"
+    "has_default_factory": false,
+    "default": 4
   },
   {
-    "default": 900,
+    "name": "health_recovery_window_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_recovery_window_sec"
+    "has_default_factory": false,
+    "default": 900
   },
   {
-    "default": 0.1,
+    "name": "health_recovery_max_fail_ratio",
+    "annotation": "float",
+    "required": false,
     "has_default": true,
-    "name": "health_recovery_max_fail_ratio"
+    "has_default_factory": false,
+    "default": 0.1
   },
   {
-    "default": 8,
+    "name": "health_recovery_consecutive_successes",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_recovery_consecutive_successes"
+    "has_default_factory": false,
+    "default": 8
   },
   {
-    "default": 3600,
+    "name": "health_heartbeat_interval_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_heartbeat_interval_sec"
+    "has_default_factory": false,
+    "default": 3600
   },
   {
-    "default": 900,
+    "name": "health_backoff_max_sec",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_backoff_max_sec"
+    "has_default_factory": false,
+    "default": 900
   },
   {
-    "default": 3,
+    "name": "health_recovery_backfill_max_days",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_recovery_backfill_max_days"
+    "has_default_factory": false,
+    "default": 3
   },
   {
-    "default": 1,
+    "name": "health_recovery_backfill_window_days",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_recovery_backfill_window_days"
+    "has_default_factory": false,
+    "default": 1
   },
   {
-    "default": 3,
+    "name": "health_recovery_backfill_max_windows_per_cycle",
+    "annotation": "int",
+    "required": false,
     "has_default": true,
-    "name": "health_recovery_backfill_max_windows_per_cycle"
+    "has_default_factory": false,
+    "default": 3
   },
   {
-    "default": "data/api_health_state.json",
+    "name": "health_state_file",
+    "annotation": "Path",
+    "required": false,
     "has_default": true,
-    "name": "health_state_file"
+    "has_default_factory": false,
+    "default": "data/api_health_state.json"
   }
 ]
