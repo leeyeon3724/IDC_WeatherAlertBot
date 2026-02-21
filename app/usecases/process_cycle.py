@@ -122,7 +122,7 @@ class ProcessCycleUseCase:
             for area_code in self.settings.area_codes:
                 area_name = self.settings.area_code_mapping.get(area_code, "알 수 없는 지역")
                 future = executor.submit(
-                    self.weather_client.fetch_alerts,
+                    self._fetch_alerts_with_worker_client,
                     area_code,
                     start_date,
                     end_date,
@@ -147,6 +147,32 @@ class ProcessCycleUseCase:
                         error=exc,
                     )
         return results
+
+    def _fetch_alerts_with_worker_client(
+        self,
+        area_code: str,
+        start_date: str,
+        end_date: str,
+        area_name: str,
+    ) -> list[AlertEvent]:
+        if isinstance(self.weather_client, WeatherAlertClient):
+            worker_client = self.weather_client.new_worker_client()
+            try:
+                return worker_client.fetch_alerts(
+                    area_code=area_code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    area_name=area_name,
+                )
+            finally:
+                worker_client.session.close()
+
+        return self.weather_client.fetch_alerts(
+            area_code=area_code,
+            start_date=start_date,
+            end_date=end_date,
+            area_name=area_name,
+        )
 
     def _resolve_area_result(
         self,

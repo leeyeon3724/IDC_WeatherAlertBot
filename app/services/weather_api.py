@@ -129,6 +129,9 @@ class WeatherAlertClient:
         )
         return all_alerts
 
+    def new_worker_client(self) -> WeatherAlertClient:
+        return WeatherAlertClient(settings=self.settings, logger=self.logger)
+
     def _fetch_xml_root(
         self,
         area_code: str,

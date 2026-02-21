@@ -12,7 +12,7 @@ from app.domain.models import AlertEvent
 from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
 from app.services.notifier import NotificationError
-from app.services.weather_api import API_ERROR_TIMEOUT, WeatherApiError
+from app.services.weather_api import API_ERROR_TIMEOUT, WeatherAlertClient, WeatherApiError
 from app.settings import Settings
 from app.usecases.process_cycle import ProcessCycleUseCase
 
@@ -282,6 +282,74 @@ def test_process_cycle_parallel_fetch_ignores_area_interval(tmp_path) -> None:
     usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
     elapsed = time.perf_counter() - start
     assert elapsed < 1.0
+
+
+def test_process_cycle_parallel_fetch_uses_isolated_weather_clients(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(
+        service_api_key="test-key",
+        service_hook_url="https://hook.example",
+        weather_alert_data_api_url="https://api.example",
+        sent_messages_file=tmp_path / "state.json",
+        area_codes=["11B00000", "11C00000"],
+        area_code_mapping={"11B00000": "서울", "11C00000": "경기"},
+        request_timeout_sec=1,
+        request_connect_timeout_sec=1,
+        request_read_timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        notifier_timeout_sec=1,
+        notifier_connect_timeout_sec=1,
+        notifier_read_timeout_sec=1,
+        notifier_max_retries=1,
+        notifier_retry_delay_sec=0,
+        area_max_workers=2,
+        lookback_days=0,
+        cycle_interval_sec=0,
+        area_interval_sec=0,
+        cleanup_enabled=False,
+        cleanup_retention_days=30,
+        cleanup_include_unsent=True,
+        bot_name="테스트봇",
+        timezone="Asia/Seoul",
+        log_level="INFO",
+        dry_run=True,
+        run_once=True,
+    )
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = WeatherAlertClient(
+        settings=settings,
+        logger=logging.getLogger("test.processor.parallel.worker_client"),
+    )
+    notifier = FakeNotifier(should_fail=False)
+
+    fetched_client_ids: list[int] = []
+
+    def _fake_fetch_alerts(
+        self: WeatherAlertClient,
+        area_code: str,
+        start_date: str,
+        end_date: str,
+        area_name: str,
+    ) -> list[AlertEvent]:
+        fetched_client_ids.append(id(self))
+        return []
+
+    monkeypatch.setattr(WeatherAlertClient, "fetch_alerts", _fake_fetch_alerts)
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.parallel.worker_client"),
+    )
+    usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
+
+    assert len(fetched_client_ids) == 2
+    assert len(set(fetched_client_ids)) == 2
+    assert id(weather_client) not in set(fetched_client_ids)
 
 
 def test_process_cycle_records_api_error_codes(tmp_path) -> None:

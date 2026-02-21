@@ -131,6 +131,23 @@ def test_fetch_alerts_success(tmp_path) -> None:
     assert session.calls[0][2] == (2, 3)
 
 
+def test_new_worker_client_creates_isolated_session(tmp_path) -> None:
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        logger=logging.getLogger("test.weather.api.worker"),
+    )
+    worker_client = client.new_worker_client()
+
+    try:
+        assert worker_client is not client
+        assert worker_client.settings is client.settings
+        assert worker_client.logger is client.logger
+        assert worker_client.session is not client.session
+    finally:
+        client.session.close()
+        worker_client.session.close()
+
+
 def test_fetch_alerts_retries_then_succeeds(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     session = FakeSession(
         [
