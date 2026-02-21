@@ -29,6 +29,16 @@ def test_load_alert_rules_default_schema_file() -> None:
     assert rules.message_rules.publish_command_value == "발표"
 
 
+def test_load_alert_rules_v2_schema_file() -> None:
+    rules = load_alert_rules(Path("config/alert_rules.v2.json"))
+
+    assert rules.schema_version == 2
+    assert rules.unmapped_code_policy == "fallback"
+    assert rules.code_maps.warn_var["2"] == "호우"
+    assert rules.code_maps.command["1"] == "발표"
+    assert "{command}" in rules.message_rules.release_or_update_template
+
+
 def test_code_maps_compatibility_constants_use_default_rules() -> None:
     assert WARN_VAR_MAPPING["2"] == "호우"
 
@@ -50,6 +60,15 @@ def test_load_alert_rules_rejects_unknown_unmapped_policy(tmp_path: Path) -> Non
         load_alert_rules(rules_file)
 
 
+def test_load_alert_rules_rejects_unsupported_schema_version(tmp_path: Path) -> None:
+    payload = json.loads(DEFAULT_ALERT_RULES_FILE.read_text(encoding="utf-8"))
+    payload["schema_version"] = 3
+    rules_file = _write_rules_file(tmp_path, payload)
+
+    with pytest.raises(AlertRulesError, match="unsupported schema_version"):
+        load_alert_rules(rules_file)
+
+
 def test_load_alert_rules_rejects_invalid_template_placeholders(tmp_path: Path) -> None:
     payload = json.loads(DEFAULT_ALERT_RULES_FILE.read_text(encoding="utf-8"))
     payload["message_rules"]["publish_template"] = "{time} {unknown}"
@@ -65,4 +84,13 @@ def test_load_alert_rules_rejects_missing_required_template_placeholders(tmp_pat
     rules_file = _write_rules_file(tmp_path, payload)
 
     with pytest.raises(AlertRulesError, match="missing required placeholders"):
+        load_alert_rules(rules_file)
+
+
+def test_load_alert_rules_v2_rejects_missing_mappings_key(tmp_path: Path) -> None:
+    payload = json.loads(Path("config/alert_rules.v2.json").read_text(encoding="utf-8"))
+    del payload["mappings"]["warning_level"]
+    rules_file = _write_rules_file(tmp_path, payload)
+
+    with pytest.raises(AlertRulesError, match="mappings.warning_level"):
         load_alert_rules(rules_file)

@@ -7,6 +7,7 @@ from string import Formatter
 from typing import Any
 
 ALERT_RULES_SCHEMA_VERSION = 1
+ALERT_RULES_SUPPORTED_SCHEMA_VERSIONS = (1, 2)
 ALLOWED_UNMAPPED_CODE_POLICIES = {"fallback", "fail"}
 DEFAULT_ALERT_RULES_FILE = Path(__file__).resolve().parents[2] / "config" / "alert_rules.v1.json"
 
@@ -134,29 +135,34 @@ def default_alert_rules() -> AlertRules:
     )
 
 
-def _expect_dict(source: dict[str, Any], key: str) -> dict[str, Any]:
+def _qualified_key(context: str, key: str) -> str:
+    return f"{context}.{key}" if context else key
+
+
+def _expect_dict(source: dict[str, Any], key: str, *, context: str = "") -> dict[str, Any]:
     value = source.get(key)
     if not isinstance(value, dict):
-        raise AlertRulesError(f"{key} must be a JSON object.")
+        raise AlertRulesError(f"{_qualified_key(context, key)} must be a JSON object.")
     return value
 
 
-def _expect_string(source: dict[str, Any], key: str) -> str:
+def _expect_string(source: dict[str, Any], key: str, *, context: str = "") -> str:
     value = source.get(key)
     if not isinstance(value, str) or not value.strip():
-        raise AlertRulesError(f"{key} must be a non-empty string.")
+        raise AlertRulesError(f"{_qualified_key(context, key)} must be a non-empty string.")
     return value.strip()
 
 
-def _expect_string_map(source: dict[str, Any], key: str) -> dict[str, str]:
-    value = _expect_dict(source, key)
+def _expect_string_map(source: dict[str, Any], key: str, *, context: str = "") -> dict[str, str]:
+    qualified = _qualified_key(context, key)
+    value = _expect_dict(source, key, context=context)
     parsed = {str(k).strip(): str(v).strip() for k, v in value.items()}
     if not parsed:
-        raise AlertRulesError(f"{key} must include at least one mapping.")
+        raise AlertRulesError(f"{qualified} must include at least one mapping.")
     if any(not item_key for item_key in parsed):
-        raise AlertRulesError(f"{key} contains an empty mapping key.")
+        raise AlertRulesError(f"{qualified} contains an empty mapping key.")
     if any(not item_value for item_value in parsed.values()):
-        raise AlertRulesError(f"{key} contains an empty mapping value.")
+        raise AlertRulesError(f"{qualified} contains an empty mapping value.")
     return parsed
 
 
@@ -183,23 +189,40 @@ def _validate_template(template: str, *, key: str, allowed: set[str], required: 
         )
 
 
-def _parse_code_maps(source: dict[str, Any]) -> AlertCodeMaps:
+def _parse_code_maps_v1(source: dict[str, Any]) -> AlertCodeMaps:
     return AlertCodeMaps(
-        warn_var=_expect_string_map(source, "warn_var"),
-        warn_stress=_expect_string_map(source, "warn_stress"),
-        command=_expect_string_map(source, "command"),
-        cancel=_expect_string_map(source, "cancel"),
-        response_code=_expect_string_map(source, "response_code"),
+        warn_var=_expect_string_map(source, "warn_var", context="code_maps"),
+        warn_stress=_expect_string_map(source, "warn_stress", context="code_maps"),
+        command=_expect_string_map(source, "command", context="code_maps"),
+        cancel=_expect_string_map(source, "cancel", context="code_maps"),
+        response_code=_expect_string_map(source, "response_code", context="code_maps"),
     )
 
 
-def _parse_message_rules(source: dict[str, Any]) -> AlertMessageRules:
+def _parse_code_maps_v2(source: dict[str, Any]) -> AlertCodeMaps:
+    return AlertCodeMaps(
+        warn_var=_expect_string_map(source, "warning_kind", context="mappings"),
+        warn_stress=_expect_string_map(source, "warning_level", context="mappings"),
+        command=_expect_string_map(source, "announcement_action", context="mappings"),
+        cancel=_expect_string_map(source, "cancel_status", context="mappings"),
+        response_code=_expect_string_map(source, "api_result", context="mappings"),
+    )
+
+
+def _build_message_rules(
+    *,
+    normal_cancel_value: str,
+    publish_command_value: str,
+    publish_template: str,
+    release_or_update_template: str,
+    cancelled_template: str,
+) -> AlertMessageRules:
     rules = AlertMessageRules(
-        normal_cancel_value=_expect_string(source, "normal_cancel_value"),
-        publish_command_value=_expect_string(source, "publish_command_value"),
-        publish_template=_expect_string(source, "publish_template"),
-        release_or_update_template=_expect_string(source, "release_or_update_template"),
-        cancelled_template=_expect_string(source, "cancelled_template"),
+        normal_cancel_value=normal_cancel_value,
+        publish_command_value=publish_command_value,
+        publish_template=publish_template,
+        release_or_update_template=release_or_update_template,
+        cancelled_template=cancelled_template,
     )
 
     shared_placeholders = {"time", "area_name", "warn_var", "warn_stress", "command"}
@@ -224,6 +247,89 @@ def _parse_message_rules(source: dict[str, Any]) -> AlertMessageRules:
     return rules
 
 
+def _parse_message_rules_v1(source: dict[str, Any]) -> AlertMessageRules:
+    return _build_message_rules(
+        normal_cancel_value=_expect_string(source, "normal_cancel_value", context="message_rules"),
+        publish_command_value=_expect_string(
+            source,
+            "publish_command_value",
+            context="message_rules",
+        ),
+        publish_template=_expect_string(source, "publish_template", context="message_rules"),
+        release_or_update_template=_expect_string(
+            source,
+            "release_or_update_template",
+            context="message_rules",
+        ),
+        cancelled_template=_expect_string(source, "cancelled_template", context="message_rules"),
+    )
+
+
+def _parse_message_rules_v2(source: dict[str, Any]) -> AlertMessageRules:
+    templates = _expect_dict(source, "templates", context="messages")
+    return _build_message_rules(
+        normal_cancel_value=_expect_string(source, "normal_cancel_value", context="messages"),
+        publish_command_value=_expect_string(
+            source,
+            "publish_command_value",
+            context="messages",
+        ),
+        publish_template=_expect_string(templates, "publish", context="messages.templates"),
+        release_or_update_template=_expect_string(
+            templates,
+            "release_or_update",
+            context="messages.templates",
+        ),
+        cancelled_template=_expect_string(
+            templates,
+            "cancelled",
+            context="messages.templates",
+        ),
+    )
+
+
+def _parse_unmapped_code_policy(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized not in ALLOWED_UNMAPPED_CODE_POLICIES:
+        allowed_text = ", ".join(sorted(ALLOWED_UNMAPPED_CODE_POLICIES))
+        raise AlertRulesError(
+            "unmapped_code_policy must be one of: "
+            f"{allowed_text}. Received: {normalized}"
+        )
+    return normalized
+
+
+def _supported_schema_versions_text() -> str:
+    return ", ".join(str(version) for version in ALERT_RULES_SUPPORTED_SCHEMA_VERSIONS)
+
+
+def _load_v1_alert_rules(raw: dict[str, Any]) -> AlertRules:
+    code_maps_raw = _expect_dict(raw, "code_maps")
+    message_rules_raw = _expect_dict(raw, "message_rules")
+    unmapped_code_policy = _parse_unmapped_code_policy(_expect_string(raw, "unmapped_code_policy"))
+    return AlertRules(
+        schema_version=1,
+        code_maps=_parse_code_maps_v1(code_maps_raw),
+        message_rules=_parse_message_rules_v1(message_rules_raw),
+        unmapped_code_policy=unmapped_code_policy,
+    )
+
+
+def _load_v2_alert_rules(raw: dict[str, Any]) -> AlertRules:
+    behavior_raw = _expect_dict(raw, "behavior")
+    mappings_raw = _expect_dict(raw, "mappings")
+    messages_raw = _expect_dict(raw, "messages")
+    unmapped_code_policy = _parse_unmapped_code_policy(
+        _expect_string(behavior_raw, "unmapped_code_policy", context="behavior")
+    )
+    return AlertRules(
+        schema_version=2,
+        code_maps=_parse_code_maps_v2(mappings_raw),
+        message_rules=_parse_message_rules_v2(messages_raw),
+        unmapped_code_policy=unmapped_code_policy,
+    )
+
+
 def load_alert_rules(file_path: Path) -> AlertRules:
     try:
         raw = json.loads(file_path.read_text(encoding="utf-8"))
@@ -240,25 +346,12 @@ def load_alert_rules(file_path: Path) -> AlertRules:
     schema_version = raw.get("schema_version")
     if not isinstance(schema_version, int):
         raise AlertRulesError("schema_version must be an integer.")
-    if schema_version != ALERT_RULES_SCHEMA_VERSION:
+    if schema_version not in ALERT_RULES_SUPPORTED_SCHEMA_VERSIONS:
         raise AlertRulesError(
             "unsupported schema_version: "
-            f"{schema_version} (supported: {ALERT_RULES_SCHEMA_VERSION})"
+            f"{schema_version} (supported: {_supported_schema_versions_text()})"
         )
 
-    code_maps_raw = _expect_dict(raw, "code_maps")
-    message_rules_raw = _expect_dict(raw, "message_rules")
-    unmapped_code_policy = _expect_string(raw, "unmapped_code_policy").lower()
-    if unmapped_code_policy not in ALLOWED_UNMAPPED_CODE_POLICIES:
-        allowed_text = ", ".join(sorted(ALLOWED_UNMAPPED_CODE_POLICIES))
-        raise AlertRulesError(
-            "unmapped_code_policy must be one of: "
-            f"{allowed_text}. Received: {unmapped_code_policy}"
-        )
-
-    return AlertRules(
-        schema_version=schema_version,
-        code_maps=_parse_code_maps(code_maps_raw),
-        message_rules=_parse_message_rules(message_rules_raw),
-        unmapped_code_policy=unmapped_code_policy,
-    )
+    if schema_version == 1:
+        return _load_v1_alert_rules(raw)
+    return _load_v2_alert_rules(raw)

@@ -48,6 +48,21 @@ cp .env.example .env
 주의: `CLEANUP_INCLUDE_UNSENT` 기본값은 `false`이며, 자동 cleanup은 기본적으로 전송완료(`sent=true`) 데이터만 삭제합니다.
 주의: `ALERT_RULES_FILE` 기본값은 `./config/alert_rules.v1.json`이며, 기상청 코드맵/메시지 규칙/미매핑 정책을 파일 단위로 관리합니다.
 
+### 4.1 ALERT_RULES_FILE 스키마 마이그레이션(v1 -> v2)
+
+- v1 파일 예시: `config/alert_rules.v1.json`
+- v2 파일 예시: `config/alert_rules.v2.json`
+- 운영 전환은 `ALERT_RULES_FILE` 경로만 교체하면 됩니다.
+
+핵심 키 변경:
+- `code_maps.warn_var` -> `mappings.warning_kind`
+- `code_maps.warn_stress` -> `mappings.warning_level`
+- `code_maps.command` -> `mappings.announcement_action`
+- `code_maps.cancel` -> `mappings.cancel_status`
+- `code_maps.response_code` -> `mappings.api_result`
+- `unmapped_code_policy` -> `behavior.unmapped_code_policy`
+- `message_rules.<template>` -> `messages.templates.<template>`
+
 ## 5. 로컬 실행
 
 서비스 실행:

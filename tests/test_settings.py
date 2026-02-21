@@ -147,6 +147,20 @@ def test_settings_loads_alert_rules_from_custom_file(
     assert settings.alert_rules.message_rules.publish_template.startswith("[커스텀]")
 
 
+def test_settings_accepts_alert_rules_v2_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("ALERT_RULES_FILE", "./config/alert_rules.v2.json")
+
+    settings = Settings.from_env(env_file=None)
+
+    assert settings.alert_rules.schema_version == 2
+    assert settings.alert_rules.code_maps.warn_var["2"] == "호우"
+
+
 def test_settings_rejects_invalid_alert_rules_file(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
