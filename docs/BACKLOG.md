@@ -8,8 +8,8 @@
 ## 1) 현재 기준선 (참고)
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
-- 테스트: `262 passed`
-- 커버리지: `95.09%` (최저 기준 `80%`)
+- 테스트: `265 passed`
+- 커버리지: `94.97%` (최저 기준 `80%`)
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
 - 로컬 실자격증명 검증: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`(비추적)
 
@@ -20,22 +20,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-### 2-1) 신규 특보 코드 유입 감지력 강화
-
-```text
-상태: 진행중
-중요도: 중간
-항목: 미매핑 특보/명령 코드 처리 정책 개선(N/A 침묵 처리 제거)
-근거: warnVar/warnStress/command/cancel 미매핑 값이 N/A로 흡수되어
-      신규 코드 유입을 운영에서 조기 탐지하기 어려움.
-      (app/domain/code_maps.py, app/services/weather_api.py)
-완료 기준:
-- 미매핑 코드 발생 시 구조화 경고 이벤트 또는 카운터를 남기도록 처리
-- 메시지 생성 시 원본 코드 추적 정보가 유지되도록 도메인 모델/빌더 보강
-- 신규/미매핑 코드 테스트 케이스 추가
-```
-
-### 2-2) API 요청 파라미터 모델링/확장성 개선
+### 2-1) API 요청 파라미터 모델링/확장성 개선
 
 ```text
 상태: 진행중
@@ -50,7 +35,7 @@
 - 파라미터 스냅샷/회귀 테스트를 추가해 스키마 드리프트를 조기 탐지
 ```
 
-### 2-3) 신규 지역 추가 경로 단순화(지역명 매핑 의존 완화)
+### 2-2) 신규 지역 추가 경로 단순화(지역명 매핑 의존 완화)
 
 ```text
 상태: 진행중
@@ -65,7 +50,7 @@
 - 신규 지역 추가/매핑 누락 시나리오 테스트 추가
 ```
 
-### 2-4) 테스트-실운영 설정 정합성 보강
+### 2-3) 테스트-실운영 설정 정합성 보강
 
 ```text
 상태: 진행중
