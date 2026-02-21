@@ -127,6 +127,19 @@ jobs:
           cat artifacts/perf/compare.md >> "$GITHUB_STEP_SUMMARY"
           trap - EXIT
           cleanup
+      - name: Build perf baseline summary
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/perf
+          report_inputs=(artifacts/perf/head.json)
+          if [[ -f artifacts/perf/base.json ]]; then
+            report_inputs+=(artifacts/perf/base.json)
+          fi
+          python -m scripts.perf_baseline \
+            --reports "${report_inputs[@]}" \
+            --output artifacts/perf/baseline.json \
+            --markdown-output artifacts/perf/baseline.md
+          cat artifacts/perf/baseline.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload perf artifacts
         if: always()
         uses: actions/upload-artifact@v4
