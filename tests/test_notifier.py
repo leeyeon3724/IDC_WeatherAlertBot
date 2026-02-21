@@ -43,6 +43,7 @@ class FakeSession:
     def __init__(self, outcomes: list[object]) -> None:
         self.outcomes = list(outcomes)
         self.calls = 0
+        self.closed = False
 
     def post(self, *args, **kwargs):
         outcome = self.outcomes[self.calls]
@@ -51,16 +52,23 @@ class FakeSession:
             raise outcome
         return outcome
 
+    def close(self) -> None:
+        self.closed = True
+
 
 class CapturingSession:
     """POST 요청 payload를 캡처하는 세션."""
 
     def __init__(self) -> None:
         self.captured: list[dict] = []
+        self.closed = False
 
     def post(self, url: str, **kwargs) -> DummyResponse:
         self.captured.append(kwargs.get("json", {}))
         return DummyResponse()
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def test_notifier_retries_then_succeeds_on_timeout() -> None:
@@ -380,6 +388,22 @@ def test_notifier_payload_includes_attachment_when_report_url_given() -> None:
     assert isinstance(attachments, list) and len(attachments) == 1
     assert attachments[0]["titleLink"] == "https://example.com/report/1"
     assert attachments[0]["color"] == "blue"
+
+
+def test_notifier_close_closes_underlying_session() -> None:
+    session = FakeSession([DummyResponse()])
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
+        session=session,
+    )
+
+    notifier.close()
+    assert session.closed is True
 
 
 def test_notifier_circuit_breaker_consecutive_failures_thread_safe() -> None:

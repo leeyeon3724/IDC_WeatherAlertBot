@@ -20,6 +20,7 @@ class FakeWeatherClient:
     def __init__(self, alerts_by_area):
         self.alerts_by_area = alerts_by_area
         self.calls: list[tuple[str, str, str, str]] = []
+        self.closed = False
 
     def fetch_alerts(self, area_code: str, start_date: str, end_date: str, area_name: str):
         self.calls.append((area_code, start_date, end_date, area_name))
@@ -32,7 +33,7 @@ class FakeWeatherClient:
         return self
 
     def close(self) -> None:
-        pass
+        self.closed = True
 
 
 class FakeNotifier:
@@ -112,6 +113,23 @@ def test_process_cycle_tracks_and_sends_once(tmp_path) -> None:
     assert second.notification_dry_run_skips == 0
     assert second.sent_count == 0
     assert len(notifier.sent_messages) == 1
+
+
+def test_process_cycle_close_closes_weather_client(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": []})
+    notifier = FakeNotifier(should_fail=False)
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.close"),
+    )
+
+    usecase.close()
+    assert weather_client.closed is True
 
 
 def test_process_cycle_tracks_distinct_ids_for_same_bulletin_across_areas(tmp_path) -> None:

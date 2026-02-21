@@ -61,6 +61,9 @@ class ProcessCycleUseCase:
         self.logger = logger or logging.getLogger("weather_alert_bot.processor")
         self._dispatch_start_index = 0
 
+    def close(self) -> None:
+        self.weather_client.close()
+
     @staticmethod
     def _api_error_code(error: Exception) -> str:
         if isinstance(error, WeatherApiError):

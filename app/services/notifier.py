@@ -75,6 +75,9 @@ class DoorayNotifier:
         self._next_send_allowed_monotonic = 0.0
         self._lock = threading.Lock()
 
+    def close(self) -> None:
+        self.session.close()
+
     def _is_circuit_open(self, now: float) -> bool:
         return (
             self.circuit_breaker_enabled

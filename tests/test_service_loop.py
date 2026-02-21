@@ -40,11 +40,15 @@ class _FakeNotifier:
     def __init__(self, *, should_fail: bool = False) -> None:
         self.should_fail = should_fail
         self.messages: list[str] = []
+        self.closed = False
 
     def send(self, message: str) -> None:
         if self.should_fail:
             raise NotificationError("failed", attempts=2, last_error=RuntimeError("boom"))
         self.messages.append(message)
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class _FakeProcessor:
@@ -52,12 +56,16 @@ class _FakeProcessor:
         self.stats = stats
         self.raises = raises
         self.calls = 0
+        self.closed = False
 
     def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
         self.calls += 1
         if self.raises is not None:
             raise self.raises
         return self.stats
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class _FakeHealthMonitor:
@@ -370,6 +378,8 @@ def test_run_loop_handles_keyboard_interrupt_from_processor(tmp_path: Path) -> N
     )
 
     assert result == 0
+    assert runtime.processor.closed is True
+    assert runtime.notifier.closed is True
 
 
 def test_run_loop_non_run_once_executes_sleep_then_interrupt(tmp_path: Path) -> None:
@@ -489,6 +499,8 @@ def test_run_loop_exits_on_fatal_cycle_exception(tmp_path: Path) -> None:
     )
 
     assert result == 1
+    assert runtime.processor.closed is True
+    assert runtime.notifier.closed is True
     assert sleep_calls == []
     payloads = [json.loads(message) for message in handler.messages]
     assert sum(p.get("event") == events.CYCLE_FATAL_ERROR for p in payloads) == 1
@@ -513,8 +525,24 @@ def test_run_loop_run_once_exception_exits_as_fatal(tmp_path: Path) -> None:
     )
 
     assert result == 1
+    assert runtime.processor.closed is True
+    assert runtime.notifier.closed is True
     payloads = [json.loads(message) for message in handler.messages]
     assert sum(p.get("event") == events.CYCLE_FATAL_ERROR for p in payloads) == 1
+
+
+def test_run_loop_run_once_success_closes_resources(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path, settings_overrides={"run_once": True})
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+    )
+
+    assert result == 0
+    assert runtime.processor.closed is True
+    assert runtime.notifier.closed is True
 
 
 def test_run_loop_emits_cycle_cost_metrics_event(tmp_path: Path) -> None:

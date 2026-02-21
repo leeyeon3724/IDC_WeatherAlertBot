@@ -20,12 +20,6 @@
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
 상태: 진행중
-중요도: 중간
-항목: 런타임 리소스 생명주기(HTTP Session) 정리
-근거: 외부 연동 클라이언트의 세션 close 경로가 서비스 종료 흐름에 일관되게 연결되어 있지 않아 장기 실행/테스트에서 리소스 누수 위험이 있음.
-완료 기준: notifier/weather client에 일관된 close 인터페이스를 부여하고, `run_loop` 종료(`run_once`, `KeyboardInterrupt`, fatal error) 시 `finally`에서 정리되도록 연결하며, 종료 경로 테스트를 추가함.
-
-상태: 진행중
 중요도: 낮음
 항목: SQLite 상태 검증기의 DB 연결 정리 보장
 근거: 상태 검증 로직의 조기 반환 경로에서 SQLite 연결 close가 명시적으로 보장되지 않음.

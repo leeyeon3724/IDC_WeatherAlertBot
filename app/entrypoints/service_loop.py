@@ -22,6 +22,23 @@ def _is_fatal_cycle_exception(exc: Exception) -> bool:
     return isinstance(exc, MemoryError)
 
 
+def _maybe_close_resource(runtime: ServiceRuntime, resource_name: str) -> None:
+    resource = getattr(runtime, resource_name, None)
+    close_fn = getattr(resource, "close", None)
+    if not callable(close_fn):
+        return
+    try:
+        close_fn()
+    except Exception:
+        # Closing runtime resources is best-effort; shutdown path must not fail here.
+        return
+
+
+def close_runtime_resources(runtime: ServiceRuntime) -> None:
+    _maybe_close_resource(runtime, "processor")
+    _maybe_close_resource(runtime, "notifier")
+
+
 def maybe_auto_cleanup(
     *,
     runtime: ServiceRuntime,
@@ -483,3 +500,5 @@ def run_loop(
             exc_info=True,
         )
         return 1
+    finally:
+        close_runtime_resources(runtime)
