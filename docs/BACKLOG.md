@@ -15,6 +15,19 @@
 | 운영 관측·추적성 | 4.5 | 이벤트 스키마 버전/문서 정합성/알람 매핑으로 운영 추적 기반 안정 |
 | 성능·비용 효율 | 4.6 | perf trend + 샘플 보존 정책, `cycle.cost.metrics`로 비용 관점 모니터링 가능 |
 
+## 1.1) Service Requirement Validation
+
+| ID | 실제 서비스 요구사항 | 수용 기준(검증 조건) | 자동 검증 근거 | 운영 검증 신호 | 상태 |
+|---|---|---|---|---|---|
+| SR-01 | 신규 특보는 중복 없이 1회 전송되고, 실패 건은 재시도되어 최종 전송 가능해야 함 | 동일 `event_id` 재실행 시 중복 전송 0건, 실패 후 다음 사이클 전송 복구 | `tests/test_process_cycle.py` | `notification.sent`, `notification.final_failure`, `pending_total` | 충족 |
+| SR-02 | Weather API 오류/타임아웃/페이지네이션/NODATA를 안전하게 처리해야 함 | 재시도 후 성공 또는 명시적 오류 코드로 실패 기록 | `tests/test_weather_api.py` | `area.fetch.retry`, `area.failed(error_code)` | 충족 |
+| SR-03 | 상태 저장소(JSON/SQLite) 이상 시 서비스 연속성이 유지되어야 함 | 손상 JSON 백업 후 복구, read/persist 실패 로깅, SQLite 경로 정상 동작 | `tests/test_json_state_repo.py`, `tests/test_sqlite_state_repo.py`, `tests/test_main_smoke.py` | `state.invalid_json`, `state.read_failed`, `state.persist_failed` | 충족 |
+| SR-04 | API 장애 감지/heartbeat/복구(backfill)가 정책대로 동작해야 함 | 장애 감지/지속/복구 시나리오에서 알림/백필 흐름이 예측대로 수행 | `tests/test_health_monitor.py`, `tests/test_main_smoke.py`, `tests/test_service_loop.py` | `health.notification.sent`, `health.backfill.*`, `health.evaluate` | 충족 |
+| SR-05 | 잘못된 설정/허용되지 않은 URL은 즉시 차단되어야 함 | 시작 단계에서 설정 오류로 실패하고 민감정보는 마스킹됨 | `tests/test_settings.py`, `tests/test_main.py` | `startup.invalid_config` | 충족 |
+| SR-06 | 릴리스 전 품질 게이트가 단일 경로로 강제되어야 함 | `make gate` + PR checklist + runtime smoke 통과 시에만 병합 | `.github/workflows/ci.yml`, `scripts/check_pr_checklist.py` | CI summary/artifacts | 충족 |
+| SR-07 | 실제 외부 의존성(API/Webhook)과의 통합 건전성을 주기적으로 확인해야 함 | 스테이징 canary에서 실제 API 호출 + 웹훅 전송 경로 주기 검증 | 현재 부재 | canary 결과 이벤트/아티팩트 | 미충족 |
+| SR-08 | 장시간 실행 시 안정성(메모리/상태증가/중복재처리)이 유지되어야 함 | 24h soak에서 비정상 메모리 증가/상태 누수/중복 전송 이상 없음 | 현재 부재 | `cycle.cost.metrics` 장기 추세 + soak 리포트 | 미충족 |
+
 ## 2) Evidence Snapshot
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov` 통과
@@ -25,7 +38,8 @@
 
 | ID | Priority | 상태 | 근거 관점 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| - | - | - | - | 현재 활성 과제 없음 | 신규 과제 수집 대기 |
+| RB-801 | P1 | 예정 | 제품 신뢰성 / 운영 관측·추적성 | 스테이징 canary 워크플로 도입(실 API + webhook stub/검증 채널) | 일/PR 기준 canary 결과와 실패 원인이 아티팩트/이벤트로 추적 가능 |
+| RB-802 | P2 | 예정 | 제품 신뢰성 / 성능·비용 효율 | 장시간 soak 테스트(예: 24h) + 안정성 예산(메모리/상태크기/중복전송률) 정의 | soak 리포트 자동 생성, 허용 임계치 초과 시 CI/운영 경고 |
 
 ## 4) Completed (Compact)
 
