@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from app.domain.alert_rules import DEFAULT_ALERT_RULES_FILE
 from app.settings import Settings, SettingsError
 
 
@@ -14,6 +17,7 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "WEATHER_API_STATION_ID",
         "WEATHER_API_ALLOWED_HOSTS",
         "WEATHER_API_ALLOWED_PATH_PREFIXES",
+        "ALERT_RULES_FILE",
         "SENT_MESSAGES_FILE",
         "STATE_REPOSITORY_TYPE",
         "SQLITE_STATE_FILE",
@@ -113,6 +117,57 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.health_recovery_backfill_window_days == 1
     assert settings.health_recovery_backfill_max_windows_per_cycle == 3
     assert settings.health_state_file.as_posix().endswith("data/api_health_state.json")
+
+
+def test_settings_loads_alert_rules_from_custom_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+
+    rules_payload = json.loads(DEFAULT_ALERT_RULES_FILE.read_text(encoding="utf-8"))
+    rules_payload["unmapped_code_policy"] = "fail"
+    rules_payload["message_rules"]["publish_template"] = (
+        "[커스텀] {time} {area_name} {warn_var}{warn_stress}"
+    )
+    rules_file = tmp_path / "alert_rules.custom.json"
+    rules_file.write_text(
+        json.dumps(rules_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ALERT_RULES_FILE", str(rules_file))
+
+    settings = Settings.from_env(env_file=None)
+
+    assert settings.alert_rules.unmapped_code_policy == "fail"
+    assert settings.alert_rules.message_rules.publish_template.startswith("[커스텀]")
+
+
+def test_settings_rejects_invalid_alert_rules_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+
+    rules_payload = json.loads(DEFAULT_ALERT_RULES_FILE.read_text(encoding="utf-8"))
+    rules_payload["message_rules"]["publish_template"] = "{time}"
+    rules_file = tmp_path / "alert_rules.invalid.json"
+    rules_file.write_text(
+        json.dumps(rules_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ALERT_RULES_FILE", str(rules_file))
+
+    with pytest.raises(SettingsError, match="ALERT_RULES_FILE"):
+        Settings.from_env(env_file=None)
 
 
 def test_settings_bool_flags(monkeypatch: pytest.MonkeyPatch) -> None:

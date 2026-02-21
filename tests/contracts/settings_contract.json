@@ -48,6 +48,14 @@
     "default": null
   },
   {
+    "name": "alert_rules",
+    "annotation": "AlertRules",
+    "required": false,
+    "has_default": false,
+    "has_default_factory": true,
+    "default": null
+  },
+  {
     "name": "weather_api_warning_type",
     "annotation": "str | None",
     "required": false,

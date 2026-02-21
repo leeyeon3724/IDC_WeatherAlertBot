@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import logging
 import xml.etree.ElementTree as ET
+from dataclasses import replace
 
 import pytest
 import requests
 
+from app.domain.alert_rules import default_alert_rules
 from app.observability import events
 from app.services.weather_api import (
     API_ERROR_CONNECTION,
@@ -16,6 +18,7 @@ from app.services.weather_api import (
     API_ERROR_RESULT,
     API_ERROR_TIMEOUT,
     API_ERROR_UNKNOWN,
+    API_ERROR_UNMAPPED_CODE,
     WeatherAlertClient,
     WeatherApiError,
 )
@@ -473,6 +476,37 @@ def test_fetch_alerts_logs_unmapped_codes_with_fallback_values(
     )
 
 
+def test_fetch_alerts_fail_fast_when_unmapped_policy_is_fail(tmp_path) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                _xml_with_item(warn_var="99", warn_stress="7", command="9", cancel="9"),
+            )
+        ]
+    )
+    fail_fast_rules = replace(default_alert_rules(), unmapped_code_policy="fail")
+    client = WeatherAlertClient(
+        settings=_settings(
+            tmp_path,
+            max_retries=1,
+            retry_delay_sec=0,
+            alert_rules=fail_fast_rules,
+        ),
+        session=session,
+        logger=logging.getLogger("test.weather.api.unmapped_codes.fail_fast"),
+    )
+
+    with pytest.raises(WeatherApiError, match="Unmapped code") as exc_info:
+        client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+    assert exc_info.value.code == API_ERROR_UNMAPPED_CODE
+
+
 def test_fetch_alerts_uses_response_area_name_when_mapping_missing(
     tmp_path,
     caplog: pytest.LogCaptureFixture,
@@ -668,14 +702,23 @@ def test_fetch_alerts_raises_unknown_when_retry_loop_is_skipped(tmp_path) -> Non
 
 
 def test_raise_for_result_code_raises_for_error_result_code(tmp_path) -> None:
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=FakeSession([]),
+        logger=logging.getLogger("test.weather.api.result_code.raise"),
+    )
     with pytest.raises(WeatherApiError, match="API response error 10") as exc_info:
-        WeatherAlertClient._raise_for_result_code("10")
+        client._raise_for_result_code("10")
     assert exc_info.value.code == API_ERROR_RESULT
 
 
 def test_raise_for_result_code_returns_for_no_data(tmp_path) -> None:
-    # 결과 코드 03(NODATA)은 예외 없이 통과해야 함
-    WeatherAlertClient._raise_for_result_code("03")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=FakeSession([]),
+        logger=logging.getLogger("test.weather.api.result_code.no_data"),
+    )
+    client._raise_for_result_code("03")
 
 
 def test_parse_items_returns_alert_events(tmp_path) -> None:

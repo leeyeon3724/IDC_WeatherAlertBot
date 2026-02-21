@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.domain.alert_rules import AlertMessageRules
 from app.domain.message_builder import build_alert_message, build_notification
 from app.domain.models import AlertEvent
 
@@ -123,3 +124,18 @@ def test_report_url_validation_allows_missing_all_report_params() -> None:
 def test_publish_message_uses_fallback_time_when_start_time_missing() -> None:
     alert = _sample_alert(command="발표", cancel="정상", start_time=None, end_time=None)
     assert build_alert_message(alert) == "특정 시간 서울 호우주의보가 발표되었습니다."
+
+
+def test_build_message_supports_externalized_message_rules() -> None:
+    alert = _sample_alert()
+    custom_rules = AlertMessageRules(
+        normal_cancel_value="정상",
+        publish_command_value="발표",
+        publish_template="[발표] {area_name} {warn_var}{warn_stress}",
+        release_or_update_template="[변경] {area_name} {command}",
+        cancelled_template="[취소] {area_name} {command}",
+    )
+
+    message = build_alert_message(alert, rules=custom_rules)
+
+    assert message == "[발표] 서울 호우주의보"

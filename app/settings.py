@@ -3,11 +3,19 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from app.domain.alert_rules import (
+    DEFAULT_ALERT_RULES_FILE,
+    AlertRules,
+    AlertRulesError,
+    default_alert_rules,
+    load_alert_rules,
+)
 
 DEFAULT_ALERT_API_URL = "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd"
 DEFAULT_SENT_MESSAGES_FILE = "./data/sent_messages.json"
@@ -206,6 +214,7 @@ class _CoreConfig:
     weather_api_station_id: str | None
     area_codes: list[str]
     area_code_mapping: dict[str, str]
+    alert_rules: AlertRules
 
 
 @dataclass(frozen=True)
@@ -319,6 +328,14 @@ def _parse_core_config() -> _CoreConfig:
 
     area_code_mapping_raw = _parse_json_env("AREA_CODE_MAPPING", "{}", dict)
     area_code_mapping = {str(k): str(v) for k, v in area_code_mapping_raw.items()}
+    alert_rules_file = Path(
+        os.getenv("ALERT_RULES_FILE", str(DEFAULT_ALERT_RULES_FILE)).strip()
+        or str(DEFAULT_ALERT_RULES_FILE)
+    )
+    try:
+        alert_rules = load_alert_rules(alert_rules_file)
+    except AlertRulesError as exc:
+        raise SettingsError(f"ALERT_RULES_FILE is invalid: {exc}") from exc
     return _CoreConfig(
         service_api_key=service_api_key,
         service_hook_url=service_hook_url,
@@ -327,6 +344,7 @@ def _parse_core_config() -> _CoreConfig:
         weather_api_station_id=station_id or None,
         area_codes=area_codes,
         area_code_mapping=area_code_mapping,
+        alert_rules=alert_rules,
     )
 
 
@@ -503,6 +521,7 @@ class Settings:
     sent_messages_file: Path
     area_codes: list[str]
     area_code_mapping: dict[str, str]
+    alert_rules: AlertRules = field(default_factory=default_alert_rules)
     weather_api_warning_type: str | None = None
     weather_api_station_id: str | None = None
     state_repository_type: str = "sqlite"
@@ -567,6 +586,7 @@ class Settings:
             weather_alert_data_api_url=core.weather_alert_data_api_url,
             weather_api_warning_type=core.weather_api_warning_type,
             weather_api_station_id=core.weather_api_station_id,
+            alert_rules=core.alert_rules,
             sent_messages_file=repositories.sent_messages_file,
             state_repository_type=repositories.state_repository_type,
             sqlite_state_file=repositories.sqlite_state_file,

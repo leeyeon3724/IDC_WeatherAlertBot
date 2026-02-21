@@ -10,13 +10,6 @@ from typing import Final, Protocol
 
 import requests
 
-from app.domain.code_maps import (
-    CANCEL_MAPPING,
-    COMMAND_MAPPING,
-    RESPONSE_CODE_MAPPING,
-    WARN_STRESS_MAPPING,
-    WARN_VAR_MAPPING,
-)
 from app.domain.models import AlertEvent
 from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
@@ -69,6 +62,7 @@ API_ERROR_REQUEST: Final[str] = "request_error"
 API_ERROR_HTTP_STATUS: Final[str] = "http_status"
 API_ERROR_PARSE: Final[str] = "parse_error"
 API_ERROR_RESULT: Final[str] = "api_result_error"
+API_ERROR_UNMAPPED_CODE: Final[str] = "unmapped_code"
 API_ERROR_UNKNOWN: Final[str] = "unknown_error"
 DEFAULT_PAGE_SIZE: Final[int] = 100
 
@@ -247,7 +241,10 @@ class WeatherAlertClient:
             if attempt == self.settings.max_retries:
                 return root
 
-            result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
+            result_msg = self.settings.alert_rules.code_maps.response_code.get(
+                result_code,
+                "알 수 없는 응답 코드",
+            )
             self.logger.warning(
                 log_event(
                     events.AREA_FETCH_RETRY,
@@ -392,28 +389,28 @@ class WeatherAlertClient:
                     warn_var=self._resolve_code_mapping(
                         field_name="warnVar",
                         raw_code=warn_var_code,
-                        mapping=WARN_VAR_MAPPING,
+                        mapping=self.settings.alert_rules.code_maps.warn_var,
                         area_code=area_code,
                         area_name=area_name,
                     ),
                     warn_stress=self._resolve_code_mapping(
                         field_name="warnStress",
                         raw_code=warn_stress_code,
-                        mapping=WARN_STRESS_MAPPING,
+                        mapping=self.settings.alert_rules.code_maps.warn_stress,
                         area_code=area_code,
                         area_name=area_name,
                     ),
                     command=self._resolve_code_mapping(
                         field_name="command",
                         raw_code=command_code,
-                        mapping=COMMAND_MAPPING,
+                        mapping=self.settings.alert_rules.code_maps.command,
                         area_code=area_code,
                         area_name=area_name,
                     ),
                     cancel=self._resolve_code_mapping(
                         field_name="cancel",
                         raw_code=cancel_code,
-                        mapping=CANCEL_MAPPING,
+                        mapping=self.settings.alert_rules.code_maps.cancel,
                         area_code=area_code,
                         area_name=area_name,
                     ),
@@ -518,6 +515,12 @@ class WeatherAlertClient:
         if normalized_code.upper() == "N/A":
             return "N/A"
 
+        if self.settings.alert_rules.unmapped_code_policy == "fail":
+            raise WeatherApiError(
+                f"Unmapped code for {field_name}: {normalized_code}",
+                code=API_ERROR_UNMAPPED_CODE,
+            )
+
         fallback_value = normalized_code
         self.logger.warning(
             log_event(
@@ -566,11 +569,13 @@ class WeatherAlertClient:
             return page_no * page_size < total_count
         return items_on_page >= page_size
 
-    @staticmethod
-    def _raise_for_result_code(result_code: str) -> None:
+    def _raise_for_result_code(self, result_code: str) -> None:
         if result_code in {"00", "03"}:
             return
-        result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
+        result_msg = self.settings.alert_rules.code_maps.response_code.get(
+            result_code,
+            "알 수 없는 응답 코드",
+        )
         raise WeatherApiError(
             f"API response error {result_code}: {result_msg}",
             code=API_ERROR_RESULT,

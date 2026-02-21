@@ -226,7 +226,10 @@ class ProcessCycleUseCase:
         alerts = result.alerts or []
         stats.alerts_fetched += len(alerts)
 
-        notifications = [build_notification(alert) for alert in alerts]
+        notifications = [
+            build_notification(alert, rules=self.settings.alert_rules.message_rules)
+            for alert in alerts
+        ]
         for notification in notifications:
             if notification.url_validation_error:
                 self.logger.warning(
