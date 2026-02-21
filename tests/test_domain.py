@@ -26,7 +26,7 @@ def _sample_alert(**overrides: object) -> AlertEvent:
 
 def test_event_id_uses_station_identifiers() -> None:
     alert = _sample_alert()
-    assert alert.event_id.startswith("event:109:202602200900:1:")
+    assert alert.event_id == "event:109:202602200900:1:발표:정상"
 
 
 def test_event_id_fallback_is_stable() -> None:
@@ -95,3 +95,22 @@ def test_report_url_validation_blocks_invalid_tm_fc() -> None:
     notification = build_notification(alert)
     assert notification.report_url is None
     assert notification.url_validation_error == "invalid_tm_fc"
+
+
+def test_report_url_validation_blocks_invalid_tm_seq() -> None:
+    alert = _sample_alert(tm_seq="1a")
+    notification = build_notification(alert)
+    assert notification.report_url is None
+    assert notification.url_validation_error == "invalid_tm_seq"
+
+
+def test_report_url_validation_allows_missing_all_report_params() -> None:
+    alert = _sample_alert(stn_id="", tm_fc="", tm_seq="")
+    notification = build_notification(alert)
+    assert notification.report_url is None
+    assert notification.url_validation_error is None
+
+
+def test_publish_message_uses_fallback_time_when_start_time_missing() -> None:
+    alert = _sample_alert(command="발표", cancel="정상", start_time=None, end_time=None)
+    assert build_alert_message(alert) == "특정 시간 서울 호우주의보가 발표되었습니다."

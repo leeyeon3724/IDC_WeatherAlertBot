@@ -20,7 +20,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 도메인 메시지/URL 검증 테스트 분기 보강
   - 근거: `tests/test_domain.py`가 `invalid_tm_seq`, 무파라미터 URL(`report_url=None, error=None`), 시간 누락 시 `"특정 시간"` 메시지 분기를 검증하지 않아 핵심 분기 회귀 탐지력이 제한됨
   - 완료 기준:
