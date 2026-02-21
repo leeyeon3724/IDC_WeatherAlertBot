@@ -17,6 +17,17 @@ STATE_SCHEMA_VERSION = 2
 
 
 class JsonStateRepository:
+    """JSON 파일 기반 상태 저장소.
+
+    .. warning::
+        **단일 프로세스 전용.** 내부적으로 load-modify-write 패턴을 사용하며
+        파일 수준의 프로세스 간 락이 없습니다.
+        복수의 프로세스(예: 서비스 인스턴스와 복구 스크립트)가 동시에 같은 파일에
+        쓰면 나중에 쓴 쪽이 먼저 쓴 쪽의 변경 내용을 덮어쓸 수 있습니다.
+        운영 기본 저장소는 SQLite(``SqliteStateRepository``)를 사용하고,
+        이 클래스는 마이그레이션·복구·디버깅 용도로만 사용하십시오.
+    """
+
     def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
         self.file_path = Path(file_path)
         self.logger = logger or logging.getLogger("weather_alert_bot.state")
