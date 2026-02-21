@@ -25,30 +25,6 @@
 완료 기준: API·Storage·Runtime·Health·Timeout 등 논리 그룹으로 분리, 기존 테스트 통과, gate 통과
 ```
 
-```text
-상태: 진행중
-중요도: 높음
-항목: service_loop backfill 로직 추출
-근거: service_loop.py 650줄+ 비대, backfill 날짜 파싱 150줄이 루프 본문에 혼재하여 테스트·가독성 저하
-완료 기준: backfill 로직을 별도 모듈로 분리, service_loop.py 400줄 이하, 분리된 모듈 단위 테스트 추가
-```
-
-```text
-상태: 진행중
-중요도: 높음
-항목: ApiHealthState 불변 전환
-근거: domain/health.py의 ApiHealthState가 뮤터블+잠금 없음, 단일 스레드 전제가 깨지면 레이스 컨디션 위험
-완료 기준: frozen dataclass + builder/replace 패턴 전환, 기존 health_monitor 테스트 통과
-```
-
-```text
-상태: 진행중
-중요도: 높음
-항목: Rate limiter lock-during-sleep 개선
-근거: notifier.py·weather_api.py의 _acquire_send_slot()이 lock 보유 상태에서 sleep → 병렬 워커 차단
-완료 기준: Condition/Event 기반으로 전환, 병렬 fetch 시 처리량 저하 없음 확인
-```
-
 ### 중간
 
 ```text

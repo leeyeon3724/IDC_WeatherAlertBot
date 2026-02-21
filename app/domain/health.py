@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 
@@ -96,7 +96,7 @@ class HealthPolicy:
         return max(self.outage_window_sec, self.recovery_window_sec)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ApiHealthState:
     incident_open: bool = False
     incident_started_at: datetime | None = None
@@ -142,7 +142,15 @@ class ApiHealthState:
         if not isinstance(raw, dict):
             return cls()
 
-        state = cls(
+        cycles: list[HealthCycleSample] = []
+        raw_cycles = raw.get("recent_cycles")
+        if isinstance(raw_cycles, list):
+            for item in raw_cycles:
+                sample = HealthCycleSample.from_dict(item)
+                if sample is not None:
+                    cycles.append(sample)
+
+        return cls(
             incident_open=bool(raw.get("incident_open", False)),
             incident_started_at=parse_utc_iso(raw.get("incident_started_at")),
             incident_notified_at=parse_utc_iso(raw.get("incident_notified_at")),
@@ -159,28 +167,20 @@ class ApiHealthState:
             recovery_backfill_pending_end_date=_normalize_compact_date(
                 raw.get("recovery_backfill_pending_end_date")
             ),
+            recent_cycles=cycles,
         )
 
-        raw_cycles = raw.get("recent_cycles")
-        if isinstance(raw_cycles, list):
-            for item in raw_cycles:
-                sample = HealthCycleSample.from_dict(item)
-                if sample is not None:
-                    state.recent_cycles.append(sample)
+    def append_cycle(self, sample: HealthCycleSample) -> ApiHealthState:
+        return replace(self, recent_cycles=[*self.recent_cycles, sample])
 
-        return state
-
-    def append_cycle(self, sample: HealthCycleSample) -> None:
-        self.recent_cycles.append(sample)
-
-    def trim_recent_cycles(self, *, now: datetime, retention_sec: int) -> None:
+    def trim_recent_cycles(self, *, now: datetime, retention_sec: int) -> ApiHealthState:
         if retention_sec <= 0:
-            self.recent_cycles = []
-            return
+            return replace(self, recent_cycles=[])
         threshold = now - timedelta(seconds=retention_sec)
-        self.recent_cycles = [
+        filtered = [
             sample for sample in self.recent_cycles if sample.recorded_at >= threshold
         ]
+        return replace(self, recent_cycles=filtered)
 
     def cycles_in_window(self, *, now: datetime, window_sec: int) -> list[HealthCycleSample]:
         if window_sec <= 0:

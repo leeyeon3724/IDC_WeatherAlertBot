@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.domain.health import ApiHealthDecision
-from app.entrypoints import service_loop
+from app.entrypoints import backfill, service_loop
 from app.entrypoints.runtime_builder import ServiceRuntime
 from app.observability import events
 from app.services.notifier import NotificationError
@@ -193,7 +193,7 @@ def test_maybe_run_recovery_backfill_branches(tmp_path: Path) -> None:
         settings_overrides={"lookback_days": 2, "health_recovery_backfill_max_days": 3},
         decision=recovered,
     )
-    service_loop.maybe_run_recovery_backfill(runtime=runtime_skip, health_decision=recovered)
+    backfill.maybe_run_recovery_backfill(runtime=runtime_skip, health_decision=recovered)
     assert runtime_skip.processor.calls == 0
 
     runtime_fail = _runtime(
@@ -206,7 +206,7 @@ def test_maybe_run_recovery_backfill_branches(tmp_path: Path) -> None:
     runtime_fail.logger.handlers = [failure_handler]
     runtime_fail.logger.setLevel(logging.INFO)
     runtime_fail.logger.propagate = False
-    service_loop.maybe_run_recovery_backfill(runtime=runtime_fail, health_decision=recovered)
+    backfill.maybe_run_recovery_backfill(runtime=runtime_fail, health_decision=recovered)
     assert runtime_fail.processor.calls == 1
 
     payloads = [json.loads(message) for message in failure_handler.messages]
@@ -273,8 +273,8 @@ def test_maybe_run_recovery_backfill_splits_windows_with_budget(
                 return fixed
             return fixed.astimezone(tz)
 
-    monkeypatch.setattr(service_loop, "datetime", _FixedDateTime)
-    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
+    monkeypatch.setattr(backfill, "datetime", _FixedDateTime)
+    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
 
     assert processor.range_calls == [("20260216", "20260218"), ("20260218", "20260220")]
     payloads = [json.loads(message) for message in handler.messages]
@@ -336,17 +336,17 @@ def test_maybe_run_recovery_backfill_resumes_pending_window_next_calls(
                 return fixed
             return fixed.astimezone(tz)
 
-    monkeypatch.setattr(service_loop, "datetime", _FixedDateTime)
+    monkeypatch.setattr(backfill, "datetime", _FixedDateTime)
 
-    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
+    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
     assert processor.range_calls == [("20260216", "20260218")]
     assert runtime.health_monitor.get_recovery_backfill_window() == ("20260218", "20260221")
 
-    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
+    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
     assert processor.range_calls == [("20260216", "20260218"), ("20260218", "20260220")]
     assert runtime.health_monitor.get_recovery_backfill_window() == ("20260220", "20260221")
 
-    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
+    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
     assert processor.range_calls == [
         ("20260216", "20260218"),
         ("20260218", "20260220"),

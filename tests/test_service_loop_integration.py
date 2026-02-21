@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.domain.health import ApiHealthDecision
-from app.entrypoints import service_loop
+from app.entrypoints import backfill, service_loop
 from app.entrypoints.runtime_builder import ServiceRuntime
 from app.entrypoints.service_loop import run_loop
 from app.repositories.health_state_repo import JsonHealthStateRepository
@@ -151,7 +151,7 @@ def test_recovery_backfill_resumes_after_runtime_restart(
                 return fixed
             return fixed.astimezone(tz)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(service_loop, "datetime", _FixedDateTime)
+    monkeypatch.setattr(backfill, "datetime", _FixedDateTime)
 
     settings = make_settings(
         tmp_path,
@@ -183,7 +183,7 @@ def test_recovery_backfill_resumes_after_runtime_restart(
         should_notify=False,
         incident_duration_sec=7 * 86400,
     )
-    service_loop.maybe_run_recovery_backfill(runtime=runtime_first, health_decision=recovered)
+    backfill.maybe_run_recovery_backfill(runtime=runtime_first, health_decision=recovered)
     assert runtime_first.processor.calls == [("20260216", "20260218")]
 
     runtime_second = ServiceRuntime(
@@ -197,5 +197,5 @@ def test_recovery_backfill_resumes_after_runtime_restart(
         ),
     )
     stable = ApiHealthDecision(incident_open=False, event=None, should_notify=False)
-    service_loop.maybe_run_recovery_backfill(runtime=runtime_second, health_decision=stable)
+    backfill.maybe_run_recovery_backfill(runtime=runtime_second, health_decision=stable)
     assert runtime_second.processor.calls == [("20260218", "20260220")]

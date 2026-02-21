@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest:*)",
+      "Bash(.venv/Scripts/python -m pytest tests/test_sync_settings_artifacts.py tests/test_alarm_rules_sync.py -v)",
+      "Bash(pip install:*)",
+      "Bash(python -m scripts.sync_settings_artifacts:*)",
+      "Bash(python -m scripts.check_alarm_rules_sync:*)",
+      "Bash(make:*)",
+      "Bash(python -m ruff check:*)",
+      "Bash(python -m mypy:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git -c:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

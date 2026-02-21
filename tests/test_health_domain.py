@@ -125,7 +125,7 @@ def test_api_health_state_from_dict_normalizes_values() -> None:
 def test_api_health_state_trim_and_window_behaviour() -> None:
     now = datetime(2026, 2, 21, 12, 0, tzinfo=UTC)
     state = ApiHealthState()
-    state.append_cycle(
+    state = state.append_cycle(
         HealthCycleSample(
             recorded_at=now,
             total_areas=4,
@@ -133,7 +133,7 @@ def test_api_health_state_trim_and_window_behaviour() -> None:
             error_counts={},
         )
     )
-    state.append_cycle(
+    state = state.append_cycle(
         HealthCycleSample(
             recorded_at=now.replace(hour=11, minute=58),
             total_areas=4,
@@ -145,10 +145,10 @@ def test_api_health_state_trim_and_window_behaviour() -> None:
     assert len(state.cycles_in_window(now=now, window_sec=0)) == 0
     assert len(state.cycles_in_window(now=now, window_sec=180)) == 2
 
-    state.trim_recent_cycles(now=now, retention_sec=90)
+    state = state.trim_recent_cycles(now=now, retention_sec=90)
     assert len(state.recent_cycles) == 1
 
-    state.trim_recent_cycles(now=now, retention_sec=0)
+    state = state.trim_recent_cycles(now=now, retention_sec=0)
     assert state.recent_cycles == []
 
 

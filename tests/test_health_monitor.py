@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from app.domain.health import HealthPolicy
@@ -124,21 +125,21 @@ def test_health_monitor_suggests_backoff_interval_when_incident_open(tmp_path) -
 
 def test_health_monitor_suggested_interval_uses_multiplier_steps_and_cap(tmp_path) -> None:
     monitor = _monitor(tmp_path)
-    monitor.state.incident_open = True
+    monitor.state = replace(monitor.state, incident_open=True)
 
-    monitor.state.consecutive_severe_failures = 1
+    monitor.state = replace(monitor.state, consecutive_severe_failures=1)
     assert monitor.suggested_cycle_interval_sec(base_interval_sec=10) == 10
 
-    monitor.state.consecutive_severe_failures = 2
+    monitor.state = replace(monitor.state, consecutive_severe_failures=2)
     assert monitor.suggested_cycle_interval_sec(base_interval_sec=10) == 20
 
-    monitor.state.consecutive_severe_failures = 4
+    monitor.state = replace(monitor.state, consecutive_severe_failures=4)
     assert monitor.suggested_cycle_interval_sec(base_interval_sec=10) == 40
 
-    monitor.state.consecutive_severe_failures = 6
+    monitor.state = replace(monitor.state, consecutive_severe_failures=6)
     assert monitor.suggested_cycle_interval_sec(base_interval_sec=10) == 80
 
-    monitor.state.consecutive_severe_failures = 8
+    monitor.state = replace(monitor.state, consecutive_severe_failures=8)
     assert monitor.suggested_cycle_interval_sec(base_interval_sec=400) == 900
 
 

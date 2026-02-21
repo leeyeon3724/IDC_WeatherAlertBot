@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import datetime
 
 from app.domain.health import (
@@ -41,21 +42,28 @@ class ApiHealthMonitor:
             last_error=representative_error,
         )
 
-        self.state.append_cycle(sample)
-        self.state.trim_recent_cycles(
+        self.state = self.state.append_cycle(sample)
+        self.state = self.state.trim_recent_cycles(
             now=now,
             retention_sec=self.policy.max_window_sec() + self.policy.heartbeat_interval_sec,
         )
         self._update_consecutive_counters(sample)
 
         if self.state.incident_open:
-            self.state.incident_total_cycles += 1
+            new_total = self.state.incident_total_cycles + 1
             if sample.failed_areas > 0:
-                self.state.incident_failed_cycles += 1
+                new_failed = self.state.incident_failed_cycles + 1
+                merged_counts = dict(self.state.incident_error_counts)
                 for code, value in counts.items():
-                    self.state.incident_error_counts[code] = (
-                        self.state.incident_error_counts.get(code, 0) + max(value, 0)
-                    )
+                    merged_counts[code] = merged_counts.get(code, 0) + max(value, 0)
+                self.state = replace(
+                    self.state,
+                    incident_total_cycles=new_total,
+                    incident_failed_cycles=new_failed,
+                    incident_error_counts=merged_counts,
+                )
+            else:
+                self.state = replace(self.state, incident_total_cycles=new_total)
 
         outage_window = self.state.cycles_in_window(
             now=now,
@@ -97,7 +105,7 @@ class ApiHealthMonitor:
             self._close_incident(now)
             decision = self._decision_with_event(decision, event="recovered", incident_open=False)
         elif self.state.incident_open and self._should_send_heartbeat(now):
-            self.state.last_heartbeat_at = now
+            self.state = replace(self.state, last_heartbeat_at=now)
             decision = self._decision_with_event(
                 decision,
                 event="outage_heartbeat",
@@ -146,11 +154,17 @@ class ApiHealthMonitor:
             or end_date is None
             or start_date >= end_date
         ):
-            self.state.recovery_backfill_pending_start_date = None
-            self.state.recovery_backfill_pending_end_date = None
+            self.state = replace(
+                self.state,
+                recovery_backfill_pending_start_date=None,
+                recovery_backfill_pending_end_date=None,
+            )
         else:
-            self.state.recovery_backfill_pending_start_date = start_date
-            self.state.recovery_backfill_pending_end_date = end_date
+            self.state = replace(
+                self.state,
+                recovery_backfill_pending_start_date=start_date,
+                recovery_backfill_pending_end_date=end_date,
+            )
         self.state_repo.update_state(self.state)
 
     def _is_outage(self, window: list[HealthCycleSample], severe_failed: int) -> bool:
@@ -174,36 +188,52 @@ class ApiHealthMonitor:
         return elapsed >= self.policy.heartbeat_interval_sec
 
     def _open_incident(self, now: datetime) -> None:
-        self.state.incident_open = True
-        self.state.incident_started_at = now
-        self.state.incident_notified_at = now
-        self.state.last_heartbeat_at = now
-        self.state.consecutive_stable_successes = 0
-        self.state.incident_total_cycles = 0
-        self.state.incident_failed_cycles = 0
-        self.state.incident_error_counts = {}
+        self.state = replace(
+            self.state,
+            incident_open=True,
+            incident_started_at=now,
+            incident_notified_at=now,
+            last_heartbeat_at=now,
+            consecutive_stable_successes=0,
+            incident_total_cycles=0,
+            incident_failed_cycles=0,
+            incident_error_counts={},
+        )
 
     def _close_incident(self, now: datetime) -> None:
-        self.state.incident_open = False
-        self.state.last_recovered_at = now
-        self.state.last_heartbeat_at = None
-        self.state.incident_notified_at = None
-        self.state.incident_started_at = None
-        self.state.incident_total_cycles = 0
-        self.state.incident_failed_cycles = 0
-        self.state.incident_error_counts = {}
-        self.state.consecutive_severe_failures = 0
+        self.state = replace(
+            self.state,
+            incident_open=False,
+            last_recovered_at=now,
+            last_heartbeat_at=None,
+            incident_notified_at=None,
+            incident_started_at=None,
+            incident_total_cycles=0,
+            incident_failed_cycles=0,
+            incident_error_counts={},
+            consecutive_severe_failures=0,
+        )
 
     def _update_consecutive_counters(self, sample: HealthCycleSample) -> None:
         if sample.fail_ratio >= self.policy.outage_fail_ratio_threshold:
-            self.state.consecutive_severe_failures += 1
-            self.state.consecutive_stable_successes = 0
+            self.state = replace(
+                self.state,
+                consecutive_severe_failures=self.state.consecutive_severe_failures + 1,
+                consecutive_stable_successes=0,
+            )
             return
-        self.state.consecutive_severe_failures = 0
         if sample.fail_ratio <= self.policy.recovery_max_fail_ratio:
-            self.state.consecutive_stable_successes += 1
+            self.state = replace(
+                self.state,
+                consecutive_severe_failures=0,
+                consecutive_stable_successes=self.state.consecutive_stable_successes + 1,
+            )
         else:
-            self.state.consecutive_stable_successes = 0
+            self.state = replace(
+                self.state,
+                consecutive_severe_failures=0,
+                consecutive_stable_successes=0,
+            )
 
     def _count_severe_failures(self, window: list[HealthCycleSample]) -> int:
         return sum(
