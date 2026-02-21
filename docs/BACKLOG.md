@@ -25,21 +25,22 @@
 | SR-04 | API 장애 감지/heartbeat/복구(backfill)가 정책대로 동작해야 함 | 장애 감지/지속/복구 시나리오에서 알림/백필 흐름이 예측대로 수행 | `tests/test_health_monitor.py`, `tests/test_main_smoke.py`, `tests/test_service_loop.py` | `health.notification.sent`, `health.backfill.*`, `health.evaluate` | 충족 |
 | SR-05 | 잘못된 설정/허용되지 않은 URL은 즉시 차단되어야 함 | 시작 단계에서 설정 오류로 실패하고 민감정보는 마스킹됨 | `tests/test_settings.py`, `tests/test_main.py` | `startup.invalid_config` | 충족 |
 | SR-06 | 릴리스 전 품질 게이트가 단일 경로로 강제되어야 함 | `make gate` + PR checklist + runtime smoke 통과 시에만 병합 | `.github/workflows/ci.yml`, `scripts/check_pr_checklist.py` | CI summary/artifacts | 충족 |
-| SR-07 | 실제 외부 의존성(API/Webhook)과의 통합 건전성을 주기적으로 확인해야 함 | 스테이징 canary에서 실제 API 호출 + 웹훅 전송 경로 주기 검증 | 현재 부재 | canary 결과 이벤트/아티팩트 | 미충족 |
+| SR-07 | 실제 외부 의존성(API/Webhook)과의 통합 건전성을 주기적으로 확인해야 함 | 스테이징 canary에서 실제 API 호출 + 웹훅 전송 경로 주기 검증 | `.github/workflows/canary.yml`, `scripts/canary_report.py` | canary 결과 이벤트/아티팩트 | 검증대기 |
 | SR-08 | 장시간 실행 시 안정성(메모리/상태증가/중복재처리)이 유지되어야 함 | 24h soak에서 비정상 메모리 증가/상태 누수/중복 전송 이상 없음 | 현재 부재 | `cycle.cost.metrics` 장기 추세 + soak 리포트 | 미충족 |
 
 ## 2) Evidence Snapshot
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov` 통과
-- 테스트/커버리지: `145 passed`, 총 커버리지 `92.67%`
+- 테스트/커버리지: `148 passed`, 총 커버리지 `92.67%`
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
-- 서비스 요구사항 충족도: `6/8` (`SR-07`, `SR-08` 미충족)
+- canary 운영 검증 기반: `.github/workflows/canary.yml` + `scripts/canary_report.py` 도입(시크릿 구성 후 운영 검증 필요)
+- 서비스 요구사항 충족도: `6/8` (`SR-07 검증대기`, `SR-08 미충족`)
 
 ## 3) Active Backlog
 
 | ID | Priority | 상태 | 근거 관점 | 요구사항 연결 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|---|
-| RB-801 | P1 | 예정 | 제품 신뢰성 / 운영 관측·추적성 | SR-07 | 스테이징 canary 워크플로 도입(실 API + webhook 검증 채널) | 일/PR 기준 canary 결과와 실패 원인이 아티팩트/이벤트로 추적 가능 |
+| RB-801 | P1 | 검증대기 | 제품 신뢰성 / 운영 관측·추적성 | SR-07 | 스테이징 canary 워크플로/리포트 도입(실 API + webhook 검증 채널) | 일/PR 기준 canary 결과와 실패 원인이 아티팩트/이벤트로 추적 가능 |
 | RB-802 | P1 | 예정 | 제품 신뢰성 / 성능·비용 효율 | SR-08 | 장시간 soak 테스트(예: 24h) + 안정성 예산(메모리/상태크기/중복전송률) 정의 | soak 리포트 자동 생성, 허용 임계치 초과 시 CI/운영 경고 |
 | RB-803 | P2 | 예정 | 검증력(테스트·계약) / 운영 관측·추적성 | SR-01, SR-06 | 이벤트 필드 의미 회귀 검증 계층 도입(핵심 이벤트 payload snapshot/contract) | 이벤트명뿐 아니라 필드 스키마/필수 키 변경이 테스트에서 실패로 검출 |
 | RB-804 | P2 | 예정 | 제품 신뢰성 / 성능·비용 효율 | SR-01, SR-04 | 전송 실패 폭주 완화(알림 backpressure/circuit-breaker) 정책 도입 | 반복 실패 시 과도한 재시도/전송 시도가 제한되고 복구 시 자동 정상화 |

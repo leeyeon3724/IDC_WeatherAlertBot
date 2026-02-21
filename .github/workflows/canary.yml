@@ -1,0 +1,178 @@
+name: Canary
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "scripts/**"
+      - "main.py"
+      - ".github/workflows/canary.yml"
+      - "docs/OPERATION.md"
+      - "docs/BACKLOG.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: canary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-canary:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Canary preflight
+        id: preflight
+        env:
+          SERVICE_API_KEY: ${{ secrets.SERVICE_API_KEY }}
+          CANARY_SERVICE_HOOK_URL: ${{ secrets.CANARY_SERVICE_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -z "${SERVICE_API_KEY:-}" ]] && missing+=("secrets.SERVICE_API_KEY")
+          [[ -z "${CANARY_SERVICE_HOOK_URL:-}" ]] && missing+=("secrets.CANARY_SERVICE_HOOK_URL")
+
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "missing=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip summary
+        if: steps.preflight.outputs.should_run != 'true'
+        run: |
+          printf '## Canary\n\n- status: SKIPPED\n- reason: missing required secrets (%s)\n' \
+            "${{ steps.preflight.outputs.missing }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run service canary
+        if: steps.preflight.outputs.should_run == 'true'
+        id: run_service
+        env:
+          SERVICE_API_KEY: ${{ secrets.SERVICE_API_KEY }}
+          SERVICE_HOOK_URL: ${{ secrets.CANARY_SERVICE_HOOK_URL }}
+          CANARY_AREA_CODES: ${{ vars.CANARY_AREA_CODES }}
+          CANARY_AREA_CODE_MAPPING: ${{ vars.CANARY_AREA_CODE_MAPPING }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/canary/data
+          AREA_CODES_VALUE='["L1090000"]'
+          AREA_CODE_MAPPING_VALUE='{"L1090000":"서울"}'
+          if [[ -n "${CANARY_AREA_CODES:-}" ]]; then
+            AREA_CODES_VALUE="$CANARY_AREA_CODES"
+          fi
+          if [[ -n "${CANARY_AREA_CODE_MAPPING:-}" ]]; then
+            AREA_CODE_MAPPING_VALUE="$CANARY_AREA_CODE_MAPPING"
+          fi
+
+          export AREA_CODES="$AREA_CODES_VALUE"
+          export AREA_CODE_MAPPING="$AREA_CODE_MAPPING_VALUE"
+          export SENT_MESSAGES_FILE="./artifacts/canary/data/sent_messages.canary.json"
+          export HEALTH_STATE_FILE="./artifacts/canary/data/api_health_state.canary.json"
+          export STATE_REPOSITORY_TYPE="json"
+          export RUN_ONCE="true"
+          export DRY_RUN="false"
+          export LOOKBACK_DAYS="0"
+          export CYCLE_INTERVAL_SEC="0"
+          export AREA_INTERVAL_SEC="0"
+          export LOG_LEVEL="INFO"
+          export TIMEZONE="Asia/Seoul"
+
+          set +e
+          python main.py run > artifacts/canary/service.log 2>&1
+          service_exit_code=$?
+          set -e
+
+          echo "service_exit_code=$service_exit_code" >> "$GITHUB_OUTPUT"
+
+      - name: Probe webhook delivery path
+        if: steps.preflight.outputs.should_run == 'true'
+        id: probe_webhook
+        env:
+          SERVICE_HOOK_URL: ${{ secrets.CANARY_SERVICE_HOOK_URL }}
+          WEBHOOK_PROBE_FILE: artifacts/canary/webhook_probe.json
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/canary
+          set +e
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from datetime import UTC, datetime
+
+          from app.services.notifier import DoorayNotifier
+
+          output = os.environ["WEBHOOK_PROBE_FILE"]
+          webhook_url = os.environ["SERVICE_HOOK_URL"]
+          result = {
+              "passed": False,
+              "error": "",
+              "timestamp_utc": datetime.now(UTC).isoformat(),
+          }
+          try:
+              notifier = DoorayNotifier(
+                  hook_url=webhook_url,
+                  bot_name="weather-alert-canary",
+                  timeout_sec=5,
+                  connect_timeout_sec=5,
+                  read_timeout_sec=5,
+                  max_retries=2,
+                  retry_delay_sec=1,
+              )
+              notifier.send(
+                  "[canary] webhook delivery probe "
+                  + datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+              )
+              result["passed"] = True
+          except Exception as exc:
+              result["error"] = str(exc)
+
+          with open(output, "w", encoding="utf-8") as file:
+              json.dump(result, file, ensure_ascii=False, indent=2, sort_keys=True)
+
+          raise SystemExit(0 if result["passed"] else 1)
+          PY
+          webhook_probe_exit_code=$?
+          set -e
+
+          echo "webhook_probe_exit_code=$webhook_probe_exit_code" >> "$GITHUB_OUTPUT"
+
+      - name: Build canary report
+        if: steps.preflight.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+          python -m scripts.canary_report \
+            --log-file artifacts/canary/service.log \
+            --service-exit-code "${{ steps.run_service.outputs.service_exit_code }}" \
+            --webhook-probe-file artifacts/canary/webhook_probe.json \
+            --json-output artifacts/canary/report.json \
+            --markdown-output artifacts/canary/report.md
+          cat artifacts/canary/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload canary artifacts
+        if: always() && steps.preflight.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-${{ github.run_id }}
+          path: artifacts/canary
+          if-no-files-found: warn

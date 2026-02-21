@@ -12,7 +12,7 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-sampl
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `145`
+- 테스트 수: `148`
 - 전체 커버리지: `92.67%`
 - 최소 커버리지 기준: `80%`
 
@@ -20,6 +20,7 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-sampl
 
 - 기본 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov`
 - CI 추가 검증: Python 3.11/3.12 runtime smoke, PR checklist validation
+- 외부 연동 canary: `.github/workflows/canary.yml`에서 실 API + webhook 경로를 주기/PR 단위로 검증하고 리포트 아티팩트(`artifacts/canary`)를 남김
 - 계약 안정성: 이벤트/설정/CLI snapshot 테스트 유지
 
 ## 4) 남은 리스크

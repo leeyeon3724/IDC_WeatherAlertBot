@@ -70,3 +70,14 @@ python3 main.py migrate-state \
 - 기준 스크립트: `python3 -m scripts.perf_baseline --max-samples 20`
 - 샘플 정책: baseline 계산 시 입력 리포트 중 최근 `20`개만 유지/집계
 - 추세 확인: baseline markdown의 `trend` 컬럼으로 지표 변화 방향을 우선 확인
+
+## 7. Canary 운영 검증
+
+- 워크플로: `.github/workflows/canary.yml`
+- 트리거: `schedule(매일)`, `pull_request(main, 관련 경로)`, `workflow_dispatch`
+- 필수 시크릿: `SERVICE_API_KEY`, `CANARY_SERVICE_HOOK_URL`
+- 결과 산출물: `artifacts/canary/service.log`, `artifacts/canary/webhook_probe.json`, `artifacts/canary/report.json`, `artifacts/canary/report.md`
+
+판정 규칙:
+- 성공 조건: `startup.ready`, `cycle.start`, `cycle.complete`, `shutdown.run_once_complete` 이벤트 존재 + webhook probe 성공 + 주요 실패 이벤트 부재
+- 실패 이벤트: `startup.invalid_config`, `shutdown.unexpected_error`, `area.failed`, `notification.final_failure`, `state.read_failed`, `state.persist_failed`
