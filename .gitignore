@@ -19,6 +19,7 @@ env/
 .env
 .env.*
 !.env.example
+!.env.live-e2e.example
 
 # Runtime data
 data/sent_messages*.json

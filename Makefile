@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene
+.PHONY: install install-dev run dry-run live-e2e-local test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -13,6 +13,9 @@ run:
 
 dry-run:
 	DRY_RUN=true RUN_ONCE=true $(PYTHON) main.py
+
+live-e2e-local:
+	./scripts/run_live_e2e_local.sh $${ENV_FILE:-.env.live-e2e}
 
 test:
 	$(PYTHON) -m pytest -q

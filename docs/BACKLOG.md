@@ -36,6 +36,7 @@
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
 - canary 운영 검증 기반: `.github/workflows/canary.yml` + `scripts/canary_report.py` 도입(시크릿 구성 후 운영 검증 필요)
 - live-e2e 보호 검증 기반: `.github/workflows/live-e2e.yml` 도입(보호 환경 승인 + 전용 시크릿 필요)
+- live-e2e 로컬 검증 기반: `scripts/run_live_e2e_local.sh` + `.env.live-e2e(비추적)` 경로 도입
 - soak 안정성 검증 기반: `.github/workflows/soak.yml` + `scripts/soak_report.py` 도입(운영 추세 관측 축적 필요)
 - 운영 SLO 리포트 자동화: `scripts/slo_report.py` + canary 워크플로 연동(`slo_report.json/md`)
 - 알림 폭주 완화 정책: notifier 회로차단(`notification.circuit.*`) + 사이클 예산 기반 backpressure(`notification.backpressure.applied`) 도입

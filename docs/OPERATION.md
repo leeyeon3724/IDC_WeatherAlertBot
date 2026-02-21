@@ -106,6 +106,13 @@ python3 main.py migrate-state \
 - 성공 조건: canary와 동일한 필수 이벤트 집합 + webhook probe 성공 + 주요 실패 이벤트 부재
 - 실패 시 분리 원칙: 코드 회귀(서비스 exit code, 필수 이벤트 누락)와 외부 장애(webhook/API 네트워크)를 각각 분류
 
+로컬 1회 검증(수동):
+- 스크립트: `scripts/run_live_e2e_local.sh`
+- 준비: `cp .env.live-e2e.example .env.live-e2e` 후 테스트용 실자격증명 입력
+- 실행: `make live-e2e-local`
+- 가드: `ENABLE_LIVE_E2E=true`가 없으면 실행 차단
+- 산출물: `artifacts/live-e2e/local/service.log`
+
 ## 9. Soak 안정성 검증
 
 - 워크플로: `.github/workflows/soak.yml`

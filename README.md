@@ -30,12 +30,26 @@ make perf-report
 make perf-baseline
 make soak-report
 make slo-report
+make live-e2e-local
 make select-tests
 make check-docs
 python3 main.py cleanup-state --days 30
 python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db
 python3 main.py verify-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db --strict
 ```
+
+## 로컬 Live E2E
+
+실제 테스트용 자격증명(API/Webhook)으로 1회 검증이 필요하면 로컬 전용 env 파일을 사용합니다.
+
+```bash
+cp .env.live-e2e.example .env.live-e2e
+# .env.live-e2e에 테스트용 키/URL 입력
+make live-e2e-local
+```
+
+- `.env.live-e2e`는 git ignore 대상이며 커밋되지 않습니다.
+- 실행 가드는 `ENABLE_LIVE_E2E=true`가 없으면 동작하지 않습니다.
 
 ## 문서
 

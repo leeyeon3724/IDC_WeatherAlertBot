@@ -55,6 +55,18 @@ python3 main.py
 DRY_RUN=true RUN_ONCE=true python3 main.py
 ```
 
+로컬 Live E2E(실제 테스트용 자격증명, 1회 검증):
+
+```bash
+cp .env.live-e2e.example .env.live-e2e
+# .env.live-e2e 값 수정 (테스트용 API 키/웹훅 URL)
+make live-e2e-local
+```
+
+- `ENABLE_LIVE_E2E=true`가 없으면 실행되지 않습니다.
+- 실행 시 `RUN_ONCE=true`, `DRY_RUN=false`가 강제됩니다.
+- 상태 파일은 `artifacts/live-e2e/local/*` 경로로 분리됩니다.
+
 상태 정리:
 
 ```bash
