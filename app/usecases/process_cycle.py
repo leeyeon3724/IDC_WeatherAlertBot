@@ -177,7 +177,7 @@ class ProcessCycleUseCase:
                 area_code=area_code,
                 area_name=self.settings.area_code_mapping.get(area_code, "알 수 없는 지역"),
                 alerts=None,
-                error=WeatherApiError("missing_area_result"),
+                error=WeatherApiError("missing_area_result", code="missing_area_fetch_result"),
             ),
         )
 

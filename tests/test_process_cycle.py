@@ -428,6 +428,23 @@ def test_process_cycle_records_api_error_codes(tmp_path) -> None:
     assert stats.last_api_error is not None
 
 
+def test_process_cycle_missing_area_result_uses_specific_error_code(tmp_path) -> None:
+    """_resolve_area_result에서 결과가 없을 때 오류 코드가 missing_area_fetch_result여야 한다."""
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=FakeWeatherClient({}),
+        notifier=FakeNotifier(should_fail=False),
+        state_repo=repo,
+        logger=logging.getLogger("test.missing_area"),
+    )
+
+    result = usecase._resolve_area_result("11B00000", {})
+    assert result.error is not None
+    assert result.error.code == "missing_area_fetch_result"
+
+
 def test_process_cycle_lookback_override(tmp_path) -> None:
     settings = _settings(tmp_path)
     repo = JsonStateRepository(settings.sent_messages_file)
