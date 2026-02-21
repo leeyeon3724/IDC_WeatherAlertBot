@@ -1,4 +1,11 @@
 {
+  "area.code_unmapped": [
+    "area_code",
+    "area_name",
+    "fallback_value",
+    "field",
+    "raw_code"
+  ],
   "area.failed": [
     "area_code",
     "error",

@@ -256,10 +256,34 @@ class WeatherAlertClient:
                 AlertEvent(
                     area_code=area_code,
                     area_name=area_name,
-                    warn_var=WARN_VAR_MAPPING.get(warn_var_code, "N/A"),
-                    warn_stress=WARN_STRESS_MAPPING.get(warn_stress_code, "N/A"),
-                    command=COMMAND_MAPPING.get(command_code, "N/A"),
-                    cancel=CANCEL_MAPPING.get(cancel_code, "N/A"),
+                    warn_var=self._resolve_code_mapping(
+                        field_name="warnVar",
+                        raw_code=warn_var_code,
+                        mapping=WARN_VAR_MAPPING,
+                        area_code=area_code,
+                        area_name=area_name,
+                    ),
+                    warn_stress=self._resolve_code_mapping(
+                        field_name="warnStress",
+                        raw_code=warn_stress_code,
+                        mapping=WARN_STRESS_MAPPING,
+                        area_code=area_code,
+                        area_name=area_name,
+                    ),
+                    command=self._resolve_code_mapping(
+                        field_name="command",
+                        raw_code=command_code,
+                        mapping=COMMAND_MAPPING,
+                        area_code=area_code,
+                        area_name=area_name,
+                    ),
+                    cancel=self._resolve_code_mapping(
+                        field_name="cancel",
+                        raw_code=cancel_code,
+                        mapping=CANCEL_MAPPING,
+                        area_code=area_code,
+                        area_name=area_name,
+                    ),
                     start_time=self._format_datetime(item.findtext("startTime")),
                     end_time=self._format_datetime(item.findtext("endTime")),
                     stn_id=item.findtext("stnId", ""),
@@ -268,6 +292,39 @@ class WeatherAlertClient:
                 )
             )
         return alerts
+
+    def _resolve_code_mapping(
+        self,
+        *,
+        field_name: str,
+        raw_code: str,
+        mapping: dict[str, str],
+        area_code: str,
+        area_name: str,
+    ) -> str:
+        normalized_code = (raw_code or "").strip()
+        if not normalized_code:
+            return "N/A"
+
+        mapped_value = mapping.get(normalized_code)
+        if mapped_value is not None:
+            return mapped_value
+
+        if normalized_code.upper() == "N/A":
+            return "N/A"
+
+        fallback_value = f"UNKNOWN({field_name}:{normalized_code})"
+        self.logger.warning(
+            log_event(
+                events.AREA_CODE_UNMAPPED,
+                area_code=area_code,
+                area_name=area_name,
+                field=field_name,
+                raw_code=normalized_code,
+                fallback_value=fallback_value,
+            )
+        )
+        return fallback_value
 
     @staticmethod
     def _extract_result_code(root: ET.Element) -> str:

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import xml.etree.ElementTree as ET
 
 import pytest
 import requests
 
+from app.observability import events
 from app.services.weather_api import (
     API_ERROR_CONNECTION,
     API_ERROR_HTTP_STATUS,
@@ -76,6 +78,9 @@ def _xml_with_item(
     *,
     result_code: str = "00",
     warn_var: str = "4",
+    warn_stress: str = "0",
+    command: str = "2",
+    cancel: str = "0",
     start_time: str = "202602181000",
     total_count: int | None = None,
     tm_seq: str = "46",
@@ -89,9 +94,9 @@ def _xml_with_item(
         <items>
           <item>
             <warnVar>{warn_var}</warnVar>
-            <warnStress>0</warnStress>
-            <command>2</command>
-            <cancel>0</cancel>
+            <warnStress>{warn_stress}</warnStress>
+            <command>{command}</command>
+            <cancel>{cancel}</cancel>
             <startTime>{start_time}</startTime>
             <endTime>0</endTime>
             <stnId>143</stnId>
@@ -274,6 +279,52 @@ def test_fetch_alerts_accepts_single_digit_zero_result_code(tmp_path) -> None:
 
     assert len(alerts) == 1
     assert alerts[0].warn_var == "건조"
+
+
+def test_fetch_alerts_logs_unmapped_codes_with_fallback_values(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                _xml_with_item(warn_var="99", warn_stress="7", command="9", cancel="9"),
+            )
+        ]
+    )
+    logger = logging.getLogger("test.weather.api.unmapped_codes")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
+        session=session,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        alerts = client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+
+    assert len(alerts) == 1
+    assert alerts[0].warn_var == "UNKNOWN(warnVar:99)"
+    assert alerts[0].warn_stress == "UNKNOWN(warnStress:7)"
+    assert alerts[0].command == "UNKNOWN(command:9)"
+    assert alerts[0].cancel == "UNKNOWN(cancel:9)"
+
+    warning_payloads = [
+        json.loads(record.message)
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    ]
+    assert any(
+        payload.get("event") == events.AREA_CODE_UNMAPPED
+        and payload.get("field") == "warnVar"
+        and payload.get("raw_code") == "99"
+        for payload in warning_payloads
+    )
 
 
 def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:

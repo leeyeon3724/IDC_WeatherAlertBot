@@ -1,4 +1,5 @@
 {
+  "AREA_CODE_UNMAPPED": "area.code_unmapped",
   "AREA_FAILED": "area.failed",
   "AREA_FETCH_RETRY": "area.fetch.retry",
   "AREA_FETCH_SUMMARY": "area.fetch.summary",
