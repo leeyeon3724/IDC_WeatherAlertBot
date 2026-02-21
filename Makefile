@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run live-e2e-local test test-cov testing-snapshot lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene check-env-sync check-area-mapping check-alarm-rules
+.PHONY: install install-dev run dry-run live-e2e-local test test-cov testing-snapshot lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene check-env-sync check-settings-sync check-area-mapping check-alarm-rules sync-settings-artifacts
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -32,7 +32,7 @@ lint:
 typecheck:
 	$(PYTHON) -m mypy
 
-gate: lint typecheck check-arch check-docs check-alarm-rules check-hygiene check-env-sync check-area-mapping test-cov
+gate: lint typecheck check-arch check-docs check-alarm-rules check-hygiene check-env-sync check-settings-sync check-area-mapping test-cov
 
 quality: gate
 
@@ -78,6 +78,12 @@ check-hygiene:
 
 check-env-sync:
 	$(PYTHON) -m scripts.check_env_defaults_sync
+
+check-settings-sync:
+	$(PYTHON) -m scripts.sync_settings_artifacts
+
+sync-settings-artifacts:
+	$(PYTHON) -m scripts.sync_settings_artifacts --write
 
 check-area-mapping:
 	$(PYTHON) -m scripts.check_area_mapping_sync

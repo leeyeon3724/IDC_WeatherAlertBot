@@ -19,11 +19,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-상태: 진행중
-중요도: 낮음
-항목: 설정/문서 동기화 자동 생성 도구화
-근거: `app/settings.py`, `.env.example`, `.env.live-e2e.example`, `docs/SETUP.md` 간 수동 동기화는 누락 리스크가 큼.
-완료 기준: 설정 메타데이터 기반 env/doc 생성 스크립트와 CI diff 검증을 도입함.
+현재 진행중 항목 없음.
 
 신규 리스크 등록 템플릿:
 
