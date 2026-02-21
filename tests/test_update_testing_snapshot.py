@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from scripts.update_testing_snapshot import parse_test_snapshot, update_testing_doc
 
 
@@ -64,3 +66,19 @@ def test_update_testing_doc_defaults_minimum_coverage_if_missing() -> None:
     assert "- 테스트 수: `10`" in updated
     assert "- 전체 커버리지: `80%`" in updated
     assert "- 최소 커버리지 기준: `80%`" in updated
+
+
+def test_parse_test_snapshot_raises_when_passed_count_missing() -> None:
+    with pytest.raises(ValueError, match="passed test count"):
+        parse_test_snapshot("no pass summary here")
+
+
+def test_update_testing_doc_raises_when_snapshot_section_missing() -> None:
+    doc_text = """# TESTING
+
+## 1) 다른 섹션
+
+- 테스트 수: `1`
+"""
+    with pytest.raises(ValueError, match="현재 스냅샷"):
+        update_testing_doc(doc_text, passed_count=1, coverage_text="90%")

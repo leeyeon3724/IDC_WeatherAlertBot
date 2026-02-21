@@ -69,7 +69,7 @@
     - alarm/event/env sync 계열에 duplicate/missing/unknown/invalid parse 분기 테스트 추가
     - 실패 리포트 필드(`*_mismatches`, `missing_*`, `unknown_*`)를 정확 키 단위로 단정
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 게이트 오케스트레이션 스크립트 테스트의 경계값/예외 처리 강화
   - 근거: `tests/test_pr_checklist.py`, `tests/test_select_tests.py`, `tests/test_update_testing_snapshot.py`, `tests/test_repo_hygiene.py`는 주 경로 검증 위주이며, 체크리스트 누락 품질 항목, 변경파일 비어있음/미매핑 full fallback, 스냅샷 섹션 미존재/파싱 실패, live-e2e JSON 타입 오류 등 핵심 에러 분기 검증이 부족함
   - 완료 기준:

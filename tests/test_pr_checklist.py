@@ -55,3 +55,29 @@ def test_build_report_fails_when_event_impact_required_but_unchecked() -> None:
     assert report["event_impact_required"] is True
     assert report["missing_quality_checks"] == []
     assert len(report["missing_event_checks"]) == 4
+
+
+def test_build_report_fails_when_required_quality_checks_are_missing() -> None:
+    body = """
+    - [x] `python3 -m ruff check .`
+    - [ ] `python3 -m mypy`
+    - [x] `python3 -m scripts.check_architecture_rules`
+    - [ ] `python3 -m scripts.check_event_docs_sync`
+    - [x] `python3 -m scripts.check_alarm_rules_sync`
+    - [ ] `python3 -m scripts.check_repo_hygiene`
+    - [x] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
+    """
+
+    report = build_report(
+        pr_body=body,
+        changed_files=["app/services/notifier.py"],
+    )
+
+    assert report["passed"] is False
+    assert report["event_impact_required"] is False
+    assert report["missing_event_checks"] == []
+    assert report["missing_quality_checks"] == [
+        "`python3 -m mypy`",
+        "`python3 -m scripts.check_event_docs_sync`",
+        "`python3 -m scripts.check_repo_hygiene`",
+    ]

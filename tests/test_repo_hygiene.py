@@ -118,3 +118,25 @@ def test_build_report_detects_hygiene_violations(tmp_path: Path) -> None:
     assert report["unknown_in_live_e2e_example"] == ["UNKNOWN_LIVE_E2E_KEY"]
     assert report["invalid_live_e2e_json"] == ["AREA_CODES:invalid_json"]
     assert report["missing_in_readme_doc_map"] == ["BACKLOG.md"]
+
+
+def test_build_report_detects_live_e2e_json_type_mismatch(tmp_path: Path) -> None:
+    _build_repo_fixture(tmp_path)
+    _write(
+        tmp_path / ".env.live-e2e.example",
+        """
+        ENABLE_LIVE_E2E=true
+        SERVICE_API_KEY=test-live
+        SERVICE_HOOK_URL=https://hook.example/live
+        AREA_CODES={"L1090000":"서울"}
+        AREA_CODE_MAPPING=["L1090000"]
+        """,
+    )
+
+    report = build_report(tmp_path)
+
+    assert report["passed"] is False
+    assert report["invalid_live_e2e_json"] == [
+        "AREA_CODES:expected_list",
+        "AREA_CODE_MAPPING:expected_dict",
+    ]
