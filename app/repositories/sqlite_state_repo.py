@@ -57,61 +57,38 @@ class SqliteStateRepository:
 
         event_ids = list(by_event_id.keys())
         now = utc_now_iso()
+        rows = [
+            (
+                event_id,
+                notification.area_code,
+                notification.message,
+                notification.report_url,
+                now,
+                now,
+            )
+            for event_id, notification in by_event_id.items()
+        ]
         with self._connect() as conn:
             existing = self._fetch_existing(conn, event_ids=event_ids)
-            insert_rows: list[tuple[str, str, str, str | None, str, str]] = []
-            update_rows: list[tuple[str, str, str | None, str, str]] = []
-
-            for event_id, notification in by_event_id.items():
-                existing_row = existing.get(event_id)
-                if existing_row is None:
-                    insert_rows.append(
-                        (
-                            event_id,
-                            notification.area_code,
-                            notification.message,
-                            notification.report_url,
-                            now,
-                            now,
-                        )
-                    )
-                    continue
-
-                if (
-                    existing_row["area_code"] != notification.area_code
-                    or existing_row["message"] != notification.message
-                    or existing_row["report_url"] != notification.report_url
-                ):
-                    update_rows.append(
-                        (
-                            notification.area_code,
-                            notification.message,
-                            notification.report_url,
-                            now,
-                            event_id,
-                        )
-                    )
-
-            if insert_rows:
-                conn.executemany(
-                    """
-                    INSERT INTO notifications (
-                      event_id, area_code, message, report_url, sent,
-                      first_seen_at, updated_at, last_sent_at
-                    ) VALUES (?, ?, ?, ?, 0, ?, ?, NULL)
-                    """,
-                    insert_rows,
-                )
-            if update_rows:
-                conn.executemany(
-                    """
-                    UPDATE notifications
-                    SET area_code = ?, message = ?, report_url = ?, updated_at = ?
-                    WHERE event_id = ?
-                    """,
-                    update_rows,
-                )
-        return len(insert_rows)
+            conn.executemany(
+                """
+                INSERT INTO notifications (
+                  event_id, area_code, message, report_url, sent,
+                  first_seen_at, updated_at, last_sent_at
+                ) VALUES (?, ?, ?, ?, 0, ?, ?, NULL)
+                ON CONFLICT(event_id) DO UPDATE SET
+                  area_code  = excluded.area_code,
+                  message    = excluded.message,
+                  report_url = excluded.report_url,
+                  updated_at = excluded.updated_at
+                WHERE
+                  notifications.area_code  IS NOT excluded.area_code
+                  OR notifications.message    IS NOT excluded.message
+                  OR notifications.report_url IS NOT excluded.report_url
+                """,
+                rows,
+            )
+        return sum(1 for event_id in event_ids if event_id not in existing)
 
     def upsert_stored_notifications(self, notifications: Iterable[StoredNotification]) -> int:
         by_event_id = {notification.event_id: notification for notification in notifications}
