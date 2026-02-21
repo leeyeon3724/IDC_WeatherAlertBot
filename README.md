@@ -32,7 +32,7 @@ make testing-snapshot
 - `docs/OPERATION.md`: 런타임 동작, 로그 관측, 장애 대응
 - `docs/EVENTS.md`: 구조화 로그 이벤트/필드 사전
 - `docs/TESTING.md`: 테스트 전략, 적절성 평가, 보완 항목
-- `docs/BACKLOG.md`: 코드베이스 평가 + 리팩토링 백로그 통합 문서
+- `docs/BACKLOG.md`: 활성 리팩토링 백로그
 
 ## 디렉터리 구조
 

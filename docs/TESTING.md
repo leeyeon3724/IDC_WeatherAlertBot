@@ -12,34 +12,33 @@ make live-e2e-local    # 실자격증명 1회 검증(ENABLE_LIVE_E2E=true 필요
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `214`
-- 전체 커버리지: `94.02%`
+- 테스트 수: `258`
+- 전체 커버리지: `94.99%`
 - 최소 커버리지 기준: `80%`
 
 ## 3) 현재 기준
 
 - 기본 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
-- 테스트 스냅샷 자동화: `make testing-snapshot`으로 `docs/TESTING.md`의 테스트 수/커버리지 수치 자동 갱신
-- CI 추가 검증: Python 3.11/3.12 runtime smoke, PR checklist validation
-- 변경영향 기반 PR fast gate: `.github/workflows/pr-fast.yml`에서 변경 파일 기반 테스트 셋을 선택해 우선 실행
-- 야간 full gate: `.github/workflows/nightly-full.yml`에서 `make gate`를 주기 실행
-- CI 상태 무결성 스모크: `migrate-state` + `verify-state --strict` 경로를 샘플 상태 파일로 자동 검증
-- 외부 연동 canary: `.github/workflows/canary.yml`에서 실 API + webhook 경로를 주기/PR 단위로 검증하고 리포트 아티팩트(`artifacts/canary`)를 남김
-- 보호 환경 live-e2e: `.github/workflows/live-e2e.yml`에서 전용 시크릿 기반 실연동 검증을 수행하고 아티팩트(`artifacts/live-e2e`)를 남김
-- 로컬 live-e2e: `scripts/run_live_e2e_local.sh` + `.env.live-e2e` 조합으로 실자격증명 1회 검증 수행(가드: `ENABLE_LIVE_E2E=true`, 산출물: `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/slo_report.json`)
-- 장시간 안정성 soak: `.github/workflows/soak.yml`에서 합성 장기부하 리포트(`artifacts/soak/report.json`)를 생성하고 예산 초과 시 실패 처리
-- 운영 SLO 리포트: `scripts/slo_report.py`로 성공률/실패율/지연/미전송 잔량을 계산하고, 필드 누락 시 원인(`log_format`/`collection_gap`/`code_omission`) 분류 및 fallback 정보를 함께 기록
-- PR 성능 회귀 게이트: `scripts.compare_perf_reports`에서 핵심 지표 회귀율 `> 20%`면 실패(`--fail-on-regression`)
-- 성능 예외 규칙: 일시적 예외는 `PERF_ALLOW_REGRESSION_METRICS`(comma-separated metric names)로 명시하고, 해제 계획을 PR에 기록
-- 폭주 완화 검증: `tests/test_notifier.py`, `tests/test_process_cycle.py`에서 circuit-breaker/backpressure 동작 회귀 검증
-- 계약 안정성: 이벤트 이름 + 이벤트 payload 키 + 설정 + CLI snapshot 테스트 유지
+- 테스트 스냅샷 자동화: `make testing-snapshot`으로 테스트 수/커버리지 수치를 문서에 반영
+- CI 계층:
+  - 기본 CI(`ci.yml`): gate + runtime smoke + 상태 무결성 smoke(`migrate-state` -> `verify-state --strict`)
+  - PR fast(`pr-fast.yml`): 변경 파일 기반 선택 실행, 미매핑 시 full fallback
+  - Nightly full(`nightly-full.yml`): 주기적 `make gate` 전체 회귀 점검
+- 외부 연동 계층:
+  - Canary(`canary.yml`): 실 API + webhook 경로 점검
+  - Live E2E(`live-e2e.yml`): 보호 환경 실자격증명 검증
+  - 로컬 Live E2E: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`
+- 운영/성능 계층:
+  - Soak(`soak.yml`): 장시간 합성 부하 예산 검증
+  - SLO(`scripts/slo_report.py`): 성공률/실패율/지연/잔량 산출
+  - 성능 회귀(`scripts.compare_perf_reports`): 핵심 지표 회귀율 `> 20%` 실패
+- 계약 회귀: 이벤트 이름/페이로드, 설정, CLI 스냅샷 테스트 유지
 
 ## 4) 남은 리스크
 
-- 이벤트 문서 정합성은 이벤트 이름/존재 중심 검증이며 필드 의미 변경은 리뷰 보완이 필요
-- 성능 baseline은 추세 지표이며 절대 성능 SLA 판정 용도로는 사용하지 않음
-- soak는 합성 워크로드 기반이므로 실트래픽/실의존성 시나리오는 canary/운영 지표와 함께 해석 필요
-- live-e2e는 외부 의존성 상태에 영향받으므로 실패 시 코드 회귀와 외부 장애를 분리해서 해석해야 함
+- 이벤트 문서 동기화는 이름/핵심 필드 중심이므로 필드 의미 변경은 코드리뷰 보완 필요
+- 성능 baseline/soak는 합성 지표이므로 실운영 장애 판단은 canary/live-e2e/운영 관측과 함께 해석 필요
+- live-e2e 실패는 코드 회귀와 외부 의존성 장애를 분리해서 판정해야 함
 
 ## 5) 우선순위
 
