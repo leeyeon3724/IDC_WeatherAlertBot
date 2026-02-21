@@ -1,0 +1,117 @@
+name: Soak
+
+on:
+  schedule:
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+    inputs:
+      cycles:
+        description: "Number of soak cycles"
+        required: false
+        default: "6000"
+      area_count:
+        description: "Synthetic area count"
+        required: false
+        default: "3"
+      new_event_every:
+        description: "Inject new synthetic event every N cycles (0 disables)"
+        required: false
+        default: "0"
+      max_memory_growth_kib:
+        description: "Allowed memory growth budget in KiB"
+        required: false
+        default: "8192"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/soak.yml"
+      - "scripts/soak_report.py"
+      - "tests/test_soak_report.py"
+      - "docs/BACKLOG.md"
+      - "docs/TESTING.md"
+      - "docs/OPERATION.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soak-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Resolve soak parameters
+        id: params
+        env:
+          INPUT_CYCLES: ${{ github.event.inputs.cycles }}
+          INPUT_AREA_COUNT: ${{ github.event.inputs.area_count }}
+          INPUT_NEW_EVENT_EVERY: ${{ github.event.inputs.new_event_every }}
+          INPUT_MAX_MEMORY_GROWTH_KIB: ${{ github.event.inputs.max_memory_growth_kib }}
+          VAR_SOAK_CYCLES: ${{ vars.SOAK_CYCLES }}
+          VAR_SOAK_AREA_COUNT: ${{ vars.SOAK_AREA_COUNT }}
+          VAR_SOAK_NEW_EVENT_EVERY: ${{ vars.SOAK_NEW_EVENT_EVERY }}
+          VAR_SOAK_MAX_MEMORY_GROWTH_KIB: ${{ vars.SOAK_MAX_MEMORY_GROWTH_KIB }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            cycles=800
+            area_count=2
+            new_event_every=0
+            max_memory_growth_kib=6144
+          else
+            cycles="${INPUT_CYCLES:-${VAR_SOAK_CYCLES:-6000}}"
+            area_count="${INPUT_AREA_COUNT:-${VAR_SOAK_AREA_COUNT:-3}}"
+            new_event_every="${INPUT_NEW_EVENT_EVERY:-${VAR_SOAK_NEW_EVENT_EVERY:-0}}"
+            max_memory_growth_kib="${INPUT_MAX_MEMORY_GROWTH_KIB:-${VAR_SOAK_MAX_MEMORY_GROWTH_KIB:-8192}}"
+          fi
+          if [[ "$new_event_every" == "0" ]]; then
+            max_state_growth=0
+          else
+            max_state_growth=200
+          fi
+
+          echo "cycles=$cycles" >> "$GITHUB_OUTPUT"
+          echo "area_count=$area_count" >> "$GITHUB_OUTPUT"
+          echo "new_event_every=$new_event_every" >> "$GITHUB_OUTPUT"
+          echo "max_memory_growth_kib=$max_memory_growth_kib" >> "$GITHUB_OUTPUT"
+          echo "max_state_growth=$max_state_growth" >> "$GITHUB_OUTPUT"
+
+      - name: Run synthetic soak
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/soak
+          python -m scripts.soak_report \
+            --cycles "${{ steps.params.outputs.cycles }}" \
+            --area-count "${{ steps.params.outputs.area_count }}" \
+            --new-event-every "${{ steps.params.outputs.new_event_every }}" \
+            --max-pending 0 \
+            --max-duplicate-deliveries 0 \
+            --max-state-growth "${{ steps.params.outputs.max_state_growth }}" \
+            --max-memory-growth-kib "${{ steps.params.outputs.max_memory_growth_kib }}" \
+            --state-file artifacts/soak/sent_messages.soak.json \
+            --json-output artifacts/soak/report.json \
+            --markdown-output artifacts/soak/report.md
+          cat artifacts/soak/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload soak artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-${{ github.run_id }}
+          path: artifacts/soak
+          if-no-files-found: warn

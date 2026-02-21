@@ -89,3 +89,16 @@ python3 main.py migrate-state \
 판정 규칙:
 - 성공 조건: `startup.ready`, `cycle.start`, `cycle.complete`, `shutdown.run_once_complete` 이벤트 존재 + webhook probe 성공 + 주요 실패 이벤트 부재
 - 실패 이벤트: `startup.invalid_config`, `shutdown.unexpected_error`, `area.failed`, `notification.final_failure`, `state.read_failed`, `state.persist_failed`
+
+## 8. Soak 안정성 검증
+
+- 워크플로: `.github/workflows/soak.yml`
+- 트리거: `schedule(매일)`, `workflow_dispatch`, `pull_request(quick soak)`
+- 리포트: `artifacts/soak/report.json`, `artifacts/soak/report.md`
+- 로컬 실행: `make soak-report` 또는 `python3 -m scripts.soak_report ...`
+
+예산(기본):
+- `max_pending=0`
+- `max_duplicate_deliveries=0`
+- `max_state_growth=0` (`new_event_every=0` 기준)
+- `max_memory_growth_kib=8192`

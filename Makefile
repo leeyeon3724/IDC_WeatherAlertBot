@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline check-docs check-arch check-hygiene
+.PHONY: install install-dev run dry-run test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report check-docs check-arch check-hygiene
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -51,6 +51,9 @@ perf-report:
 
 perf-baseline:
 	$(PYTHON) -m scripts.perf_baseline --reports artifacts/perf/local.json --max-samples 20 --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
+
+soak-report:
+	$(PYTHON) -m scripts.soak_report --cycles $${CYCLES:-3000} --area-count $${AREAS:-3} --max-memory-growth-kib $${MAX_MEMORY_GROWTH_KIB:-8192} --json-output artifacts/soak/local.json --markdown-output artifacts/soak/local.md
 
 check-docs:
 	$(PYTHON) -m scripts.check_event_docs_sync

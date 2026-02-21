@@ -28,6 +28,7 @@ make check-arch
 make check-hygiene
 make perf-report
 make perf-baseline
+make soak-report
 make check-docs
 python3 main.py cleanup-state --days 30
 python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db
