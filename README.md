@@ -32,6 +32,7 @@ make install
 make install-dev
 make test
 make gate
+make check-arch
 make perf-report
 make perf-baseline
 make check-docs

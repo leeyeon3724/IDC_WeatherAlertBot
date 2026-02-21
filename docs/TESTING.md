@@ -36,9 +36,10 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 - `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장
 - redaction 통합 시나리오(`area.failed`, `notification.final_failure`) 테스트 추가
 - CI: `make gate` 단일 품질 게이트 + perf report/compare/baseline + docs consistency check + PR 체크리스트 도입
+- 아키텍처 의존성 경계 자동검사 도입 (`scripts/check_architecture_rules.py`, `tests/test_architecture_rules.py`)
 
 ## 5) 다음 우선순위
 
-1. 아키텍처 의존성 규칙 자동검사 도입 (`RB-701`)
-2. 계약 안정성 테스트 계층 도입 (`RB-702`)
-3. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
+1. 계약 안정성 테스트 계층 도입 (`RB-702`)
+2. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
+3. perf 리포트 보존 기간/샘플 정책 표준화 (`RB-507`)
