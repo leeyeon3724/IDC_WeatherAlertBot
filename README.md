@@ -20,41 +20,15 @@ DRY_RUN=true RUN_ONCE=true python3 main.py
 ## 주요 명령어
 
 ```bash
-make install
 make install-dev
-make test
-make testing-snapshot
 make gate
-make check-arch
-make check-hygiene
-make check-env-sync
-make perf-report
-make perf-baseline
-make soak-report
-make slo-report
 make live-e2e-local
-make select-tests
-make check-docs
-python3 main.py cleanup-state --days 30
-python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db
-python3 main.py verify-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db --strict
+make testing-snapshot
 ```
 
-## 로컬 Live E2E
-
-실제 테스트용 자격증명(API/Webhook)으로 1회 검증이 필요하면 로컬 전용 env 파일을 사용합니다.
-
-```bash
-cp .env.live-e2e.example .env.live-e2e
-# .env.live-e2e에 테스트용 키/URL 입력
-make live-e2e-local
-# make가 없으면
-./scripts/run_live_e2e_local.sh .env.live-e2e
-```
-
-- `.env.live-e2e`는 git ignore 대상이며 커밋되지 않습니다.
-- 실행 가드는 `ENABLE_LIVE_E2E=true`가 없으면 동작하지 않습니다.
-- 실행 결과는 `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/slo_report.json`으로 남습니다.
+- 설치/환경변수/로컬 실행 상세: `docs/SETUP.md`
+- 운영/장애 대응/알람 기준: `docs/OPERATION.md`
+- 테스트/품질 게이트/자동화: `docs/TESTING.md`
 
 ## 문서
 
