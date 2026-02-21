@@ -111,7 +111,11 @@ python3 main.py migrate-state \
 - 준비: `cp .env.live-e2e.example .env.live-e2e` 후 테스트용 실자격증명 입력
 - 실행: `make live-e2e-local`
 - 가드: `ENABLE_LIVE_E2E=true`가 없으면 실행 차단
-- 산출물: `artifacts/live-e2e/local/service.log`
+- 산출물:
+  - `artifacts/live-e2e/local/service.log`
+  - `artifacts/live-e2e/local/webhook_probe.json`
+  - `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/report.md`
+  - `artifacts/live-e2e/local/slo_report.json`, `artifacts/live-e2e/local/slo_report.md`
 
 ## 9. Soak 안정성 검증
 

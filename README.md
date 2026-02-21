@@ -52,6 +52,7 @@ make live-e2e-local
 
 - `.env.live-e2e`는 git ignore 대상이며 커밋되지 않습니다.
 - 실행 가드는 `ENABLE_LIVE_E2E=true`가 없으면 동작하지 않습니다.
+- 실행 결과는 `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/slo_report.json`으로 남습니다.
 
 ## 문서
 

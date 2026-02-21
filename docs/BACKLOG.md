@@ -23,7 +23,7 @@
 | ID | Priority | 상태 | 주제 | 문제/리스크 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|---|
 | RB-901 | P1 | 완료 | 상태검증 신뢰성 강화 | `state_verifier` 커버리지(`73%`)가 상대적으로 낮아 회귀 탐지 사각 가능 | `tests/test_state_verifier.py`에 경계/오류 분기 테스트 추가, 누락 분기 커버 | `state_verifier` 커버리지 `>= 85%` + 관련 테스트 PASS |
-| RB-902 | P1 | 진행중 | 실연동 검증 결과 표준화 | 로컬 live-e2e는 로그 중심, canary/live-e2e CI는 report 중심이라 비교/추적 일관성 약함 | 로컬 실행 후 `canary_report`/`slo_report` 형식의 JSON/MD 아티팩트 생성 경로 추가 | 로컬/CI 모두 동일 필드(`status`, `required_events`, `SLO`)로 리포트 생성 |
+| RB-902 | P1 | 완료 | 실연동 검증 결과 표준화 | 로컬 live-e2e는 로그 중심, canary/live-e2e CI는 report 중심이라 비교/추적 일관성 약함 | 로컬 실행 후 `canary_report`/`slo_report` 형식의 JSON/MD 아티팩트 생성 경로 추가 | 로컬/CI 모두 동일 필드(`status`, `required_events`, `SLO`)로 리포트 생성 |
 | RB-903 | P2 | 진행중 | 테스트 지표 문서 자동화 | `docs/TESTING.md`의 테스트 수/커버리지 수치가 수동 관리되어 드리프트 위험 | `make test-cov` 결과를 문서 스냅샷으로 갱신하는 스크립트/명령 추가 | 문서 수치가 자동 생성값과 일치, 수동 수정 포인트 제거 |
 | RB-904 | P2 | 진행중 | 환경 설정 일관성 점검 강화 | `.env.example`/`.env.live-e2e.example`/`docker-compose.yml` 간 기본값 차이를 사람이 놓칠 수 있음 | 설정 diff 체크 스크립트(허용 차이 allowlist 포함) + CI 검사 추가 | 허용되지 않은 설정 차이 발생 시 CI 실패 |
 | RB-905 | P3 | 진행중 | 유지보수 문서 경량화 | 문서 간 일부 내용이 중복되어 변경 시 동기화 비용 증가 | `README`는 진입점, 상세는 `SETUP/OPERATION/TESTING`에 위임하도록 중복 제거 | 문서 역할 경계 명확, 중복 섹션 최소화 |

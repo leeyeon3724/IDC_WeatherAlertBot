@@ -69,6 +69,7 @@ make live-e2e-local
 - `ENABLE_LIVE_E2E=true`가 없으면 실행되지 않습니다.
 - 실행 시 `RUN_ONCE=true`, `DRY_RUN=false`가 강제됩니다.
 - 상태 파일은 `artifacts/live-e2e/local/*` 경로로 분리됩니다.
+- 실행 리포트는 `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/slo_report.json`으로 생성됩니다.
 
 상태 정리:
 

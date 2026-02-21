@@ -4,6 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${1:-$ROOT_DIR/.env.live-e2e}"
 LOG_FILE="${LIVE_E2E_LOG_FILE:-$ROOT_DIR/artifacts/live-e2e/local/service.log}"
+ARTIFACT_DIR="${LIVE_E2E_ARTIFACT_DIR:-$(dirname "$LOG_FILE")}"
+WEBHOOK_PROBE_FILE="${LIVE_E2E_WEBHOOK_PROBE_FILE:-$ARTIFACT_DIR/webhook_probe.json}"
+REPORT_JSON_FILE="${LIVE_E2E_REPORT_JSON_FILE:-$ARTIFACT_DIR/report.json}"
+REPORT_MD_FILE="${LIVE_E2E_REPORT_MD_FILE:-$ARTIFACT_DIR/report.md}"
+SLO_JSON_FILE="${LIVE_E2E_SLO_JSON_FILE:-$ARTIFACT_DIR/slo_report.json}"
+SLO_MD_FILE="${LIVE_E2E_SLO_MD_FILE:-$ARTIFACT_DIR/slo_report.md}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   cat >&2 <<EOF
@@ -126,9 +132,104 @@ export HEALTH_STATE_FILE="${HEALTH_STATE_FILE:-$ROOT_DIR/artifacts/live-e2e/loca
 mkdir -p "$(dirname "$SENT_MESSAGES_FILE")"
 mkdir -p "$(dirname "$HEALTH_STATE_FILE")"
 mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$ARTIFACT_DIR"
 
 echo "Running live-e2e local one-shot test (log: $LOG_FILE)"
+set +e
 (
   cd "$ROOT_DIR"
   python3 main.py run 2>&1 | tee "$LOG_FILE"
 )
+service_exit_code=$?
+set -e
+
+echo "Running live-e2e webhook probe (result: $WEBHOOK_PROBE_FILE)"
+set +e
+WEBHOOK_PROBE_FILE="$WEBHOOK_PROBE_FILE" python3 - <<'PY'
+from __future__ import annotations
+
+import json
+import os
+from datetime import UTC, datetime
+
+from app.services.notifier import DoorayNotifier
+
+output = os.environ["WEBHOOK_PROBE_FILE"]
+webhook_url = os.environ["SERVICE_HOOK_URL"]
+result = {
+    "passed": False,
+    "error": "",
+    "timestamp_utc": datetime.now(UTC).isoformat(),
+}
+try:
+    notifier = DoorayNotifier(
+        hook_url=webhook_url,
+        bot_name="weather-alert-live-e2e-local",
+        timeout_sec=5,
+        connect_timeout_sec=5,
+        read_timeout_sec=5,
+        max_retries=2,
+        retry_delay_sec=1,
+    )
+    notifier.send(
+        "[live-e2e-local] webhook delivery probe "
+        + datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
+    result["passed"] = True
+except Exception as exc:
+    result["error"] = str(exc)
+
+with open(output, "w", encoding="utf-8") as file:
+    json.dump(result, file, ensure_ascii=False, indent=2, sort_keys=True)
+
+raise SystemExit(0 if result["passed"] else 1)
+PY
+webhook_probe_exit_code=$?
+set -e
+
+echo "Building local live-e2e canary report"
+set +e
+(
+  cd "$ROOT_DIR"
+  python3 -m scripts.canary_report \
+    --log-file "$LOG_FILE" \
+    --service-exit-code "$service_exit_code" \
+    --webhook-probe-file "$WEBHOOK_PROBE_FILE" \
+    --json-output "$REPORT_JSON_FILE" \
+    --markdown-output "$REPORT_MD_FILE"
+)
+canary_report_exit_code=$?
+
+echo "Building local live-e2e SLO report"
+(
+  cd "$ROOT_DIR"
+  python3 -m scripts.slo_report \
+    --log-file "$LOG_FILE" \
+    --min-success-rate 1.0 \
+    --max-failure-rate 0.0 \
+    --max-p95-cycle-latency-sec 600 \
+    --max-pending-latest 0 \
+    --json-output "$SLO_JSON_FILE" \
+    --markdown-output "$SLO_MD_FILE"
+)
+slo_report_exit_code=$?
+set -e
+
+echo "Local live-e2e artifacts:"
+echo "  - log: $LOG_FILE"
+echo "  - webhook probe: $WEBHOOK_PROBE_FILE"
+echo "  - canary report: $REPORT_JSON_FILE"
+echo "  - canary markdown: $REPORT_MD_FILE"
+echo "  - slo report: $SLO_JSON_FILE"
+echo "  - slo markdown: $SLO_MD_FILE"
+
+if [[ "$canary_report_exit_code" -ne 0 || "$slo_report_exit_code" -ne 0 ]]; then
+  echo "live-e2e local verification failed." >&2
+  echo "  service_exit_code=$service_exit_code" >&2
+  echo "  webhook_probe_exit_code=$webhook_probe_exit_code" >&2
+  echo "  canary_report_exit_code=$canary_report_exit_code" >&2
+  echo "  slo_report_exit_code=$slo_report_exit_code" >&2
+  exit 1
+fi
+
+echo "live-e2e local verification passed."
