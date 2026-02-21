@@ -170,6 +170,40 @@ jobs:
             --output artifacts/perf/head.json \
             --markdown-output artifacts/perf/head.md
           cat artifacts/perf/head.md >> "$GITHUB_STEP_SUMMARY"
+      - name: State integrity verification smoke
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/state-check
+          cat > artifacts/state-check/sample_state.json <<'JSON'
+          {
+            "version": 2,
+            "events": {
+              "event:sample:202602210000:1:발표:정상": {
+                "area_code": "L1090000",
+                "message": "sample alert",
+                "report_url": null,
+                "sent": false,
+                "first_seen_at": "2026-02-21T00:00:00Z",
+                "updated_at": "2026-02-21T00:00:00Z",
+                "last_sent_at": null
+              }
+            }
+          }
+          JSON
+
+          python main.py migrate-state \
+            --json-state-file artifacts/state-check/sample_state.json \
+            --sqlite-state-file artifacts/state-check/sample_state.db
+
+          python main.py verify-state \
+            --json-state-file artifacts/state-check/sample_state.json \
+            --sqlite-state-file artifacts/state-check/sample_state.db \
+            --strict \
+            > artifacts/state-check/verify.log
+
+          printf '## State Integrity Verify\n\n- status: PASS\n- command: `python main.py verify-state --strict`\n' \
+            > artifacts/state-check/verify.md
+          cat artifacts/state-check/verify.md >> "$GITHUB_STEP_SUMMARY"
       - name: Compare perf report with PR base
         if: github.event_name == 'pull_request'
         run: |
@@ -224,6 +258,7 @@ jobs:
           path: |
             artifacts/perf
             artifacts/docs-check
+            artifacts/state-check
           if-no-files-found: warn
       - name: Docker build smoke test
         run: docker build -t weather-alert-bot-ci .

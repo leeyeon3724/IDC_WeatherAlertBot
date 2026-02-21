@@ -117,3 +117,9 @@ python3 main.py migrate-state \
 - 실패율(`failure_rate`) `<= 0.0` (canary 기준)
 - p95 사이클 지연(`cycle_latency_p95_sec`) `<= 600`
 - 최신 미전송 잔량(`pending_latest`) `<= 0`
+
+## 10. 배포 전 상태 무결성 게이트
+
+- CI 연동: `.github/workflows/ci.yml`의 `State integrity verification smoke` 단계
+- 검증 경로: `migrate-state` -> `verify-state --strict`
+- 산출물: `artifacts/state-check/verify.log`, `artifacts/state-check/verify.md`
