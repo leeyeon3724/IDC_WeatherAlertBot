@@ -68,6 +68,8 @@ python3 main.py migrate-state \
 | `cycle.cost.metrics` | 1시간 평균 대비 `api_fetch_calls` 또는 `notification_attempts` `>= 2x` | `api_fetch_calls`, `notification_attempts`, `notification_failures`, `pending_total` | 호출량/전송량 급증 구간 확인, 최근 설정/장애 이벤트와 상관관계 점검 | `AREA_CODES`, 재시도/주기 설정 재조정 후 24시간 추세 재평가 |
 | `area.failed` | 5분 합계 `>= 20` | `error_code`, `area_code`, `error` | 네트워크/API 상태 점검, 실패 지역 편중 여부 확인 | 임시로 `CYCLE_INTERVAL_SEC` 상향 후 장애 원인 분리 |
 | `notification.final_failure` | 10분 합계 `>= 5` | `attempts`, `event_id`, `error` | Webhook URL/권한/수신 시스템 상태 점검 | 실패 이벤트 재전송 여부 확인, 웹훅 교체 시 설정 반영 |
+| `notification.circuit.opened` | 단일 이벤트 즉시 경고 | `consecutive_failures`, `reset_sec` | 반복 실패 폭주로 판단, 웹훅/네트워크 즉시 점검 | 회로 닫힘(`notification.circuit.closed`) 이후 정상 전송 복구 여부 확인 |
+| `notification.backpressure.applied` | 10분 합계 `>= 1` | `area_code`, `max_attempts_per_cycle`, `skipped` | 사이클 전송 예산 도달 여부 확인, 실패 누적 원인 확인 | `NOTIFIER_MAX_ATTEMPTS_PER_CYCLE` 조정 및 실패 원인 제거 |
 | `health.notification.sent` (`outage_detected`) | 단일 이벤트 즉시 경고 | `health_event`, `incident_duration_sec` | 장애 공지 전파, 외부 의존성 상태 확인 | heartbeat 발생 추세 모니터링 및 복구 조건 점검 |
 | `health.notification.sent` (`outage_heartbeat`) | 2회 연속 발생 | `health_event`, `incident_failed_cycles` | 장기 장애로 분류, 우회 경로 검토 | API 실패 코드 분포 기준으로 공급자/네트워크 이슈 분리 |
 | `state.cleanup.failed` | 단일 이벤트 즉시 경고 | `state_file`, `error` | 파일 권한/경로/디스크 용량 확인 | 스토리지 정책 수정 및 cleanup 재실행 |

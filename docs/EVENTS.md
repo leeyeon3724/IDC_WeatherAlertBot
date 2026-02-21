@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `3`
+- schema_version: `4`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -20,6 +20,7 @@
 | 1 | 2026-02-21 | 이벤트 스키마 버전 기준 수립 및 동기화 검증 도입 | Initial |
 | 2 | 2026-02-21 | 비용 관점 사이클 지표(`cycle.cost.metrics`) 추가 및 `cycle.complete` 필드 확장 | Backward-compatible |
 | 3 | 2026-02-21 | 상태 저장소 무결성 검증 이벤트(`state.verify.complete`, `state.verify.failed`) 추가 | Backward-compatible |
+| 4 | 2026-02-21 | 알림 폭주 완화 이벤트(`notification.backpressure.applied`, `notification.circuit.*`) 및 cycle 비용 필드 확장 | Backward-compatible |
 
 ## Runtime Lifecycle
 
@@ -32,11 +33,11 @@
 ## Cycle
 
 - `cycle.start`: `start_date`, `end_date`, `area_count`
-- `cycle.complete`: `start_date`, `end_date`, `area_count`, `areas_processed`, `area_failures`, `alerts_fetched`, `api_fetch_calls`, `newly_tracked`, `notification_attempts`, `sent_count`, `send_failures`, `notification_dry_run_skips`, `pending_total`
+- `cycle.complete`: `start_date`, `end_date`, `area_count`, `areas_processed`, `area_failures`, `alerts_fetched`, `api_fetch_calls`, `newly_tracked`, `notification_attempts`, `sent_count`, `send_failures`, `notification_dry_run_skips`, `notification_backpressure_skips`, `pending_total`
 - `cycle.parallel_fetch`: `workers`, `area_count`
 - `cycle.area_interval_ignored`: `area_interval_sec`
 - `cycle.interval.adjusted`: `base_interval_sec`, `adjusted_interval_sec`, `incident_open`
-- `cycle.cost.metrics`: `api_fetch_calls`, `alerts_fetched`, `notification_attempts`, `notification_sent`, `notification_failures`, `notification_dry_run_skips`, `pending_total`
+- `cycle.cost.metrics`: `api_fetch_calls`, `alerts_fetched`, `notification_attempts`, `notification_sent`, `notification_failures`, `notification_dry_run_skips`, `notification_backpressure_skips`, `pending_total`
 
 ## Area Processing
 
@@ -52,6 +53,10 @@
 - `notification.retry`: `attempt`, `max_retries`, `error`, `backoff_sec`
 - `notification.final_failure`: `event_id`, `area_code`, `attempts`, `error`
 - `notification.url_attachment_blocked`: `event_id`, `area_code`, `reason`
+- `notification.backpressure.applied`: `area_code`, `max_attempts_per_cycle`, `skipped`
+- `notification.circuit.opened`: `consecutive_failures`, `reset_sec`
+- `notification.circuit.blocked`: `remaining_sec`, `consecutive_failures`
+- `notification.circuit.closed`: 없음
 
 ## Health
 

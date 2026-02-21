@@ -195,6 +195,10 @@ class _RuntimeConfig:
     retry_delay_sec: int
     notifier_max_retries: int
     notifier_retry_delay_sec: int
+    notifier_max_attempts_per_cycle: int
+    notifier_circuit_breaker_enabled: bool
+    notifier_circuit_failure_threshold: int
+    notifier_circuit_reset_sec: int
     area_max_workers: int
     lookback_days: int
     cycle_interval_sec: int
@@ -337,6 +341,25 @@ def _parse_runtime_config() -> _RuntimeConfig:
         retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
         notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
         notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
+        notifier_max_attempts_per_cycle=_parse_int_env(
+            "NOTIFIER_MAX_ATTEMPTS_PER_CYCLE",
+            100,
+            minimum=1,
+        ),
+        notifier_circuit_breaker_enabled=_parse_bool_env(
+            "NOTIFIER_CIRCUIT_BREAKER_ENABLED",
+            default=True,
+        ),
+        notifier_circuit_failure_threshold=_parse_int_env(
+            "NOTIFIER_CIRCUIT_FAILURE_THRESHOLD",
+            5,
+            minimum=1,
+        ),
+        notifier_circuit_reset_sec=_parse_int_env(
+            "NOTIFIER_CIRCUIT_RESET_SEC",
+            300,
+            minimum=1,
+        ),
         area_max_workers=_parse_int_env("AREA_MAX_WORKERS", 1, minimum=1),
         lookback_days=_parse_int_env("LOOKBACK_DAYS", 0, minimum=0),
         cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
@@ -418,6 +441,10 @@ class Settings:
     notifier_read_timeout_sec: int = 5
     notifier_max_retries: int = 3
     notifier_retry_delay_sec: int = 1
+    notifier_max_attempts_per_cycle: int = 100
+    notifier_circuit_breaker_enabled: bool = True
+    notifier_circuit_failure_threshold: int = 5
+    notifier_circuit_reset_sec: int = 300
     area_max_workers: int = 1
     lookback_days: int = 0
     cycle_interval_sec: int = 10
@@ -473,6 +500,10 @@ class Settings:
             notifier_read_timeout_sec=timeouts.notifier_read_timeout_sec,
             notifier_max_retries=runtime.notifier_max_retries,
             notifier_retry_delay_sec=runtime.notifier_retry_delay_sec,
+            notifier_max_attempts_per_cycle=runtime.notifier_max_attempts_per_cycle,
+            notifier_circuit_breaker_enabled=runtime.notifier_circuit_breaker_enabled,
+            notifier_circuit_failure_threshold=runtime.notifier_circuit_failure_threshold,
+            notifier_circuit_reset_sec=runtime.notifier_circuit_reset_sec,
             area_max_workers=runtime.area_max_workers,
             lookback_days=runtime.lookback_days,
             cycle_interval_sec=runtime.cycle_interval_sec,

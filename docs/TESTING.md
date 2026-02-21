@@ -13,8 +13,8 @@ python3 -m scripts.soak_report --cycles 3000 --area-count 3 --max-memory-growth-
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `158`
-- 전체 커버리지: `91.35%`
+- 테스트 수: `161`
+- 전체 커버리지: `91.54%`
 - 최소 커버리지 기준: `80%`
 
 ## 3) 현재 기준
@@ -23,6 +23,7 @@ python3 -m scripts.soak_report --cycles 3000 --area-count 3 --max-memory-growth-
 - CI 추가 검증: Python 3.11/3.12 runtime smoke, PR checklist validation
 - 외부 연동 canary: `.github/workflows/canary.yml`에서 실 API + webhook 경로를 주기/PR 단위로 검증하고 리포트 아티팩트(`artifacts/canary`)를 남김
 - 장시간 안정성 soak: `.github/workflows/soak.yml`에서 합성 장기부하 리포트(`artifacts/soak/report.json`)를 생성하고 예산 초과 시 실패 처리
+- 폭주 완화 검증: `tests/test_notifier.py`, `tests/test_process_cycle.py`에서 circuit-breaker/backpressure 동작 회귀 검증
 - 계약 안정성: 이벤트 이름 + 이벤트 payload 키 + 설정 + CLI snapshot 테스트 유지
 
 ## 4) 남은 리스크

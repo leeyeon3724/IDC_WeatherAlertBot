@@ -74,6 +74,9 @@ def build_runtime(
         read_timeout_sec=settings.notifier_read_timeout_sec,
         max_retries=settings.notifier_max_retries,
         retry_delay_sec=settings.notifier_retry_delay_sec,
+        circuit_breaker_enabled=settings.notifier_circuit_breaker_enabled,
+        circuit_failure_threshold=settings.notifier_circuit_failure_threshold,
+        circuit_reset_sec=settings.notifier_circuit_reset_sec,
         logger=logger.getChild("notifier"),
     )
     processor = processor_factory(

@@ -90,6 +90,26 @@
     "name": "notifier_retry_delay_sec"
   },
   {
+    "default": 100,
+    "has_default": true,
+    "name": "notifier_max_attempts_per_cycle"
+  },
+  {
+    "default": true,
+    "has_default": true,
+    "name": "notifier_circuit_breaker_enabled"
+  },
+  {
+    "default": 5,
+    "has_default": true,
+    "name": "notifier_circuit_failure_threshold"
+  },
+  {
+    "default": 300,
+    "has_default": true,
+    "name": "notifier_circuit_reset_sec"
+  },
+  {
     "default": 1,
     "has_default": true,
     "name": "area_max_workers"

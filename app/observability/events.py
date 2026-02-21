@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-EVENT_SCHEMA_VERSION = 3
+EVENT_SCHEMA_VERSION = 4
 
 # Runtime lifecycle
 STARTUP_INVALID_CONFIG = "startup.invalid_config"
@@ -29,6 +29,10 @@ NOTIFICATION_DRY_RUN = "notification.dry_run"
 NOTIFICATION_RETRY = "notification.retry"
 NOTIFICATION_FINAL_FAILURE = "notification.final_failure"
 NOTIFICATION_URL_ATTACHMENT_BLOCKED = "notification.url_attachment_blocked"
+NOTIFICATION_BACKPRESSURE_APPLIED = "notification.backpressure.applied"
+NOTIFICATION_CIRCUIT_OPENED = "notification.circuit.opened"
+NOTIFICATION_CIRCUIT_BLOCKED = "notification.circuit.blocked"
+NOTIFICATION_CIRCUIT_CLOSED = "notification.circuit.closed"
 
 # Health
 HEALTH_EVALUATE = "health.evaluate"

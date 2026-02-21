@@ -32,6 +32,7 @@
     "alerts_fetched",
     "api_fetch_calls",
     "notification_attempts",
+    "notification_backpressure_skips",
     "notification_dry_run_skips",
     "notification_failures",
     "notification_sent",
@@ -98,6 +99,20 @@
   "health_state.read_failed": [
     "error",
     "file"
+  ],
+  "notification.backpressure.applied": [
+    "area_code",
+    "max_attempts_per_cycle",
+    "skipped"
+  ],
+  "notification.circuit.blocked": [
+    "consecutive_failures",
+    "remaining_sec"
+  ],
+  "notification.circuit.closed": [],
+  "notification.circuit.opened": [
+    "consecutive_failures",
+    "reset_sec"
   ],
   "notification.dry_run": [
     "area_code",

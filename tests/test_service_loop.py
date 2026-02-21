@@ -253,3 +253,4 @@ def test_run_loop_emits_cycle_cost_metrics_event(tmp_path: Path) -> None:
     assert cycle_cost[0]["notification_attempts"] == 2
     assert cycle_cost[0]["notification_sent"] == 1
     assert cycle_cost[0]["notification_failures"] == 1
+    assert cycle_cost[0]["notification_backpressure_skips"] == 0

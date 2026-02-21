@@ -213,6 +213,7 @@ def run_loop(
                     notification_sent=stats.sent_count,
                     notification_failures=stats.send_failures,
                     notification_dry_run_skips=stats.notification_dry_run_skips,
+                    notification_backpressure_skips=stats.notification_backpressure_skips,
                     pending_total=stats.pending_total,
                 )
             )

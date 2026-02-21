@@ -170,6 +170,49 @@ def test_process_cycle_dry_run_does_not_send_or_mark(tmp_path) -> None:
     assert notifier.sent_messages == []
 
 
+def test_process_cycle_applies_notification_backpressure_budget(tmp_path) -> None:
+    settings = Settings(
+        **{
+            **_settings(tmp_path).__dict__,
+            "notifier_max_attempts_per_cycle": 1,
+        }
+    )
+    repo = JsonStateRepository(settings.sent_messages_file)
+    second_alert = AlertEvent(
+        area_code="11B00000",
+        area_name="서울",
+        warn_var="강풍",
+        warn_stress="주의보",
+        command="발표",
+        cancel="정상",
+        start_time="2026년 2월 20일 오전 10시",
+        end_time="2026년 2월 20일 오후 7시",
+        stn_id="109",
+        tm_fc="202602201000",
+        tm_seq="2",
+    )
+    weather_client = FakeWeatherClient({"11B00000": [_sample_alert(), second_alert]})
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.backpressure"),
+    )
+
+    now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    stats = usecase.run_once(now=now)
+
+    assert stats.newly_tracked == 2
+    assert stats.notification_attempts == 1
+    assert stats.notification_backpressure_skips == 1
+    assert stats.sent_count == 1
+    assert stats.pending_total == 1
+    assert len(notifier.sent_messages) == 1
+
+
 def test_process_cycle_applies_lookback_days(tmp_path) -> None:
     settings = _settings(tmp_path)
     settings = Settings(**{**settings.__dict__, "lookback_days": 2})

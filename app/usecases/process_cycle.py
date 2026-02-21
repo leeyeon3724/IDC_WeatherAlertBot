@@ -31,6 +31,7 @@ class CycleStats:
     sent_count: int = 0
     send_failures: int = 0
     notification_dry_run_skips: int = 0
+    notification_backpressure_skips: int = 0
     pending_total: int = 0
     api_error_counts: dict[str, int] = field(default_factory=dict)
     last_api_error: str | None = None
@@ -207,7 +208,24 @@ class ProcessCycleUseCase:
 
     def _dispatch_unsent_for_area(self, *, area_code: str, stats: CycleStats) -> None:
         successful_event_ids: list[str] = []
-        for row in self.state_repo.get_unsent(area_code=area_code):
+        unsent_rows = self.state_repo.get_unsent(area_code=area_code)
+        max_attempts_per_cycle = self.settings.notifier_max_attempts_per_cycle
+        for index, row in enumerate(unsent_rows):
+            if (
+                max_attempts_per_cycle > 0
+                and stats.notification_attempts >= max_attempts_per_cycle
+            ):
+                skipped = len(unsent_rows) - index
+                stats.notification_backpressure_skips += skipped
+                self.logger.warning(
+                    log_event(
+                        events.NOTIFICATION_BACKPRESSURE_APPLIED,
+                        area_code=area_code,
+                        max_attempts_per_cycle=max_attempts_per_cycle,
+                        skipped=skipped,
+                    )
+                )
+                break
             if self.settings.dry_run:
                 stats.notification_dry_run_skips += 1
                 self.logger.info(

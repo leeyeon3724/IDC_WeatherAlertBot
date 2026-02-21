@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pytest
 import requests
 
+from app.services import notifier as notifier_module
 from app.services.notifier import DoorayNotifier, NotificationError
 
 
@@ -72,3 +74,44 @@ def test_notifier_raises_after_max_retries() -> None:
         assert isinstance(exc.last_error, requests.RequestException)
         assert session.calls == 3
 
+
+def test_notifier_circuit_breaker_blocks_until_reset(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = FakeSession(
+        [
+            requests.Timeout("timeout-1"),
+            requests.Timeout("timeout-2"),
+            DummyResponse(should_raise=False),
+        ]
+    )
+    current = [0.0]
+    monkeypatch.setattr(notifier_module.time, "monotonic", lambda: current[0])
+
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        circuit_breaker_enabled=True,
+        circuit_failure_threshold=2,
+        circuit_reset_sec=30,
+        session=session,
+    )
+
+    with pytest.raises(NotificationError) as first:
+        notifier.send("hello")
+    assert first.value.attempts == 1
+
+    with pytest.raises(NotificationError) as second:
+        notifier.send("hello")
+    assert second.value.attempts == 1
+    assert session.calls == 2
+
+    with pytest.raises(NotificationError) as blocked:
+        notifier.send("hello")
+    assert blocked.value.attempts == 0
+    assert session.calls == 2
+
+    current[0] = 31.0
+    notifier.send("hello")
+    assert session.calls == 3

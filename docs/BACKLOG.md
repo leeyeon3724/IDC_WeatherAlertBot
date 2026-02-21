@@ -31,10 +31,11 @@
 ## 2) Evidence Snapshot
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov` 통과
-- 테스트/커버리지: `158 passed`, 총 커버리지 `91.35%`
+- 테스트/커버리지: `161 passed`, 총 커버리지 `91.54%`
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
 - canary 운영 검증 기반: `.github/workflows/canary.yml` + `scripts/canary_report.py` 도입(시크릿 구성 후 운영 검증 필요)
 - soak 안정성 검증 기반: `.github/workflows/soak.yml` + `scripts/soak_report.py` 도입(운영 추세 관측 축적 필요)
+- 알림 폭주 완화 정책: notifier 회로차단(`notification.circuit.*`) + 사이클 예산 기반 backpressure(`notification.backpressure.applied`) 도입
 - 이벤트 payload 계약 검증: `tests/contracts/event_payload_contract.json` + `scripts/event_payload_contract.py` 도입
 - 상태 무결성 점검 CLI: `python3 main.py verify-state ... --strict` 도입
 - 서비스 요구사항 충족도: `6/8` (`SR-07`, `SR-08` 검증대기)
@@ -45,7 +46,7 @@
 |---|---|---|---|---|---|---|
 | RB-801 | P1 | 검증대기 | 제품 신뢰성 / 운영 관측·추적성 | SR-07 | 스테이징 canary 워크플로/리포트 도입(실 API + webhook 검증 채널) | 일/PR 기준 canary 결과와 실패 원인이 아티팩트/이벤트로 추적 가능 |
 | RB-802 | P1 | 검증대기 | 제품 신뢰성 / 성능·비용 효율 | SR-08 | 장시간 soak 테스트(예: 24h) + 안정성 예산(메모리/상태크기/중복전송률) 정의(합성 soak 자동화 도입) | soak 리포트 자동 생성, 허용 임계치 초과 시 CI/운영 경고 |
-| RB-804 | P2 | 예정 | 제품 신뢰성 / 성능·비용 효율 | SR-01, SR-04 | 전송 실패 폭주 완화(알림 backpressure/circuit-breaker) 정책 도입 | 반복 실패 시 과도한 재시도/전송 시도가 제한되고 복구 시 자동 정상화 |
+| RB-804 | P2 | 검증대기 | 제품 신뢰성 / 성능·비용 효율 | SR-01, SR-04 | 전송 실패 폭주 완화(알림 backpressure/circuit-breaker) 정책 도입 | 반복 실패 시 과도한 재시도/전송 시도가 제한되고 복구 시 자동 정상화 |
 | RB-805 | P2 | 예정 | 운영 관측·추적성 / 변경 효율 | SR-06 | 운영 SLO 리포트 자동화(성공 전송률/실패율/지연/미전송 잔량) | 배포/운영 후 SLO 리포트가 주기적으로 생성되고 임계 초과 시 경고 |
 | RB-806 | P3 | 진행중 | 설계·코드 품질 / 변경 효율 | SR-03 | 상태 저장소 점검 CLI(`verify-state`) 도입(JSON/SQLite 무결성/마이그레이션 전 검사, CLI 구현 완료·자동화 연동 잔여) | 배포 전 상태 무결성 점검을 자동 수행하고 실패 원인을 표준 출력으로 제공 |
 | RB-807 | P3 | 예정 | 변경 효율 / 검증력(테스트·계약) | SR-06 | 변경영향 기반 테스트 선택 실행(빠른 PR 게이트 + 야간 full gate) 전략 정립 | PR 리드타임 단축, full gate 회귀 탐지력 유지, 정책이 CI 문서와 일치 |
