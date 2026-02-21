@@ -312,6 +312,32 @@ def test_fetch_alerts_raises_parse_error_for_invalid_xml(tmp_path) -> None:
     assert exc_info.value.code == API_ERROR_PARSE
 
 
+def test_fetch_alerts_raises_result_code_error_in_integration_path(tmp_path) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                b"<response><header><resultCode>10</resultCode></header></response>",
+            )
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
+        session=session,
+        logger=logging.getLogger("test.weather.api.result_code"),
+    )
+
+    with pytest.raises(WeatherApiError, match="API response error 10") as exc_info:
+        client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+    assert exc_info.value.code == API_ERROR_RESULT
+    assert exc_info.value.result_code == "10"
+
+
 def test_fetch_alerts_raises_unknown_when_retry_loop_is_skipped(tmp_path) -> None:
     session = FakeSession([])
     client = WeatherAlertClient(

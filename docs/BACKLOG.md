@@ -48,7 +48,7 @@
     - 로깅 테스트에 teardown/fixture로 logger 상태 완전 복원
     - 순서 의존 회귀 검증(`logging_utils` + 저장소 로그 테스트 조합) 추가
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 외부 연동 서비스 테스트의 실패 경로 탐지력 보강(weather_api/notifier)
   - 근거: `tests/test_weather_api.py`는 `fetch_alerts` 경로의 API result-code 오류(`API_ERROR_RESULT`) 통합 검증이 없고, `tests/test_notifier.py`는 circuit breaker 비활성 경로/양수 backoff 증가 시퀀스 검증이 부족함
   - 완료 기준:

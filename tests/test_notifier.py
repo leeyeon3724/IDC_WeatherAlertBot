@@ -156,6 +156,65 @@ def test_notifier_backoff_stays_zero_when_retry_delay_is_zero(
     assert slept == [], "retry_delay_sec=0 설정 시 sleep이 호출되어서는 안 됨"
 
 
+def test_notifier_backoff_doubles_when_retry_delay_is_positive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    slept: list[float] = []
+    monkeypatch.setattr(notifier_module.time, "sleep", lambda s: slept.append(s))
+
+    session = FakeSession(
+        [
+            requests.Timeout("timeout-1"),
+            requests.Timeout("timeout-2"),
+            DummyResponse(should_raise=False),
+        ]
+    )
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=3,
+        retry_delay_sec=1,
+        session=session,
+    )
+
+    notifier.send("hello")
+    assert session.calls == 3
+    assert slept == [1, 2]
+
+
+def test_notifier_circuit_disabled_never_blocks_send() -> None:
+    session = FakeSession(
+        [
+            requests.Timeout("timeout-1"),
+            requests.Timeout("timeout-2"),
+            requests.Timeout("timeout-3"),
+        ]
+    )
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        circuit_breaker_enabled=False,
+        circuit_failure_threshold=1,
+        circuit_reset_sec=30,
+        session=session,
+    )
+
+    with pytest.raises(NotificationError) as first:
+        notifier.send("hello")
+    with pytest.raises(NotificationError) as second:
+        notifier.send("hello")
+
+    assert first.value.attempts == 1
+    assert second.value.attempts == 1
+    assert session.calls == 2
+    assert notifier._consecutive_failures == 0
+    assert notifier._circuit_open_until_monotonic is None
+
+
 def test_notifier_payload_includes_bot_name_and_message() -> None:
     """전송 payload에 botName과 text가 올바르게 포함되어야 한다."""
     session = CapturingSession()
