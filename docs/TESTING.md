@@ -7,12 +7,12 @@
 ```bash
 make gate
 python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
-python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
+python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-samples 20 --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
 ```
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `141`
+- 테스트 수: `143`
 - 전체 커버리지: `92.67%`
 - 최소 커버리지 기준: `80%`
 
@@ -42,9 +42,8 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 - 이벤트 스키마 버전/Change Log 동기화 검증 도입 (`EVENT_SCHEMA_VERSION`, `scripts/check_event_docs_sync.py`, `tests/test_event_docs_sync.py`)
 - 비용 관점 사이클 지표 이벤트 도입 (`cycle.cost.metrics`, `api_fetch_calls`, `notification_attempts`, `notification_failures`)
 - 저장소 위생 점검 도입 (`scripts/check_repo_hygiene.py`, `tests/test_repo_hygiene.py`, `make check-hygiene`)
+- 성능 baseline 추세 시각화/샘플 정책 표준화 (`trend` 컬럼, `--max-samples 20`, `tests/test_perf_baseline.py`)
 
 ## 5) 다음 우선순위
 
-1. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
-2. perf 리포트 보존 기간/샘플 정책 표준화 (`RB-507`)
-3. PR 체크 항목-실제 검증 연계 강화 (`RB-605`)
+1. PR 체크 항목-실제 검증 연계 강화 (`RB-605`)

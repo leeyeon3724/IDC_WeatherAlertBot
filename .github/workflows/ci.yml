@@ -178,6 +178,7 @@ jobs:
           fi
           python -m scripts.perf_baseline \
             --reports "${report_inputs[@]}" \
+            --max-samples 20 \
             --output artifacts/perf/baseline.json \
             --markdown-output artifacts/perf/baseline.md
           cat artifacts/perf/baseline.md >> "$GITHUB_STEP_SUMMARY"

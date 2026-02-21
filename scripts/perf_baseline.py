@@ -11,16 +11,56 @@ def _read_report(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def build_baseline(report_paths: list[Path]) -> dict[str, object]:
+def _report_created_at(report: dict[str, object], *, fallback_index: int) -> str:
+    meta = report.get("meta")
+    if isinstance(meta, dict):
+        created_at = meta.get("created_at_utc")
+        if isinstance(created_at, str) and created_at:
+            return created_at
+    # Preserve caller order when timestamp is unavailable.
+    return f"order:{fallback_index:06d}"
+
+
+def _trend_chart(values: list[float]) -> str:
+    if not values:
+        return ""
+    if len(values) == 1:
+        return "*"
+    low = min(values)
+    high = max(values)
+    if high == low:
+        return "=" * len(values)
+
+    levels = "._-:=+*#"
+    span = high - low
+    chart = []
+    for value in values:
+        normalized = (value - low) / span
+        index = round(normalized * (len(levels) - 1))
+        chart.append(levels[index])
+    return "".join(chart)
+
+
+def build_baseline(report_paths: list[Path], *, max_samples: int = 20) -> dict[str, object]:
     if not report_paths:
         raise ValueError("at least one report path is required")
+    if max_samples <= 0:
+        raise ValueError("max_samples must be > 0")
+
+    loaded_reports: list[tuple[str, int, Path, dict[str, object]]] = []
+    for index, path in enumerate(report_paths):
+        report = _read_report(path)
+        created_at = _report_created_at(report, fallback_index=index)
+        loaded_reports.append((created_at, index, path, report))
+
+    loaded_reports.sort(key=lambda item: (item[0], item[1]))
+    retained_reports = loaded_reports[-max_samples:]
 
     metric_values: dict[str, list[float]] = {}
     metric_units: dict[str, str] = {}
     metric_better: dict[str, str] = {}
 
-    for path in report_paths:
-        report = _read_report(path)
+    for _, _, _, report in retained_reports:
         metrics: dict[str, dict[str, object]] = report["metrics"]  # type: ignore[assignment]
         for name, metric in metrics.items():
             value = float(metric["value"])
@@ -36,6 +76,7 @@ def build_baseline(report_paths: list[Path]) -> dict[str, object]:
             "unit": metric_units[metric_name],
             "better": metric_better[metric_name],
             "samples": [round(value, 3) for value in values],
+            "trend_chart": _trend_chart(values),
         }
 
     return {
@@ -43,6 +84,9 @@ def build_baseline(report_paths: list[Path]) -> dict[str, object]:
             "created_at_utc": datetime.now(UTC).replace(microsecond=0).isoformat(),
             "source_reports": [str(path) for path in report_paths],
             "source_count": len(report_paths),
+            "retained_reports": [str(path) for _, _, path, _ in retained_reports],
+            "retained_count": len(retained_reports),
+            "max_samples": max_samples,
         },
         "metrics": aggregated_metrics,
     }
@@ -56,16 +100,18 @@ def render_markdown(baseline: dict[str, object]) -> str:
         "",
         f"- created_at_utc: `{meta['created_at_utc']}`",
         f"- source_count: `{meta['source_count']}`",
+        f"- retained_count: `{meta['retained_count']}` / max_samples: `{meta['max_samples']}`",
         f"- source_reports: `{meta['source_reports']}`",
+        f"- retained_reports: `{meta['retained_reports']}`",
         "",
-        "| metric | baseline | unit | better | samples |",
-        "|---|---:|---|---|---|",
+        "| metric | baseline | unit | better | trend | samples |",
+        "|---|---:|---|---|---|---|",
     ]
     for name in sorted(metrics):
         metric = metrics[name]
         lines.append(
             f"| `{name}` | {metric['value']} | {metric['unit']} | {metric['better']} | "
-            f"`{metric['samples']}` |"
+            f"`{metric['trend_chart']}` | `{metric['samples']}` |"
         )
     return "\n".join(lines)
 
@@ -86,9 +132,18 @@ def main() -> int:
         default=None,
         help="Optional markdown output path.",
     )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=20,
+        help="Maximum number of source report samples retained in baseline.",
+    )
     args = parser.parse_args()
 
-    baseline = build_baseline(args.reports)
+    if args.max_samples <= 0:
+        parser.error("--max-samples must be > 0")
+
+    baseline = build_baseline(args.reports, max_samples=args.max_samples)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(baseline, ensure_ascii=False, indent=2, sort_keys=True),

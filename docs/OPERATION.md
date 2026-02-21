@@ -155,3 +155,9 @@ python3 main.py migrate-state \
 - 런북 링크는 각 알람에 `8.x` 절차 번호를 명시
 - 임계값은 고정값으로 두지 말고 최근 2주 평균 대비 비율로 주기 재조정
 - 문서 정합성은 CI의 `python -m scripts.check_event_docs_sync` 결과를 기준으로 유지
+
+## 10. 성능 리포트 보존 정책
+
+- 기준 스크립트: `python3 -m scripts.perf_baseline --max-samples 20`
+- 샘플 정책: baseline 계산 시 입력 리포트 중 최근 `20`개만 유지/집계
+- 추세 확인: baseline markdown의 `trend` 컬럼으로 지표 변화 방향을 우선 확인

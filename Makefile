@@ -50,7 +50,7 @@ perf-report:
 	$(PYTHON) -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 
 perf-baseline:
-	$(PYTHON) -m scripts.perf_baseline --reports artifacts/perf/local.json --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
+	$(PYTHON) -m scripts.perf_baseline --reports artifacts/perf/local.json --max-samples 20 --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
 
 check-docs:
 	$(PYTHON) -m scripts.check_event_docs_sync
