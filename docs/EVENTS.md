@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `4`
+- schema_version: `5`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -21,6 +21,7 @@
 | 2 | 2026-02-21 | 비용 관점 사이클 지표(`cycle.cost.metrics`) 추가 및 `cycle.complete` 필드 확장 | Backward-compatible |
 | 3 | 2026-02-21 | 상태 저장소 무결성 검증 이벤트(`state.verify.complete`, `state.verify.failed`) 추가 | Backward-compatible |
 | 4 | 2026-02-21 | 알림 폭주 완화 이벤트(`notification.backpressure.applied`, `notification.circuit.*`) 및 cycle 비용 필드 확장 | Backward-compatible |
+| 5 | 2026-02-21 | 루프 예외 격리 이벤트(`cycle.iteration.failed`, `cycle.fatal_error`) 추가 | Backward-compatible |
 
 ## Runtime Lifecycle
 
@@ -38,6 +39,8 @@
 - `cycle.area_interval_ignored`: `area_interval_sec`
 - `cycle.interval.adjusted`: `base_interval_sec`, `adjusted_interval_sec`, `incident_open`
 - `cycle.cost.metrics`: `api_fetch_calls`, `alerts_fetched`, `notification_attempts`, `notification_sent`, `notification_failures`, `notification_dry_run_skips`, `notification_backpressure_skips`, `pending_total`
+- `cycle.iteration.failed`: `error`
+- `cycle.fatal_error`: `error`
 
 ## Area Processing
 

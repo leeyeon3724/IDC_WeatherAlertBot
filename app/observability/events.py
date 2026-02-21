@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-EVENT_SCHEMA_VERSION = 4
+EVENT_SCHEMA_VERSION = 5
 
 # Runtime lifecycle
 STARTUP_INVALID_CONFIG = "startup.invalid_config"
@@ -16,6 +16,8 @@ CYCLE_PARALLEL_FETCH = "cycle.parallel_fetch"
 CYCLE_AREA_INTERVAL_IGNORED = "cycle.area_interval_ignored"
 CYCLE_INTERVAL_ADJUSTED = "cycle.interval.adjusted"
 CYCLE_COST_METRICS = "cycle.cost.metrics"
+CYCLE_ITERATION_FAILED = "cycle.iteration.failed"
+CYCLE_FATAL_ERROR = "cycle.fatal_error"
 
 # Area processing
 AREA_START = "area.start"

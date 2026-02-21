@@ -38,10 +38,16 @@
     "notification_sent",
     "pending_total"
   ],
+  "cycle.fatal_error": [
+    "error"
+  ],
   "cycle.interval.adjusted": [
     "adjusted_interval_sec",
     "base_interval_sec",
     "incident_open"
+  ],
+  "cycle.iteration.failed": [
+    "error"
   ],
   "cycle.parallel_fetch": [
     "area_count",

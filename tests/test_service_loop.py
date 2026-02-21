@@ -217,6 +217,99 @@ def test_run_loop_non_run_once_executes_sleep_then_interrupt(tmp_path: Path) -> 
     assert sleep_calls == [10.0]
 
 
+def test_run_loop_non_fatal_exception_continues_next_iteration(tmp_path: Path) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": False, "cycle_interval_sec": 7},
+        suggested_sec=7,
+    )
+    stats = runtime.processor.stats
+
+    class _FlakyProcessor:
+        def __init__(self, cycle_stats: CycleStats) -> None:
+            self.calls = 0
+            self._cycle_stats = cycle_stats
+
+        def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("temporary failure")
+            return self._cycle_stats
+
+    object.__setattr__(runtime, "processor", _FlakyProcessor(stats))
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+    sleep_calls: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+        if len(sleep_calls) == 2:
+            raise KeyboardInterrupt
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+        sleep_fn=_sleep,
+    )
+
+    assert result == 0
+    assert sleep_calls == [7.0, 7.0]
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(p.get("event") == events.CYCLE_ITERATION_FAILED for p in payloads) == 1
+    assert sum(p.get("event") == events.CYCLE_COMPLETE for p in payloads) == 1
+
+
+def test_run_loop_exits_on_fatal_cycle_exception(tmp_path: Path) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": False, "cycle_interval_sec": 7},
+        processor_raises=MemoryError("out-of-memory"),
+    )
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+    sleep_calls: list[float] = []
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+        sleep_fn=lambda seconds: sleep_calls.append(seconds),
+    )
+
+    assert result == 1
+    assert sleep_calls == []
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(p.get("event") == events.CYCLE_FATAL_ERROR for p in payloads) == 1
+    assert sum(p.get("event") == events.CYCLE_ITERATION_FAILED for p in payloads) == 0
+
+
+def test_run_loop_run_once_exception_exits_as_fatal(tmp_path: Path) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": True},
+        processor_raises=RuntimeError("single-run failure"),
+    )
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+    )
+
+    assert result == 1
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(p.get("event") == events.CYCLE_FATAL_ERROR for p in payloads) == 1
+
+
 def test_run_loop_emits_cycle_cost_metrics_event(tmp_path: Path) -> None:
     runtime = _runtime(tmp_path)
     runtime.processor.stats = CycleStats(

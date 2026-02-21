@@ -16,6 +16,10 @@ from app.services.notifier import NotificationError
 from app.usecases.process_cycle import CycleStats
 
 
+def _is_fatal_cycle_exception(exc: Exception) -> bool:
+    return isinstance(exc, MemoryError)
+
+
 def maybe_auto_cleanup(
     *,
     runtime: ServiceRuntime,
@@ -193,38 +197,59 @@ def run_loop(
     last_cleanup_date: str | None = None
     try:
         while True:
-            last_cleanup_date = maybe_auto_cleanup(
-                runtime=runtime,
-                last_cleanup_date=last_cleanup_date,
-                current_date=local_date(runtime.settings.timezone),
-            )
-            stats = runtime.processor.run_once()
-            health_decision = evaluate_health(runtime=runtime, stats=stats, now=utc_now())
-            maybe_send_health_notification(runtime=runtime, health_decision=health_decision)
-            maybe_run_recovery_backfill(runtime=runtime, health_decision=health_decision)
-
-            runtime.logger.info(log_event(events.CYCLE_COMPLETE, **asdict(stats)))
-            runtime.logger.info(
-                log_event(
-                    events.CYCLE_COST_METRICS,
-                    api_fetch_calls=stats.api_fetch_calls,
-                    alerts_fetched=stats.alerts_fetched,
-                    notification_attempts=stats.notification_attempts,
-                    notification_sent=stats.sent_count,
-                    notification_failures=stats.send_failures,
-                    notification_dry_run_skips=stats.notification_dry_run_skips,
-                    notification_backpressure_skips=stats.notification_backpressure_skips,
-                    pending_total=stats.pending_total,
+            try:
+                last_cleanup_date = maybe_auto_cleanup(
+                    runtime=runtime,
+                    last_cleanup_date=last_cleanup_date,
+                    current_date=local_date(runtime.settings.timezone),
                 )
-            )
-            if runtime.settings.run_once:
-                runtime.logger.info(log_event(events.SHUTDOWN_RUN_ONCE_COMPLETE))
-                return 0
-            sleep_until_next_cycle(
-                runtime=runtime,
-                health_decision=health_decision,
-                sleep_fn=sleep_fn,
-            )
+                stats = runtime.processor.run_once()
+                health_decision = evaluate_health(runtime=runtime, stats=stats, now=utc_now())
+                maybe_send_health_notification(runtime=runtime, health_decision=health_decision)
+                maybe_run_recovery_backfill(runtime=runtime, health_decision=health_decision)
+
+                runtime.logger.info(log_event(events.CYCLE_COMPLETE, **asdict(stats)))
+                runtime.logger.info(
+                    log_event(
+                        events.CYCLE_COST_METRICS,
+                        api_fetch_calls=stats.api_fetch_calls,
+                        alerts_fetched=stats.alerts_fetched,
+                        notification_attempts=stats.notification_attempts,
+                        notification_sent=stats.sent_count,
+                        notification_failures=stats.send_failures,
+                        notification_dry_run_skips=stats.notification_dry_run_skips,
+                        notification_backpressure_skips=stats.notification_backpressure_skips,
+                        pending_total=stats.pending_total,
+                    )
+                )
+                if runtime.settings.run_once:
+                    runtime.logger.info(log_event(events.SHUTDOWN_RUN_ONCE_COMPLETE))
+                    return 0
+                sleep_until_next_cycle(
+                    runtime=runtime,
+                    health_decision=health_decision,
+                    sleep_fn=sleep_fn,
+                )
+            except Exception as exc:
+                if runtime.settings.run_once or _is_fatal_cycle_exception(exc):
+                    runtime.logger.critical(
+                        log_event(
+                            events.CYCLE_FATAL_ERROR,
+                            error=redact_sensitive_text(exc),
+                        ),
+                        exc_info=True,
+                    )
+                    return 1
+
+                runtime.logger.error(
+                    log_event(
+                        events.CYCLE_ITERATION_FAILED,
+                        error=redact_sensitive_text(exc),
+                    ),
+                    exc_info=True,
+                )
+                if runtime.settings.cycle_interval_sec > 0:
+                    sleep_fn(float(runtime.settings.cycle_interval_sec))
     except KeyboardInterrupt:
         runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
         return 0
