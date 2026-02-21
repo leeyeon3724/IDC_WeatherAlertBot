@@ -89,11 +89,13 @@ def _xml_with_item(
     warn_stress: str = "0",
     command: str = "2",
     cancel: str = "0",
+    area_name: str | None = "예제구역",
     start_time: str = "202602181000",
     total_count: int | None = None,
     tm_seq: str = "46",
 ) -> bytes:
     total_count_part = f"<totalCount>{total_count}</totalCount>" if total_count is not None else ""
+    area_name_part = f"<areaName>{area_name}</areaName>" if area_name is not None else ""
     return f"""
     <response>
       <header><resultCode>{result_code}</resultCode></header>
@@ -101,6 +103,7 @@ def _xml_with_item(
         {total_count_part}
         <items>
           <item>
+            {area_name_part}
             <warnVar>{warn_var}</warnVar>
             <warnStress>{warn_stress}</warnStress>
             <command>{command}</command>
@@ -358,6 +361,100 @@ def test_fetch_alerts_logs_unmapped_codes_with_fallback_values(
         and payload.get("field") == "warnVar"
         and payload.get("raw_code") == "99"
         for payload in warning_payloads
+    )
+
+
+def test_fetch_alerts_uses_response_area_name_when_mapping_missing(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    session = FakeSession([DummyResponse(200, _xml_with_item(area_name="남해서부동쪽먼바다"))])
+    logger = logging.getLogger("test.weather.api.area_name.missing_mapping")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        alerts = client.fetch_alerts(
+            area_code="S1322200",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="알 수 없는 지역",
+        )
+
+    assert len(alerts) == 1
+    assert alerts[0].area_name == "남해서부동쪽먼바다"
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(
+        payload.get("event") == events.AREA_NAME_MAPPING_WARNING
+        and payload.get("reason") == "missing_mapping"
+        and payload.get("resolved_area_name") == "남해서부동쪽먼바다"
+        for payload in payloads
+    )
+
+
+def test_fetch_alerts_prefers_configured_area_name_on_mismatch(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    session = FakeSession([DummyResponse(200, _xml_with_item(area_name="남해서부동쪽먼바다"))])
+    logger = logging.getLogger("test.weather.api.area_name.mismatch")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        alerts = client.fetch_alerts(
+            area_code="S1322200",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="설정지역명",
+        )
+
+    assert len(alerts) == 1
+    assert alerts[0].area_name == "설정지역명"
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(
+        payload.get("event") == events.AREA_NAME_MAPPING_WARNING
+        and payload.get("reason") == "mismatch"
+        and payload.get("configured_area_name") == "설정지역명"
+        and payload.get("response_area_name") == "남해서부동쪽먼바다"
+        for payload in payloads
+    )
+
+
+def test_fetch_alerts_falls_back_to_area_code_when_names_are_missing(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    session = FakeSession([DummyResponse(200, _xml_with_item(area_name=None))])
+    logger = logging.getLogger("test.weather.api.area_name.area_code_fallback")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        alerts = client.fetch_alerts(
+            area_code="S1322200",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="알 수 없는 지역",
+        )
+
+    assert len(alerts) == 1
+    assert alerts[0].area_name == "S1322200"
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(
+        payload.get("event") == events.AREA_NAME_MAPPING_WARNING
+        and payload.get("reason") == "missing_mapping_and_response"
+        and payload.get("resolved_area_name") == "S1322200"
+        for payload in payloads
     )
 
 

@@ -26,6 +26,13 @@
     "page_count",
     "total_count"
   ],
+  "area.name_mapping_warning": [
+    "area_code",
+    "configured_area_name",
+    "reason",
+    "resolved_area_name",
+    "response_area_name"
+  ],
   "area.start": [
     "area_code",
     "area_name"

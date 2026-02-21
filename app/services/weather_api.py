@@ -125,6 +125,7 @@ class WeatherAlertClient:
                 station_id=settings.weather_api_station_id,
             )
         )
+        self._area_name_warning_cache: set[tuple[str, str, str, str]] = set()
 
     def fetch_alerts(
         self,
@@ -292,6 +293,12 @@ class WeatherAlertClient:
     ) -> list[AlertEvent]:
         alerts: list[AlertEvent] = []
         for item in items:
+            response_area_name = (item.findtext("areaName", "") or "").strip()
+            resolved_area_name = self._resolve_area_name(
+                area_code=area_code,
+                configured_area_name=area_name,
+                response_area_name=response_area_name,
+            )
             warn_var_code = item.findtext("warnVar", "N/A")
             warn_stress_code = item.findtext("warnStress", "N/A")
             command_code = item.findtext("command", "N/A")
@@ -299,7 +306,7 @@ class WeatherAlertClient:
             alerts.append(
                 AlertEvent(
                     area_code=area_code,
-                    area_name=area_name,
+                    area_name=resolved_area_name,
                     warn_var=self._resolve_code_mapping(
                         field_name="warnVar",
                         raw_code=warn_var_code,
@@ -336,6 +343,78 @@ class WeatherAlertClient:
                 )
             )
         return alerts
+
+    def _resolve_area_name(
+        self,
+        *,
+        area_code: str,
+        configured_area_name: str,
+        response_area_name: str,
+    ) -> str:
+        configured = configured_area_name.strip()
+        response = response_area_name.strip()
+
+        has_configured = bool(configured and configured != "알 수 없는 지역")
+        has_response = bool(response)
+
+        if has_configured:
+            if has_response and configured != response:
+                self._log_area_name_mapping_warning(
+                    area_code=area_code,
+                    reason="mismatch",
+                    configured_area_name=configured,
+                    response_area_name=response,
+                    resolved_area_name=configured,
+                )
+            return configured
+
+        if has_response:
+            self._log_area_name_mapping_warning(
+                area_code=area_code,
+                reason="missing_mapping",
+                configured_area_name=configured or None,
+                response_area_name=response,
+                resolved_area_name=response,
+            )
+            return response
+
+        self._log_area_name_mapping_warning(
+            area_code=area_code,
+            reason="missing_mapping_and_response",
+            configured_area_name=configured or None,
+            response_area_name=None,
+            resolved_area_name=area_code,
+        )
+        return area_code
+
+    def _log_area_name_mapping_warning(
+        self,
+        *,
+        area_code: str,
+        reason: str,
+        configured_area_name: str | None,
+        response_area_name: str | None,
+        resolved_area_name: str,
+    ) -> None:
+        cache_key = (
+            area_code,
+            reason,
+            configured_area_name or "",
+            response_area_name or "",
+        )
+        if cache_key in self._area_name_warning_cache:
+            return
+        self._area_name_warning_cache.add(cache_key)
+        self.logger.warning(
+            log_event(
+                events.AREA_NAME_MAPPING_WARNING,
+                area_code=area_code,
+                reason=reason,
+                configured_area_name=configured_area_name,
+                response_area_name=response_area_name,
+                resolved_area_name=resolved_area_name,
+            )
+        )
 
     def _resolve_code_mapping(
         self,

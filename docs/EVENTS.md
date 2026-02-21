@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `8`
+- schema_version: `9`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -25,6 +25,7 @@
 | 6 | 2026-02-21 | 복구 backfill 예산 필드(`health.backfill.*`, `startup.ready`) 확장 | Backward-compatible |
 | 7 | 2026-02-21 | 헬스 알림 이벤트 필드(`incident_duration_sec`, `incident_failed_cycles`) 확장 | Backward-compatible |
 | 8 | 2026-02-21 | 미매핑 특보 코드 감지 이벤트(`area.code_unmapped`) 추가 | Backward-compatible |
+| 9 | 2026-02-21 | 지역명 매핑 경고 이벤트(`area.name_mapping_warning`) 추가 | Backward-compatible |
 
 ## Runtime Lifecycle
 
@@ -52,6 +53,7 @@
 - `area.fetch.summary`: `area_code`, `area_name`, `fetched_items`, `page_count`, `total_count`
 - `area.fetch.retry`: `area_code`, `attempt`, `max_retries`, `error_code`, `error`, `backoff_sec`
 - `area.code_unmapped`: `area_code`, `area_name`, `field`, `raw_code`, `fallback_value`
+- `area.name_mapping_warning`: `area_code`, `reason`, `configured_area_name`, `response_area_name`, `resolved_area_name`
 
 ## Notifications
 

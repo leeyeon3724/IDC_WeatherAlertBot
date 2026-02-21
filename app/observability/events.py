@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-EVENT_SCHEMA_VERSION = 8
+EVENT_SCHEMA_VERSION = 9
 
 # Runtime lifecycle
 STARTUP_INVALID_CONFIG = "startup.invalid_config"
@@ -25,6 +25,7 @@ AREA_FAILED = "area.failed"
 AREA_FETCH_SUMMARY = "area.fetch.summary"
 AREA_FETCH_RETRY = "area.fetch.retry"
 AREA_CODE_UNMAPPED = "area.code_unmapped"
+AREA_NAME_MAPPING_WARNING = "area.name_mapping_warning"
 
 # Notifications
 NOTIFICATION_SENT = "notification.sent"

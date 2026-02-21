@@ -8,8 +8,8 @@
 ## 1) 현재 기준선 (참고)
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
-- 테스트: `268 passed`
-- 커버리지: `94.96%` (최저 기준 `80%`)
+- 테스트: `271 passed`
+- 커버리지: `94.97%` (최저 기준 `80%`)
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
 - 로컬 실자격증명 검증: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`(비추적)
 
@@ -20,22 +20,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-### 2-1) 신규 지역 추가 경로 단순화(지역명 매핑 의존 완화)
-
-```text
-상태: 진행중
-중요도: 중간
-항목: AREA_CODE_MAPPING 누락 시 graceful fallback 및 정합성 검증 보강
-근거: 신규 지역 코드 추가 시 AREA_CODE_MAPPING 누락만으로 기동 실패가 발생해
-      운영 확장 속도를 저하시킨다. 응답 areaName 활용/불일치 검증 전략이 필요하다.
-      (app/settings.py, app/services/weather_api.py, app/usecases/process_cycle.py)
-완료 기준:
-- 지역명 해석 우선순위(설정 매핑 > 응답 areaName > areaCode) 정책 정의
-- 매핑 누락/불일치 시 경고 이벤트를 남기고 서비스는 지속 가능하도록 개선
-- 신규 지역 추가/매핑 누락 시나리오 테스트 추가
-```
-
-### 2-2) 테스트-실운영 설정 정합성 보강
+### 2-1) 테스트-실운영 설정 정합성 보강
 
 ```text
 상태: 진행중
