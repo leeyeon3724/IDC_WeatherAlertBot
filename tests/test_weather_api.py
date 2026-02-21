@@ -8,8 +8,12 @@ import requests
 
 from app.services.weather_api import (
     API_ERROR_CONNECTION,
+    API_ERROR_HTTP_STATUS,
+    API_ERROR_PARSE,
+    API_ERROR_REQUEST,
     API_ERROR_RESULT,
     API_ERROR_TIMEOUT,
+    API_ERROR_UNKNOWN,
     WeatherAlertClient,
     WeatherApiError,
 )
@@ -210,6 +214,32 @@ def test_fetch_alerts_stops_when_next_page_returns_nodata(tmp_path) -> None:
     assert len(session.calls) == 2
 
 
+def test_fetch_alerts_returns_empty_when_first_page_is_nodata(tmp_path) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                b"<response><header><resultCode>03</resultCode></header></response>",
+            )
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logging.getLogger("test.weather.api.first.nodata"),
+    )
+
+    alerts = client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    assert alerts == []
+    assert len(session.calls) == 1
+
+
 def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:
     session = FakeSession([requests.Timeout("t1"), requests.Timeout("t2")])
     client = WeatherAlertClient(
@@ -226,6 +256,62 @@ def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:
             area_name="대구",
         )
     assert exc_info.value.code == API_ERROR_TIMEOUT
+
+
+def test_fetch_alerts_raises_http_status_error(tmp_path) -> None:
+    session = FakeSession([DummyResponse(500, b"<response/>")])
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
+        session=session,
+        logger=logging.getLogger("test.weather.api.http_status"),
+    )
+
+    with pytest.raises(WeatherApiError, match="Failed to fetch area_code=L1070100") as exc_info:
+        client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+    assert exc_info.value.code == API_ERROR_HTTP_STATUS
+    assert exc_info.value.status_code == 500
+
+
+def test_fetch_alerts_raises_parse_error_for_invalid_xml(tmp_path) -> None:
+    session = FakeSession([DummyResponse(200, b"<response><broken>")])
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
+        session=session,
+        logger=logging.getLogger("test.weather.api.parse.invalid_xml"),
+    )
+
+    with pytest.raises(WeatherApiError, match="Failed to fetch area_code=L1070100") as exc_info:
+        client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+    assert exc_info.value.code == API_ERROR_PARSE
+
+
+def test_fetch_alerts_raises_unknown_when_retry_loop_is_skipped(tmp_path) -> None:
+    session = FakeSession([])
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=0, retry_delay_sec=0),
+        session=session,
+        logger=logging.getLogger("test.weather.api.unknown"),
+    )
+
+    with pytest.raises(WeatherApiError, match="unknown") as exc_info:
+        client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+    assert exc_info.value.code == API_ERROR_UNKNOWN
+    assert session.calls == []
 
 
 def test_parse_alerts_raises_for_error_result_code(tmp_path) -> None:
@@ -252,6 +338,19 @@ def test_parse_alerts_handles_no_data_result(tmp_path) -> None:
     assert client._parse_alerts(root=root, area_code="L1070100", area_name="대구") == []
 
 
+def test_parse_alerts_success_returns_items(tmp_path) -> None:
+    root = ET.fromstring(_xml_with_item(result_code="00"))
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=FakeSession([]),
+        logger=logging.getLogger("test.weather.api.parse.success"),
+    )
+
+    alerts = client._parse_alerts(root=root, area_code="L1070100", area_name="대구")
+    assert len(alerts) == 1
+    assert alerts[0].tm_seq == "46"
+
+
 def test_format_datetime_variants() -> None:
     assert WeatherAlertClient._format_datetime(None) is None
     assert WeatherAlertClient._format_datetime("0") is None
@@ -269,6 +368,10 @@ def test_classify_request_exception() -> None:
         WeatherAlertClient._classify_request_exception(requests.ConnectionError("conn"))
         == API_ERROR_CONNECTION
     )
+    assert (
+        WeatherAlertClient._classify_request_exception(requests.RequestException("request"))
+        == API_ERROR_REQUEST
+    )
 
 
 def test_extract_total_count_invalid_returns_none() -> None:
@@ -281,3 +384,47 @@ def test_extract_total_count_invalid_returns_none() -> None:
         """
     )
     assert WeatherAlertClient._extract_total_count(root) is None
+
+
+def test_extract_total_count_negative_clamps_to_zero() -> None:
+    root = ET.fromstring(
+        """
+        <response>
+          <header><resultCode>00</resultCode></header>
+          <body><totalCount>-10</totalCount></body>
+        </response>
+        """
+    )
+    assert WeatherAlertClient._extract_total_count(root) == 0
+
+
+def test_extract_result_code_missing_returns_na() -> None:
+    root = ET.fromstring("<response><header></header></response>")
+    assert WeatherAlertClient._extract_result_code(root) == "N/A"
+
+
+@pytest.mark.parametrize(
+    ("page_no", "page_size", "items_on_page", "total_count", "expected"),
+    [
+        (1, 100, 0, None, False),
+        (1, 100, 100, 100, False),
+        (1, 100, 100, 101, True),
+        (2, 100, 50, None, False),
+    ],
+)
+def test_has_next_page_boundaries(
+    page_no: int,
+    page_size: int,
+    items_on_page: int,
+    total_count: int | None,
+    expected: bool,
+) -> None:
+    assert (
+        WeatherAlertClient._has_next_page(
+            page_no=page_no,
+            page_size=page_size,
+            items_on_page=items_on_page,
+            total_count=total_count,
+        )
+        is expected
+    )
