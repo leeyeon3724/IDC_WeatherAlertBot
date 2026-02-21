@@ -13,7 +13,7 @@ from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
 from app.repositories.state_repository import StateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
-from app.services.weather_api import WeatherClient, WeatherApiError
+from app.services.weather_api import WeatherApiError, WeatherClient
 from app.settings import Settings
 
 
@@ -59,6 +59,7 @@ class ProcessCycleUseCase:
         self.notifier = notifier
         self.state_repo = state_repo
         self.logger = logger or logging.getLogger("weather_alert_bot.processor")
+        self._dispatch_start_index = 0
 
     @staticmethod
     def _api_error_code(error: Exception) -> str:
@@ -180,6 +181,17 @@ class ProcessCycleUseCase:
                 error=WeatherApiError("missing_area_result", code="missing_area_fetch_result"),
             ),
         )
+
+    def _area_codes_for_cycle(self) -> list[str]:
+        area_codes = list(self.settings.area_codes)
+        area_count = len(area_codes)
+        if area_count <= 1:
+            return area_codes
+
+        start = self._dispatch_start_index % area_count
+        ordered_codes = area_codes[start:] + area_codes[:start]
+        self._dispatch_start_index = (start + 1) % area_count
+        return ordered_codes
 
     def _handle_area_failure(
         self,
@@ -329,7 +341,7 @@ class ProcessCycleUseCase:
 
         area_results = self._fetch_alerts_for_areas(start_date=start_date, end_date=end_date)
         stats.api_fetch_calls = len(area_results)
-        for area_code in self.settings.area_codes:
+        for area_code in self._area_codes_for_cycle():
             stats.areas_processed += 1
             result = self._resolve_area_result(area_code=area_code, area_results=area_results)
             self.logger.info(

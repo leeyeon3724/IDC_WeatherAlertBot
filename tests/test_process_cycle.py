@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.domain.models import AlertEvent
+from app.domain.models import AlertEvent, AlertNotification
 from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
 from app.services.notifier import NotificationError
@@ -217,6 +217,81 @@ def test_process_cycle_applies_notification_backpressure_budget(tmp_path) -> Non
     assert stats.sent_count == 1
     assert stats.pending_total == 1
     assert len(notifier.sent_messages) == 1
+
+
+def test_process_cycle_rotates_dispatch_order_under_backpressure(tmp_path) -> None:
+    settings = Settings(
+        service_api_key="test-key",
+        service_hook_url="https://hook.example",
+        weather_alert_data_api_url="https://api.example",
+        sent_messages_file=tmp_path / "state.json",
+        area_codes=["11B00000", "11C00000"],
+        area_code_mapping={"11B00000": "서울", "11C00000": "경기"},
+        request_timeout_sec=1,
+        request_connect_timeout_sec=1,
+        request_read_timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        notifier_timeout_sec=1,
+        notifier_connect_timeout_sec=1,
+        notifier_read_timeout_sec=1,
+        notifier_max_retries=1,
+        notifier_retry_delay_sec=0,
+        notifier_max_attempts_per_cycle=1,
+        area_max_workers=1,
+        lookback_days=0,
+        cycle_interval_sec=0,
+        area_interval_sec=0,
+        cleanup_enabled=False,
+        cleanup_retention_days=30,
+        cleanup_include_unsent=False,
+        bot_name="테스트봇",
+        timezone="Asia/Seoul",
+        log_level="INFO",
+        dry_run=False,
+        run_once=True,
+    )
+    repo = JsonStateRepository(settings.sent_messages_file)
+    repo.upsert_notifications(
+        [
+            AlertNotification(
+                event_id="event:seoul",
+                area_code="11B00000",
+                message="서울 대기 알림",
+                report_url=None,
+            ),
+            AlertNotification(
+                event_id="event:gyeonggi",
+                area_code="11C00000",
+                message="경기 대기 알림",
+                report_url=None,
+            ),
+        ]
+    )
+    weather_client = FakeWeatherClient({"11B00000": [], "11C00000": []})
+    notifier = FakeNotifier(should_fail=False)
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.fairness"),
+    )
+    now = datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+
+    first = usecase.run_once(now=now)
+    second = usecase.run_once(now=now)
+
+    assert first.notification_attempts == 1
+    assert first.notification_backpressure_skips == 1
+    assert first.pending_total == 1
+    assert second.notification_attempts == 1
+    assert second.notification_backpressure_skips == 0
+    assert second.pending_total == 0
+    assert [message for message, _ in notifier.sent_messages] == [
+        "서울 대기 알림",
+        "경기 대기 알림",
+    ]
 
 
 def test_process_cycle_applies_lookback_days(tmp_path) -> None:
