@@ -14,10 +14,48 @@ EOF
   exit 1
 fi
 
-# shellcheck source=/dev/null
-set -a
-source "$ENV_FILE"
-set +a
+strip_optional_quotes() {
+  local value="$1"
+  if [[ ${#value} -ge 2 ]]; then
+    local first="${value:0:1}"
+    local last="${value: -1}"
+    if [[ "$first" == "$last" && ( "$first" == "'" || "$first" == '"' ) ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+  printf '%s' "$value"
+}
+
+load_env_file() {
+  local env_file="$1"
+  local raw_line line key value
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$raw_line"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    if [[ "$line" == export\ * ]]; then
+      line="${line#export }"
+      line="${line#"${line%%[![:space:]]*}"}"
+    fi
+    [[ "$line" != *=* ]] && continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+
+    if [[ ! "$key" =~ ^[A-Z][A-Z0-9_]*$ ]]; then
+      echo "Invalid env key in $env_file: $key" >&2
+      exit 1
+    fi
+    value="$(strip_optional_quotes "$value")"
+    export "$key=$value"
+  done < "$env_file"
+}
+
+load_env_file "$ENV_FILE"
 
 normalize_bool() {
   echo "${1:-}" | tr '[:upper:]' '[:lower:]'
@@ -49,6 +87,32 @@ if [[ ! "${SERVICE_HOOK_URL}" =~ ^https:// ]]; then
   echo "SERVICE_HOOK_URL must be https URL." >&2
   exit 1
 fi
+
+python3 - <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import sys
+
+checks = (
+    ("AREA_CODES", list),
+    ("AREA_CODE_MAPPING", dict),
+)
+for key, expected in checks:
+    raw = os.getenv(key, "")
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        print(f"{key} must be valid JSON: {exc}", file=sys.stderr)
+        raise SystemExit(1)
+    if not isinstance(parsed, expected):
+        print(
+            f"{key} must be a JSON {expected.__name__}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+PY
 
 export RUN_ONCE=true
 export DRY_RUN=false

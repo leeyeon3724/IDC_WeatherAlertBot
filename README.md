@@ -46,6 +46,8 @@ python3 main.py verify-state --json-state-file ./data/sent_messages.json --sqlit
 cp .env.live-e2e.example .env.live-e2e
 # .env.live-e2e에 테스트용 키/URL 입력
 make live-e2e-local
+# make가 없으면
+./scripts/run_live_e2e_local.sh .env.live-e2e
 ```
 
 - `.env.live-e2e`는 git ignore 대상이며 커밋되지 않습니다.

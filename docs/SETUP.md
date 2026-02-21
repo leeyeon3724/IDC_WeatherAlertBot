@@ -8,6 +8,7 @@
 
 - Python 3.11+
 - `pip`
+- `make` (선택, 없으면 스크립트/파이썬 명령으로 동일 실행 가능)
 - 외부 네트워크 접근(기상청 API, Dooray Webhook)
 
 ## 2. 설치
@@ -61,6 +62,8 @@ DRY_RUN=true RUN_ONCE=true python3 main.py
 cp .env.live-e2e.example .env.live-e2e
 # .env.live-e2e 값 수정 (테스트용 API 키/웹훅 URL)
 make live-e2e-local
+# 또는
+./scripts/run_live_e2e_local.sh .env.live-e2e
 ```
 
 - `ENABLE_LIVE_E2E=true`가 없으면 실행되지 않습니다.

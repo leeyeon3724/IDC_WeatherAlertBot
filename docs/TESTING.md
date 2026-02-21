@@ -12,6 +12,8 @@ python3 -m scripts.soak_report --cycles 3000 --area-count 3 --max-memory-growth-
 python3 -m scripts.slo_report --log-file artifacts/canary/service.log --json-output artifacts/slo/local.json --markdown-output artifacts/slo/local.md
 python3 -m scripts.select_tests --changed-files-file artifacts/pr-fast/changed_files.txt --selected-output artifacts/pr-fast/selected_tests.txt --json-output artifacts/pr-fast/selection.json --markdown-output artifacts/pr-fast/selection.md
 make live-e2e-local
+# make가 없으면:
+./scripts/run_live_e2e_local.sh .env.live-e2e
 ```
 
 ## 2) 현재 스냅샷

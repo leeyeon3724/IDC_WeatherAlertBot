@@ -22,6 +22,14 @@ LEGACY_DOC_FILES = {
     "REFRACTORING_BACKLOG.md",
     "CODEBASE_ASSESSMENT.md",
 }
+LIVE_E2E_REQUIRED_KEYS = {
+    "ENABLE_LIVE_E2E",
+    "SERVICE_API_KEY",
+    "SERVICE_HOOK_URL",
+    "AREA_CODES",
+    "AREA_CODE_MAPPING",
+}
+LIVE_E2E_SCRIPT_ONLY_KEYS = {"ENABLE_LIVE_E2E"}
 
 
 def _read_lines(path: Path) -> list[str]:
@@ -40,6 +48,27 @@ def parse_env_example_keys(path: Path) -> set[str]:
         if match:
             keys.add(match.group(1))
     return keys
+
+
+def parse_env_file_map(path: Path) -> dict[str, str]:
+    env_map: dict[str, str] = {}
+    for line in _read_lines(path):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export "):
+            stripped = stripped[len("export "):].strip()
+        if "=" not in stripped:
+            continue
+        key, raw_value = stripped.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        value = raw_value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        env_map[key] = value
+    return env_map
 
 
 def parse_settings_env_keys(path: Path) -> set[str]:
@@ -71,6 +100,33 @@ def build_report(repo_root: Path) -> dict[str, object]:
     missing_in_env_example = sorted(settings_keys - env_example_keys)
     unknown_in_env_example = sorted(env_example_keys - settings_keys)
 
+    live_e2e_example_path = repo_root / ".env.live-e2e.example"
+    live_e2e_env_map = parse_env_file_map(live_e2e_example_path)
+    live_e2e_example_exists = live_e2e_example_path.exists()
+    live_e2e_keys = set(live_e2e_env_map)
+    missing_in_live_e2e_example = sorted(LIVE_E2E_REQUIRED_KEYS - live_e2e_keys)
+    live_e2e_allowed_keys = settings_keys | LIVE_E2E_SCRIPT_ONLY_KEYS
+    unknown_in_live_e2e_example = sorted(live_e2e_keys - live_e2e_allowed_keys)
+
+    invalid_live_e2e_json: list[str] = []
+    live_e2e_json_specs = {
+        "AREA_CODES": list,
+        "AREA_CODE_MAPPING": dict,
+    }
+    for key, expected_type in live_e2e_json_specs.items():
+        raw = live_e2e_env_map.get(key)
+        if raw is None:
+            continue
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            invalid_live_e2e_json.append(f"{key}:invalid_json")
+            continue
+        if not isinstance(parsed, expected_type):
+            invalid_live_e2e_json.append(
+                f"{key}:expected_{expected_type.__name__}"
+            )
+
     readme_doc_map = parse_readme_doc_map(repo_root / "README.md")
     missing_in_readme_doc_map = sorted(REQUIRED_DOC_FILES - readme_doc_map)
     unknown_in_readme_doc_map = sorted(readme_doc_map - REQUIRED_DOC_FILES)
@@ -81,6 +137,10 @@ def build_report(repo_root: Path) -> dict[str, object]:
         or legacy_docs_present
         or missing_in_env_example
         or unknown_in_env_example
+        or not live_e2e_example_exists
+        or missing_in_live_e2e_example
+        or unknown_in_live_e2e_example
+        or invalid_live_e2e_json
         or missing_in_readme_doc_map
         or unknown_in_readme_doc_map
     )
@@ -95,6 +155,11 @@ def build_report(repo_root: Path) -> dict[str, object]:
         "env_example_keys_count": len(env_example_keys),
         "missing_in_env_example": missing_in_env_example,
         "unknown_in_env_example": unknown_in_env_example,
+        "live_e2e_example_exists": live_e2e_example_exists,
+        "live_e2e_example_keys_count": len(live_e2e_keys),
+        "missing_in_live_e2e_example": missing_in_live_e2e_example,
+        "unknown_in_live_e2e_example": unknown_in_live_e2e_example,
+        "invalid_live_e2e_json": sorted(invalid_live_e2e_json),
         "readme_doc_map_count": len(readme_doc_map),
         "missing_in_readme_doc_map": missing_in_readme_doc_map,
         "unknown_in_readme_doc_map": unknown_in_readme_doc_map,
@@ -111,6 +176,8 @@ def render_markdown(report: dict[str, object]) -> str:
         f"- existing_docs: `{report['existing_docs']}`",
         f"- settings_env_keys_count: `{report['settings_env_keys_count']}`",
         f"- env_example_keys_count: `{report['env_example_keys_count']}`",
+        f"- live_e2e_example_exists: `{report['live_e2e_example_exists']}`",
+        f"- live_e2e_example_keys_count: `{report['live_e2e_example_keys_count']}`",
         f"- readme_doc_map_count: `{report['readme_doc_map_count']}`",
         "",
         f"- missing_required_docs: `{report['missing_required_docs']}`",
@@ -118,6 +185,9 @@ def render_markdown(report: dict[str, object]) -> str:
         f"- legacy_docs_present: `{report['legacy_docs_present']}`",
         f"- missing_in_env_example: `{report['missing_in_env_example']}`",
         f"- unknown_in_env_example: `{report['unknown_in_env_example']}`",
+        f"- missing_in_live_e2e_example: `{report['missing_in_live_e2e_example']}`",
+        f"- unknown_in_live_e2e_example: `{report['unknown_in_live_e2e_example']}`",
+        f"- invalid_live_e2e_json: `{report['invalid_live_e2e_json']}`",
         f"- missing_in_readme_doc_map: `{report['missing_in_readme_doc_map']}`",
         f"- unknown_in_readme_doc_map: `{report['unknown_in_readme_doc_map']}`",
     ]

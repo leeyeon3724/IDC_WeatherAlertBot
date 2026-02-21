@@ -32,6 +32,16 @@ def _build_repo_fixture(repo_root: Path) -> None:
         """,
     )
     _write(
+        repo_root / ".env.live-e2e.example",
+        """
+        ENABLE_LIVE_E2E=true
+        SERVICE_API_KEY=test-live
+        SERVICE_HOOK_URL=https://hook.example/live
+        AREA_CODES=["L1090000"]
+        AREA_CODE_MAPPING={"L1090000":"서울"}
+        """,
+    )
+    _write(
         repo_root / "README.md",
         """
         - `docs/SETUP.md`: setup
@@ -56,6 +66,10 @@ def test_build_report_passes_for_compact_repo_fixture(tmp_path: Path) -> None:
     assert report["legacy_docs_present"] == []
     assert report["missing_in_env_example"] == []
     assert report["unknown_in_env_example"] == []
+    assert report["live_e2e_example_exists"] is True
+    assert report["missing_in_live_e2e_example"] == []
+    assert report["unknown_in_live_e2e_example"] == []
+    assert report["invalid_live_e2e_json"] == []
     assert report["missing_in_readme_doc_map"] == []
     assert report["unknown_in_readme_doc_map"] == []
 
@@ -82,6 +96,16 @@ def test_build_report_detects_hygiene_violations(tmp_path: Path) -> None:
         - `docs/TESTING.md`: testing
         """,
     )
+    _write(
+        tmp_path / ".env.live-e2e.example",
+        """
+        ENABLE_LIVE_E2E=true
+        SERVICE_API_KEY=test-live
+        AREA_CODES=[L1090000]
+        AREA_CODE_MAPPING={"L1090000":"서울"}
+        UNKNOWN_LIVE_E2E_KEY=yes
+        """,
+    )
 
     report = build_report(tmp_path)
 
@@ -90,4 +114,7 @@ def test_build_report_detects_hygiene_violations(tmp_path: Path) -> None:
     assert report["legacy_docs_present"] == ["REFRACTORING_BACKLOG.md"]
     assert report["missing_in_env_example"] == ["SERVICE_HOOK_URL"]
     assert report["unknown_in_env_example"] == ["UNUSED_KEY"]
+    assert report["missing_in_live_e2e_example"] == ["SERVICE_HOOK_URL"]
+    assert report["unknown_in_live_e2e_example"] == ["UNKNOWN_LIVE_E2E_KEY"]
+    assert report["invalid_live_e2e_json"] == ["AREA_CODES:invalid_json"]
     assert report["missing_in_readme_doc_map"] == ["BACKLOG.md"]
