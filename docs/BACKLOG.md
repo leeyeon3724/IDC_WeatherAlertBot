@@ -7,7 +7,7 @@
 
 ## 1) 현재 기준선 (참고)
 
-- 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `check_area_mapping_sync`, `pytest --cov`
+- 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `check_settings_sync`, `check_area_mapping_sync`, `pytest --cov`
 - 테스트/커버리지 최신 수치: `docs/TESTING.md`의 `## 2) 현재 스냅샷`을 단일 기준으로 사용
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
 - 로컬 실자격증명 검증: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`(비추적)

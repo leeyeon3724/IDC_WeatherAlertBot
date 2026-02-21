@@ -281,6 +281,8 @@ def _render_setup_defaults_section(defaults: dict[str, str]) -> str:
     lines = [
         SETUP_SECTION_HEADING,
         "",
+        "- 생성 기준: `python3 -m scripts.sync_settings_artifacts --write`",
+        "",
         SETUP_MARKER_START,
         "| Key | Default (`.env.example`) |",
         "|---|---|",

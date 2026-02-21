@@ -66,6 +66,8 @@ cp .env.example .env
 
 ### 4.2 선택 환경변수 기본값(자동 생성)
 
+- 생성 기준: `python3 -m scripts.sync_settings_artifacts --write`
+
 <!-- SETTINGS_DEFAULTS_TABLE:START -->
 | Key | Default (`.env.example`) |
 |---|---|

@@ -12,13 +12,13 @@ make live-e2e-local    # 실자격증명 1회 검증(ENABLE_LIVE_E2E=true 필요
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `328`
+- 테스트 수: `335`
 - 전체 커버리지: `92.89%`
 - 최소 커버리지 기준: `80%`
 
 ## 3) 현재 기준
 
-- 기본 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `check_area_mapping_sync`, `pytest --cov`
+- 기본 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `check_settings_sync`, `check_area_mapping_sync`, `pytest --cov`
 - 테스트 스냅샷 자동화: `make testing-snapshot`으로 테스트 수/커버리지 수치를 문서에 반영
 - CI 계층:
   - 기본 CI(`ci.yml`): gate + runtime smoke + 상태 무결성 smoke(`migrate-state` -> `verify-state --strict`)
