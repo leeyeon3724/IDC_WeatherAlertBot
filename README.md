@@ -27,6 +27,7 @@ make testing-snapshot
 make gate
 make check-arch
 make check-hygiene
+make check-env-sync
 make perf-report
 make perf-baseline
 make soak-report

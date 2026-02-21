@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run live-e2e-local test test-cov testing-snapshot lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene
+.PHONY: install install-dev run dry-run live-e2e-local test test-cov testing-snapshot lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene check-env-sync
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -32,7 +32,7 @@ lint:
 typecheck:
 	$(PYTHON) -m mypy
 
-gate: lint typecheck check-arch check-docs check-hygiene test-cov
+gate: lint typecheck check-arch check-docs check-hygiene check-env-sync test-cov
 
 quality: gate
 
@@ -75,6 +75,9 @@ check-arch:
 
 check-hygiene:
 	$(PYTHON) -m scripts.check_repo_hygiene
+
+check-env-sync:
+	$(PYTHON) -m scripts.check_env_defaults_sync
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +

@@ -7,6 +7,7 @@
 ```bash
 make gate
 make testing-snapshot
+python3 -m scripts.check_env_defaults_sync
 python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-samples 20 --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
 python3 -m scripts.soak_report --cycles 3000 --area-count 3 --max-memory-growth-kib 8192 --json-output artifacts/soak/local.json --markdown-output artifacts/soak/local.md
@@ -25,7 +26,7 @@ make live-e2e-local
 
 ## 3) 현재 기준
 
-- 기본 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov`
+- 기본 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
 - 테스트 스냅샷 자동화: `make testing-snapshot`으로 `docs/TESTING.md`의 테스트 수/커버리지 수치 자동 갱신
 - CI 추가 검증: Python 3.11/3.12 runtime smoke, PR checklist validation
 - 변경영향 기반 PR fast gate: `.github/workflows/pr-fast.yml`에서 변경 파일 기반 테스트 셋을 선택해 우선 실행

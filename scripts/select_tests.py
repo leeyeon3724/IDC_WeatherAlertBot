@@ -58,6 +58,8 @@ PREFIX_TEST_MAP: dict[str, list[str]] = {
         "tests/test_repo_hygiene.py",
         "tests/test_event_docs_sync.py",
         "tests/test_contract_snapshots.py",
+        "tests/test_env_defaults_sync.py",
+        "tests/test_update_testing_snapshot.py",
     ],
 }
 
