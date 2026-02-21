@@ -8,7 +8,9 @@
 
 - [ ] `python3 -m ruff check .`
 - [ ] `python3 -m mypy`
+- [ ] `python3 -m scripts.check_architecture_rules`
 - [ ] `python3 -m scripts.check_event_docs_sync`
+- [ ] `python3 -m scripts.check_repo_hygiene`
 - [ ] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
 
 ## Event/Runbook Impact (if applicable)

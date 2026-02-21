@@ -56,6 +56,40 @@ jobs:
             exit 1
           fi
 
+  pr-checklist:
+    needs: commit-message-lint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate PR checklist
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pr-checklist
+          printf '%s\n' "${PR_BODY:-}" > artifacts/pr-checklist/pr_body.md
+          git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            > artifacts/pr-checklist/changed_files.txt
+
+          python -m scripts.check_pr_checklist \
+            --pr-body-file artifacts/pr-checklist/pr_body.md \
+            --changed-files-file artifacts/pr-checklist/changed_files.txt \
+            --json-output artifacts/pr-checklist/report.json \
+            --markdown-output artifacts/pr-checklist/report.md
+          cat artifacts/pr-checklist/report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload PR checklist artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-checklist-${{ github.run_id }}
+          path: artifacts/pr-checklist
+          if-no-files-found: warn
+
   runtime-smoke:
     needs: commit-message-lint
     runs-on: ubuntu-latest

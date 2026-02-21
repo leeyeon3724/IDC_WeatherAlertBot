@@ -12,7 +12,7 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-sampl
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `143`
+- 테스트 수: `145`
 - 전체 커버리지: `92.67%`
 - 최소 커버리지 기준: `80%`
 
@@ -43,7 +43,8 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-sampl
 - 비용 관점 사이클 지표 이벤트 도입 (`cycle.cost.metrics`, `api_fetch_calls`, `notification_attempts`, `notification_failures`)
 - 저장소 위생 점검 도입 (`scripts/check_repo_hygiene.py`, `tests/test_repo_hygiene.py`, `make check-hygiene`)
 - 성능 baseline 추세 시각화/샘플 정책 표준화 (`trend` 컬럼, `--max-samples 20`, `tests/test_perf_baseline.py`)
+- PR 체크리스트 CI 검증 도입 (`scripts/check_pr_checklist.py`, `.github/workflows/ci.yml`, `.github/pull_request_template.md`)
 
 ## 5) 다음 우선순위
 
-1. PR 체크 항목-실제 검증 연계 강화 (`RB-605`)
+현재 활성 테스트 개선 백로그 없음. 신규 리스크 발생 시 `docs/BACKLOG.md`에 추가 후 우선순위를 재설정합니다.
