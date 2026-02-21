@@ -198,8 +198,9 @@ class WeatherAlertClient:
                         backoff_sec=backoff_seconds,
                     )
                 )
-                time.sleep(backoff_seconds)
-                backoff_seconds = max(backoff_seconds * 2, 1)
+                if backoff_seconds > 0:
+                    time.sleep(backoff_seconds)
+                backoff_seconds = max(backoff_seconds * 2, self.settings.retry_delay_sec)
 
         if last_error is not None:
             raise WeatherApiError(

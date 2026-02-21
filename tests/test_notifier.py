@@ -115,3 +115,31 @@ def test_notifier_circuit_breaker_blocks_until_reset(monkeypatch: pytest.MonkeyP
     current[0] = 31.0
     notifier.send("hello")
     assert session.calls == 3
+
+
+def test_notifier_backoff_stays_zero_when_retry_delay_is_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """retry_delay_sec=0 설정 시 모든 재시도에서 sleep이 호출되지 않아야 한다."""
+    slept: list[float] = []
+    monkeypatch.setattr(notifier_module.time, "sleep", lambda s: slept.append(s))
+
+    session = FakeSession(
+        [
+            requests.Timeout("timeout-1"),
+            requests.Timeout("timeout-2"),
+            DummyResponse(should_raise=False),
+        ]
+    )
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=3,
+        retry_delay_sec=0,
+        session=session,
+    )
+
+    notifier.send("hello")
+    assert session.calls == 3
+    assert slept == [], "retry_delay_sec=0 설정 시 sleep이 호출되어서는 안 됨"

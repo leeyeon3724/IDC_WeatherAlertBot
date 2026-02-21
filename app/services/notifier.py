@@ -132,7 +132,7 @@ class DoorayNotifier:
                 )
                 if backoff_seconds > 0:
                     time.sleep(backoff_seconds)
-                backoff_seconds = max(backoff_seconds * 2, 1)
+                backoff_seconds = max(backoff_seconds * 2, self.retry_delay_sec)
 
         if self.circuit_breaker_enabled:
             self._consecutive_failures += 1
