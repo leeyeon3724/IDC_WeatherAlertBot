@@ -48,6 +48,16 @@ def test_sqlite_state_repo_cleanup_sent_only(tmp_path) -> None:
     repo = SqliteStateRepository(tmp_path / "state.db")
     repo.upsert_notifications([_notification("event:sent"), _notification("event:unsent")])
     repo.mark_sent("event:sent")
+    old_time = "2020-01-01T00:00:00Z"
+    with repo._connect() as conn:
+        conn.execute(
+            """
+            UPDATE notifications
+            SET updated_at = ?, last_sent_at = ?
+            WHERE event_id = ?
+            """,
+            (old_time, old_time, "event:sent"),
+        )
 
     removed = repo.cleanup_stale(
         days=0,
@@ -63,6 +73,16 @@ def test_sqlite_state_repo_cleanup_dry_run(tmp_path) -> None:
     repo = SqliteStateRepository(tmp_path / "state.db")
     repo.upsert_notifications([_notification("event:sent")])
     repo.mark_sent("event:sent")
+    old_time = "2020-01-01T00:00:00Z"
+    with repo._connect() as conn:
+        conn.execute(
+            """
+            UPDATE notifications
+            SET updated_at = ?, last_sent_at = ?
+            WHERE event_id = ?
+            """,
+            (old_time, old_time, "event:sent"),
+        )
 
     removed = repo.cleanup_stale(
         days=0,

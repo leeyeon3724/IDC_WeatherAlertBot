@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
 
 from app.domain.models import AlertNotification
 from app.repositories.json_state_repo import JsonStateRepository
@@ -185,3 +189,79 @@ def test_state_repo_mark_many_sent(tmp_path) -> None:
     assert marked == 2
     reloaded = JsonStateRepository(state_file)
     assert reloaded.pending_count == 0
+
+
+def test_state_repo_logs_read_failure_when_open_fails(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    state_file = tmp_path / "state.json"
+    state_file.write_text("{}", encoding="utf-8")
+    original_open = Path.open
+
+    def _failing_open(self: Path, mode: str = "r", *args: object, **kwargs: object):
+        if self == state_file and "r" in mode:
+            raise OSError("read failed")
+        return original_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _failing_open)
+
+    with caplog.at_level(logging.ERROR, logger="weather_alert_bot.state"):
+        repo = JsonStateRepository(state_file)
+
+    assert repo.total_count == 0
+    assert any("state.read_failed" in record.message for record in caplog.records)
+
+
+def test_state_repo_logs_backup_failure_when_replace_fails(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    state_file = tmp_path / "state.json"
+    state_file.write_text("{invalid-json", encoding="utf-8")
+    original_replace = Path.replace
+
+    def _patched_replace(self: Path, target: Path, *args: object, **kwargs: object):
+        if self == state_file and ".broken-" in str(target):
+            raise OSError("backup failed")
+        return original_replace(self, target, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "replace", _patched_replace)
+
+    with caplog.at_level(logging.ERROR, logger="weather_alert_bot.state"):
+        repo = JsonStateRepository(state_file)
+
+    assert repo.total_count == 0
+    assert any("state.backup_failed" in record.message for record in caplog.records)
+    assert any("state.invalid_json" in record.message for record in caplog.records)
+
+
+def test_state_repo_drops_invalid_records_and_persists(tmp_path) -> None:
+    state_file = tmp_path / "state.json"
+    payload = {
+        "version": 2,
+        "events": {
+            "event:valid": {
+                "area_code": "11B00000",
+                "message": "valid",
+                "report_url": None,
+                "sent": False,
+                "first_seen_at": "2026-02-01T00:00:00Z",
+                "updated_at": "2026-02-01T00:00:00Z",
+                "last_sent_at": None,
+            },
+            "event:invalid": "broken",
+        },
+    }
+    state_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    repo = JsonStateRepository(state_file)
+
+    assert repo.total_count == 1
+    assert repo.get_unsent()[0].event_id == "event:valid"
+
+    rewritten = json.loads(state_file.read_text(encoding="utf-8"))
+    assert rewritten["version"] == 2
+    assert "event:invalid" not in rewritten["events"]
