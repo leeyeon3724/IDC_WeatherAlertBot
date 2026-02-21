@@ -51,7 +51,7 @@ def _settings(
     base: dict[str, object] = {
         "service_api_key": "test-key",
         "service_hook_url": "https://hook.example",
-        "weather_alert_data_api_url": "https://api.example/weather",
+        "weather_alert_data_api_url": "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
         "sent_messages_file": tmp_path / "state.json",
         "area_codes": ["L1070100"],
         "area_code_mapping": {"L1070100": "대구"},
@@ -143,7 +143,7 @@ def test_fetch_alerts_success(tmp_path) -> None:
     assert alerts[0].start_time == "2026년 2월 18일 오전 10시"
     assert alerts[0].end_time is None
     assert alerts[0].stn_id == "143"
-    assert session.calls[0][0] == "https://api.example/weather"
+    assert session.calls[0][0] == "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd"
     assert session.calls[0][2] == (2, 3)
     assert session.calls[0][1]["dataType"] == "XML"
 

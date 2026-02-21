@@ -50,7 +50,7 @@ def _settings(tmp_path) -> Settings:
     return Settings(
         service_api_key="test-key",
         service_hook_url="https://hook.example",
-        weather_alert_data_api_url="https://api.example",
+        weather_alert_data_api_url="http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
         sent_messages_file=tmp_path / "state.json",
         area_codes=["11B00000"],
         area_code_mapping={"11B00000": "서울"},
@@ -259,7 +259,7 @@ def test_process_cycle_rotates_dispatch_order_under_backpressure(tmp_path) -> No
     settings = Settings(
         service_api_key="test-key",
         service_hook_url="https://hook.example",
-        weather_alert_data_api_url="https://api.example",
+        weather_alert_data_api_url="http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
         sent_messages_file=tmp_path / "state.json",
         area_codes=["11B00000", "11C00000"],
         area_code_mapping={"11B00000": "서울", "11C00000": "경기"},
@@ -398,7 +398,7 @@ def test_process_cycle_parallel_fetch_ignores_area_interval(
     settings = Settings(
         service_api_key="test-key",
         service_hook_url="https://hook.example",
-        weather_alert_data_api_url="https://api.example",
+        weather_alert_data_api_url="http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
         sent_messages_file=tmp_path / "state.json",
         area_codes=["11B00000", "11C00000"],
         area_code_mapping={"11B00000": "서울", "11C00000": "경기"},
@@ -455,7 +455,7 @@ def test_process_cycle_parallel_fetch_uses_isolated_weather_clients(
     settings = Settings(
         service_api_key="test-key",
         service_hook_url="https://hook.example",
-        weather_alert_data_api_url="https://api.example",
+        weather_alert_data_api_url="http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
         sent_messages_file=tmp_path / "state.json",
         area_codes=["11B00000", "11C00000"],
         area_code_mapping={"11B00000": "서울", "11C00000": "경기"},

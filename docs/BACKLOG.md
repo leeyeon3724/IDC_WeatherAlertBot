@@ -20,19 +20,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-### 2-1) 테스트-실운영 설정 정합성 보강
-
-```text
-상태: 진행중
-중요도: 낮음
-항목: 설정 제약(특히 API URL scheme/host/path)과 테스트 픽스처 정합성 강화
-근거: 일부 테스트가 Settings.from_env 제약과 다른 직접 Settings 생성값을 사용하여
-      환경 제약 회귀를 놓칠 수 있음.
-      (app/settings.py, tests/test_weather_api.py)
-완료 기준:
-- 핵심 서비스 테스트에 from_env 검증 규칙과 동일한 제약을 반영
-- 설정 제약 변경 시 테스트가 즉시 실패하도록 계약성 테스트 보강
-```
+- 현재 활성 항목 없음
 
 신규 리스크 등록 템플릿:
 
