@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.domain.health import ApiHealthDecision
-from app.entrypoints import backfill, service_loop
+from app.entrypoints import backfill
 from app.entrypoints.runtime_builder import ServiceRuntime
 from app.entrypoints.service_loop import run_loop
 from app.repositories.health_state_repo import JsonHealthStateRepository
