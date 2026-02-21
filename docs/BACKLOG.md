@@ -23,12 +23,12 @@
 | 아키텍처 규율 (추가) | 4.5 | 계층 의존성 규칙 자동검사로 구조 역참조를 CI에서 즉시 차단 가능 |
 | 릴리스 게이트 단일화 (추가) | 4.5 | `make gate` 도입으로 로컬/CI 품질 검증 진입점이 단순화됨 |
 | 계약 안정성 (추가) | 4.6 | 이벤트/설정/CLI 계약 스냅샷 테스트로 호환성 파손을 조기 탐지 가능 |
-| 코드 수명주기 위생 (추가) | 3.8 | 미사용 코드/설정/문서 정리를 정기적으로 강제하는 루틴이 부재 |
+| 코드 수명주기 위생 (추가) | 4.5 | 저장소 위생 점검(`check_repo_hygiene`) 도입으로 문서 경계/환경변수 정합성을 자동 강제 가능 |
 
 ## 2) Evidence Snapshot
 
 - 품질 게이트: `ruff`, `mypy`, `scripts.check_event_docs_sync`, `pytest --cov` 통과
-- 테스트/커버리지: `139 passed`, 총 커버리지 `92.67%`
+- 테스트/커버리지: `141 passed`, 총 커버리지 `92.67%`
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
 
 ## 3) Active Backlog
@@ -38,7 +38,6 @@
 | RB-506 | P3 | 예정 | 성능/운영 비용 효율성 | perf 비교 결과를 추세 시각화(markdown chart)로 축적 | 리포트 누적 규칙 + 시각화 포맷 정의 |
 | RB-507 | P3 | 예정 | 성능/운영 비용 효율성 | 성능 리포트 보존 기간/샘플 정책(예: 최근 20회) 표준화 | CI/운영 문서에 보존 정책 명시 |
 | RB-605 | P3 | 예정 | 배포 신뢰성/감사 가능성 | PR 템플릿 체크 항목을 CI에서 부분 강제(예: 이벤트 변경 시 문서 동기화 확인) | 템플릿 누락과 실제 검증 결과 간 괴리 감소 |
-| RB-703 | P2 | 예정 | 코드 수명주기 위생 (추가) | 미사용 코드/설정/문서 정리 루틴(정적검사+체크리스트) 도입 | 정리 리포트가 주기적으로 생성되고 문서에 반영 |
 
 ## 4) Completed (Compact)
 
@@ -53,9 +52,10 @@
 | Runtime Matrix Wave | RB-601 | Python 3.11/3.12 smoke + startup 체크 및 버전별 아티팩트 도입 |
 | Schema Governance Wave | RB-602 | 이벤트 스키마 버전/변경로그 정책 및 동기화 검증 강화 |
 | Cost Observability Wave | RB-603 | 사이클별 API/전송량 비용 지표 이벤트 및 운영 기준 수립 |
+| Hygiene Guard Wave | RB-703 | 저장소 위생 점검 자동화 및 gate 통합으로 문서/설정 중복·잔재 리스크 축소 |
 
 ## 5) Maintenance Rules
 
-- 변경 단위별 품질 게이트(`ruff`, `mypy`, `scripts.check_architecture_rules`, `scripts.check_event_docs_sync`, `pytest`) 통과 후 병합
+- 변경 단위별 품질 게이트(`ruff`, `mypy`, `scripts.check_architecture_rules`, `scripts.check_event_docs_sync`, `scripts.check_repo_hygiene`, `pytest`) 통과 후 병합
 - 기능 변경은 작은 커밋 단위로 분리하고, 각 단위에서 백로그 상태를 함께 갱신
 - 문서 경계는 `README/SETUP/OPERATION/TESTING/EVENTS/BACKLOG`로 고정

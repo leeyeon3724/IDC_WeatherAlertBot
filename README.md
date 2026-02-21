@@ -33,6 +33,7 @@ make install-dev
 make test
 make gate
 make check-arch
+make check-hygiene
 make perf-report
 make perf-baseline
 make check-docs
