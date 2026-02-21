@@ -31,6 +31,7 @@ make perf-baseline
 make check-docs
 python3 main.py cleanup-state --days 30
 python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db
+python3 main.py verify-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db --strict
 ```
 
 ## 문서

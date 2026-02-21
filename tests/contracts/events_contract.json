@@ -37,5 +37,7 @@
   "STATE_MIGRATION_COMPLETE": "state.migration.complete",
   "STATE_MIGRATION_FAILED": "state.migration.failed",
   "STATE_PERSIST_FAILED": "state.persist_failed",
-  "STATE_READ_FAILED": "state.read_failed"
+  "STATE_READ_FAILED": "state.read_failed",
+  "STATE_VERIFY_COMPLETE": "state.verify.complete",
+  "STATE_VERIFY_FAILED": "state.verify.failed"
 }

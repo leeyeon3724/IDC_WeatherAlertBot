@@ -70,6 +70,15 @@ python3 main.py migrate-state \
   --sqlite-state-file ./data/sent_messages.db
 ```
 
+상태 저장소 무결성 점검(JSON/SQLite):
+
+```bash
+python3 main.py verify-state \
+  --json-state-file ./data/sent_messages.json \
+  --sqlite-state-file ./data/sent_messages.db \
+  --strict
+```
+
 ## 6. Docker 실행
 
 빌드:

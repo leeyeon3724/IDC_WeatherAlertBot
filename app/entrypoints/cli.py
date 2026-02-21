@@ -89,6 +89,17 @@ def _migrate_state(json_state_file: str, sqlite_state_file: str) -> int:
     )
 
 
+def _verify_state(json_state_file: str, sqlite_state_file: str, strict: bool) -> int:
+    return commands.verify_state(
+        json_state_file=json_state_file,
+        sqlite_state_file=sqlite_state_file,
+        strict=strict,
+        log_level=os.getenv("LOG_LEVEL", "INFO"),
+        timezone=os.getenv("TIMEZONE", "Asia/Seoul"),
+        setup_logging_fn=setup_logging,
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     return commands.build_parser()
 
@@ -111,6 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         return _migrate_state(
             json_state_file=args.json_state_file,
             sqlite_state_file=args.sqlite_state_file,
+        )
+    if command == "verify-state":
+        return _verify_state(
+            json_state_file=args.json_state_file,
+            sqlite_state_file=args.sqlite_state_file,
+            strict=args.strict,
         )
 
     return _run_service()

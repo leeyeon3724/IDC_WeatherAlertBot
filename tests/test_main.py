@@ -95,6 +95,40 @@ def test_migrate_state_command_dispatch(monkeypatch: pytest.MonkeyPatch) -> None
     }
 
 
+def test_verify_state_command_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_verify_state(json_state_file: str, sqlite_state_file: str, strict: bool) -> int:
+        captured.update(
+            {
+                "json_state_file": json_state_file,
+                "sqlite_state_file": sqlite_state_file,
+                "strict": strict,
+            }
+        )
+        return 0
+
+    monkeypatch.setattr(entrypoint, "_verify_state", _fake_verify_state)
+
+    result = entrypoint.main(
+        [
+            "verify-state",
+            "--json-state-file",
+            "tmp/source.json",
+            "--sqlite-state-file",
+            "tmp/target.db",
+            "--strict",
+        ]
+    )
+
+    assert result == 0
+    assert captured == {
+        "json_state_file": "tmp/source.json",
+        "sqlite_state_file": "tmp/target.db",
+        "strict": True,
+    }
+
+
 def test_cleanup_state_rejects_negative_days() -> None:
     with pytest.raises(SystemExit) as exc:
         entrypoint.main(["cleanup-state", "--days", "-1"])

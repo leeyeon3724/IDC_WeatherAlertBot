@@ -203,5 +203,26 @@
   "state.read_failed": [
     "error",
     "file"
+  ],
+  "state.verify.complete": [
+    "error_count",
+    "issues",
+    "json_state_file",
+    "passed",
+    "sqlite_state_file",
+    "strict",
+    "summaries",
+    "warning_count"
+  ],
+  "state.verify.failed": [
+    "error",
+    "error_count",
+    "issues",
+    "json_state_file",
+    "passed",
+    "sqlite_state_file",
+    "strict",
+    "summaries",
+    "warning_count"
   ]
 }

@@ -41,6 +41,14 @@ Webhook 실패 지속:
 
 상태 파일 손상:
 - `.broken-<timestamp>` 백업 파일 생성 여부 확인 후 복구 절차 수행
+- 복구 전/배포 전 무결성 점검:
+
+```bash
+python3 main.py verify-state \
+  --json-state-file ./data/sent_messages.json \
+  --sqlite-state-file ./data/sent_messages.db \
+  --strict
+```
 
 JSON -> SQLite 마이그레이션:
 

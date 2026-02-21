@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-EVENT_SCHEMA_VERSION = 2
+EVENT_SCHEMA_VERSION = 3
 
 # Runtime lifecycle
 STARTUP_INVALID_CONFIG = "startup.invalid_config"
@@ -52,3 +52,5 @@ STATE_CLEANUP_COMPLETE = "state.cleanup.complete"
 STATE_CLEANUP_FAILED = "state.cleanup.failed"
 STATE_MIGRATION_COMPLETE = "state.migration.complete"
 STATE_MIGRATION_FAILED = "state.migration.failed"
+STATE_VERIFY_COMPLETE = "state.verify.complete"
+STATE_VERIFY_FAILED = "state.verify.failed"

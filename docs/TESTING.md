@@ -12,8 +12,8 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-sampl
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `148`
-- 전체 커버리지: `92.67%`
+- 테스트 수: `155`
+- 전체 커버리지: `91.01%`
 - 최소 커버리지 기준: `80%`
 
 ## 3) 현재 기준

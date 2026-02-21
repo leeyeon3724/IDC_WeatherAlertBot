@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `2`
+- schema_version: `3`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -19,6 +19,7 @@
 |---|---|---|---|
 | 1 | 2026-02-21 | 이벤트 스키마 버전 기준 수립 및 동기화 검증 도입 | Initial |
 | 2 | 2026-02-21 | 비용 관점 사이클 지표(`cycle.cost.metrics`) 추가 및 `cycle.complete` 필드 확장 | Backward-compatible |
+| 3 | 2026-02-21 | 상태 저장소 무결성 검증 이벤트(`state.verify.complete`, `state.verify.failed`) 추가 | Backward-compatible |
 
 ## Runtime Lifecycle
 
@@ -76,3 +77,5 @@
 - `state.cleanup.failed`: `state_file`, `days`, `include_unsent`, `dry_run`, `error`
 - `state.migration.complete`: `json_state_file`, `sqlite_state_file`, `total_records`, `inserted_records`, `sent_records`, `marked_sent_records`
 - `state.migration.failed`: `json_state_file`, `sqlite_state_file`, `error`
+- `state.verify.complete`: `json_state_file`, `sqlite_state_file`, `strict`, `passed`, `error_count`, `warning_count`, `summaries`, `issues`
+- `state.verify.failed`: `json_state_file`, `sqlite_state_file`, `strict`, `passed`, `error_count`, `warning_count`, `summaries`, `issues`
