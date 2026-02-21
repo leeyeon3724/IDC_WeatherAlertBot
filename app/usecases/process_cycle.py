@@ -13,7 +13,7 @@ from app.logging_utils import log_event, redact_sensitive_text
 from app.observability import events
 from app.repositories.state_repository import StateRepository
 from app.services.notifier import DoorayNotifier, NotificationError
-from app.services.weather_api import WeatherAlertClient, WeatherApiError
+from app.services.weather_api import WeatherClient, WeatherApiError
 from app.settings import Settings
 
 
@@ -49,7 +49,7 @@ class ProcessCycleUseCase:
     def __init__(
         self,
         settings: Settings,
-        weather_client: WeatherAlertClient,
+        weather_client: WeatherClient,
         notifier: DoorayNotifier,
         state_repo: StateRepository,
         logger: logging.Logger | None = None,
@@ -155,24 +155,16 @@ class ProcessCycleUseCase:
         end_date: str,
         area_name: str,
     ) -> list[AlertEvent]:
-        if isinstance(self.weather_client, WeatherAlertClient):
-            worker_client = self.weather_client.new_worker_client()
-            try:
-                return worker_client.fetch_alerts(
-                    area_code=area_code,
-                    start_date=start_date,
-                    end_date=end_date,
-                    area_name=area_name,
-                )
-            finally:
-                worker_client.session.close()
-
-        return self.weather_client.fetch_alerts(
-            area_code=area_code,
-            start_date=start_date,
-            end_date=end_date,
-            area_name=area_name,
-        )
+        worker_client = self.weather_client.new_worker_client()
+        try:
+            return worker_client.fetch_alerts(
+                area_code=area_code,
+                start_date=start_date,
+                end_date=end_date,
+                area_name=area_name,
+            )
+        finally:
+            worker_client.close()
 
     def _resolve_area_result(
         self,

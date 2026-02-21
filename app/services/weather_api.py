@@ -4,7 +4,7 @@ import logging
 import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Final
+from typing import Final, Protocol
 
 import requests
 
@@ -38,6 +38,27 @@ class WeatherApiError(RuntimeError):
         self.status_code = status_code
         self.result_code = result_code
         self.last_error = last_error
+
+
+class WeatherClient(Protocol):
+    """날씨 경보 클라이언트 인터페이스.
+
+    WeatherAlertClient와 테스트 대역(fake) 모두가 구조적으로 구현해야 하는
+    최소 계약을 정의합니다. isinstance 검사 없이 병렬 조회 경로를 안전하게
+    사용할 수 있도록 new_worker_client()와 close()를 포함합니다.
+    """
+
+    def fetch_alerts(
+        self,
+        area_code: str,
+        start_date: str,
+        end_date: str,
+        area_name: str,
+    ) -> list[AlertEvent]: ...
+
+    def new_worker_client(self) -> WeatherClient: ...
+
+    def close(self) -> None: ...
 
 
 API_ERROR_TIMEOUT: Final[str] = "timeout"
@@ -131,6 +152,9 @@ class WeatherAlertClient:
 
     def new_worker_client(self) -> WeatherAlertClient:
         return WeatherAlertClient(settings=self.settings, logger=self.logger)
+
+    def close(self) -> None:
+        self.session.close()
 
     def _fetch_xml_root(
         self,

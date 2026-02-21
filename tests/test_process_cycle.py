@@ -29,6 +29,12 @@ class FakeWeatherClient:
             raise outcome
         return outcome
 
+    def new_worker_client(self) -> FakeWeatherClient:
+        return self
+
+    def close(self) -> None:
+        pass
+
 
 class FakeNotifier:
     def __init__(self, should_fail: bool = False):
