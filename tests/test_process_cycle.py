@@ -235,6 +235,45 @@ def test_process_cycle_applies_lookback_days(tmp_path) -> None:
     assert weather_client.calls[0][1] == "20260218"
 
 
+def test_process_cycle_supports_explicit_date_range(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": []})
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.range"),
+    )
+
+    stats = usecase.run_date_range(start_date="20260210", end_date="20260212")
+    assert stats.start_date == "20260210"
+    assert stats.end_date == "20260212"
+    assert weather_client.calls[0][1] == "20260210"
+    assert weather_client.calls[0][2] == "20260212"
+
+
+def test_process_cycle_rejects_invalid_date_range(tmp_path) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": []})
+    notifier = FakeNotifier(should_fail=False)
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logging.getLogger("test.processor.invalid_range"),
+    )
+
+    with pytest.raises(ValueError):
+        usecase.run_date_range(start_date="20260212", end_date="20260212")
+
+
 def test_process_cycle_parallel_fetch_ignores_area_interval(tmp_path) -> None:
     settings = Settings(
         service_api_key="test-key",

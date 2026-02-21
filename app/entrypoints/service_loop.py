@@ -4,7 +4,7 @@ import math
 import time
 from collections.abc import Callable
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from app.domain.health import ApiHealthDecision
@@ -129,24 +129,64 @@ def maybe_run_recovery_backfill(
 
     outage_days = max(1, math.ceil(health_decision.incident_duration_sec / 86400))
     backfill_days = min(outage_days, settings.health_recovery_backfill_max_days)
-    if backfill_days <= settings.lookback_days:
+    backfill_extra_days = backfill_days - settings.lookback_days
+    if backfill_extra_days <= 0:
         return
 
+    window_days = max(1, settings.health_recovery_backfill_window_days)
+    max_windows = max(1, settings.health_recovery_backfill_max_windows_per_cycle)
     runtime.logger.info(
         log_event(
             events.HEALTH_BACKFILL_START,
             lookback_days=backfill_days,
             incident_duration_sec=health_decision.incident_duration_sec,
+            backfill_extra_days=backfill_extra_days,
+            window_days=window_days,
+            max_windows=max_windows,
         )
     )
+    processed_days = 0
+    processed_windows = 0
+    sent_count = 0
+    pending_total = runtime.state_repo.pending_count
+    remaining_days = backfill_extra_days
     try:
-        backfill_stats = runtime.processor.run_once(lookback_days_override=backfill_days)
+        run_date_range = getattr(runtime.processor, "run_date_range", None)
+        if callable(run_date_range):
+            today = datetime.now(ZoneInfo(settings.timezone)).date()
+            windows = _build_backfill_date_windows(
+                today=today,
+                lookback_days=settings.lookback_days,
+                backfill_days=backfill_days,
+                window_days=window_days,
+            )
+            for start_date, end_date, days in windows[:max_windows]:
+                backfill_stats = run_date_range(start_date=start_date, end_date=end_date)
+                processed_windows += 1
+                processed_days += days
+                sent_count += backfill_stats.sent_count
+                pending_total = backfill_stats.pending_total
+            remaining_days = max(0, backfill_extra_days - processed_days)
+        else:
+            backfill_stats = runtime.processor.run_once(lookback_days_override=backfill_days)
+            processed_days = backfill_extra_days
+            processed_windows = 1
+            sent_count = backfill_stats.sent_count
+            pending_total = backfill_stats.pending_total
+            remaining_days = 0
+
         runtime.logger.info(
             log_event(
                 events.HEALTH_BACKFILL_COMPLETE,
                 lookback_days=backfill_days,
-                sent_count=backfill_stats.sent_count,
-                pending_total=backfill_stats.pending_total,
+                sent_count=sent_count,
+                pending_total=pending_total,
+                backfill_extra_days=backfill_extra_days,
+                processed_days=processed_days,
+                remaining_days=remaining_days,
+                processed_windows=processed_windows,
+                window_days=window_days,
+                max_windows=max_windows,
             )
         )
     except Exception as exc:
@@ -154,9 +194,41 @@ def maybe_run_recovery_backfill(
             log_event(
                 events.HEALTH_BACKFILL_FAILED,
                 lookback_days=backfill_days,
+                backfill_extra_days=backfill_extra_days,
+                processed_days=processed_days,
+                remaining_days=remaining_days,
+                processed_windows=processed_windows,
                 error=redact_sensitive_text(exc),
             )
         )
+
+
+def _build_backfill_date_windows(
+    *,
+    today: date,
+    lookback_days: int,
+    backfill_days: int,
+    window_days: int,
+) -> list[tuple[str, str, int]]:
+    current_start = today - timedelta(days=max(lookback_days, 0))
+    backfill_start = today - timedelta(days=max(backfill_days, 0))
+    if backfill_start >= current_start:
+        return []
+
+    windows: list[tuple[str, str, int]] = []
+    cursor = backfill_start
+    step_days = max(1, window_days)
+    while cursor < current_start:
+        next_cursor = min(cursor + timedelta(days=step_days), current_start)
+        windows.append(
+            (
+                cursor.strftime("%Y%m%d"),
+                next_cursor.strftime("%Y%m%d"),
+                (next_cursor - cursor).days,
+            )
+        )
+        cursor = next_cursor
+    return windows
 
 
 def sleep_until_next_cycle(

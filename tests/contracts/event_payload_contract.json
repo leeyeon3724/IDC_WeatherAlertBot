@@ -59,17 +59,30 @@
     "start_date"
   ],
   "health.backfill.complete": [
+    "backfill_extra_days",
     "lookback_days",
+    "max_windows",
     "pending_total",
-    "sent_count"
+    "processed_days",
+    "processed_windows",
+    "remaining_days",
+    "sent_count",
+    "window_days"
   ],
   "health.backfill.failed": [
+    "backfill_extra_days",
     "error",
-    "lookback_days"
+    "lookback_days",
+    "processed_days",
+    "processed_windows",
+    "remaining_days"
   ],
   "health.backfill.start": [
+    "backfill_extra_days",
     "incident_duration_sec",
-    "lookback_days"
+    "lookback_days",
+    "max_windows",
+    "window_days"
   ],
   "health.evaluate": [
     "consecutive_severe_failures",
@@ -163,6 +176,8 @@
     "health_alert_enabled",
     "health_backoff_max_sec",
     "health_recovery_backfill_max_days",
+    "health_recovery_backfill_max_windows_per_cycle",
+    "health_recovery_backfill_window_days",
     "health_state_file",
     "lookback_days",
     "run_once",

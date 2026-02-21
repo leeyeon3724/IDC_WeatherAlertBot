@@ -225,6 +225,16 @@
     "name": "health_recovery_backfill_max_days"
   },
   {
+    "default": 1,
+    "has_default": true,
+    "name": "health_recovery_backfill_window_days"
+  },
+  {
+    "default": 3,
+    "has_default": true,
+    "name": "health_recovery_backfill_max_windows_per_cycle"
+  },
+  {
     "default": "data/api_health_state.json",
     "has_default": true,
     "name": "health_state_file"

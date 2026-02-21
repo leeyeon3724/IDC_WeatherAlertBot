@@ -11,6 +11,10 @@
 4. 헬스 평가/알림, 필요 시 복구 backfill
 5. 주기 대기 후 반복
 
+복구 backfill 예산(기본):
+- `HEALTH_RECOVERY_BACKFILL_WINDOW_DAYS=1` (백필 조회 윈도우 일수)
+- `HEALTH_RECOVERY_BACKFILL_MAX_WINDOWS_PER_CYCLE=3` (사이클당 최대 백필 윈도우 수)
+
 핵심 코드:
 - `app/usecases/process_cycle.py`
 - `app/entrypoints/service_loop.py`
@@ -142,6 +146,9 @@ python3 main.py migrate-state \
 - 실패율(`failure_rate`) `<= 0.0` (canary/live-e2e 기준)
 - p95 사이클 지연(`cycle_latency_p95_sec`) `<= 600`
 - 최신 미전송 잔량(`pending_latest`) `<= 0`
+
+복구 backfill 지연 제어:
+- `HEALTH_RECOVERY_BACKFILL_WINDOW_DAYS`, `HEALTH_RECOVERY_BACKFILL_MAX_WINDOWS_PER_CYCLE`를 조정해 한 사이클에서 처리할 backfill 양을 제한
 
 ## 11. 배포 전 상태 무결성 게이트
 

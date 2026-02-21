@@ -306,6 +306,20 @@ class ProcessCycleUseCase:
         start_base = current - timedelta(days=lookback_days)
         start_date = start_base.strftime("%Y%m%d")
         end_date = (current + timedelta(days=1)).strftime("%Y%m%d")
+        return self.run_date_range(start_date=start_date, end_date=end_date)
+
+    def run_date_range(
+        self,
+        *,
+        start_date: str,
+        end_date: str,
+    ) -> CycleStats:
+        if start_date >= end_date:
+            raise ValueError(
+                "start_date must be earlier than end_date "
+                f"(received start_date={start_date}, end_date={end_date})."
+            )
+
         stats = CycleStats(
             start_date=start_date,
             end_date=end_date,

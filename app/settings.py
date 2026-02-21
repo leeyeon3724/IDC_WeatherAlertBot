@@ -226,6 +226,8 @@ class _HealthConfig:
     health_heartbeat_interval_sec: int
     health_backoff_max_sec: int
     health_recovery_backfill_max_days: int
+    health_recovery_backfill_window_days: int
+    health_recovery_backfill_max_windows_per_cycle: int
 
 
 def _parse_core_config() -> _CoreConfig:
@@ -418,6 +420,16 @@ def _parse_health_config() -> _HealthConfig:
             3,
             minimum=0,
         ),
+        health_recovery_backfill_window_days=_parse_int_env(
+            "HEALTH_RECOVERY_BACKFILL_WINDOW_DAYS",
+            1,
+            minimum=1,
+        ),
+        health_recovery_backfill_max_windows_per_cycle=_parse_int_env(
+            "HEALTH_RECOVERY_BACKFILL_MAX_WINDOWS_PER_CYCLE",
+            3,
+            minimum=1,
+        ),
     )
 
 
@@ -468,6 +480,8 @@ class Settings:
     health_heartbeat_interval_sec: int = 3600
     health_backoff_max_sec: int = 900
     health_recovery_backfill_max_days: int = 3
+    health_recovery_backfill_window_days: int = 1
+    health_recovery_backfill_max_windows_per_cycle: int = 3
     health_state_file: Path = Path("./data/api_health_state.json")
 
     @classmethod
@@ -527,5 +541,9 @@ class Settings:
             health_heartbeat_interval_sec=health.health_heartbeat_interval_sec,
             health_backoff_max_sec=health.health_backoff_max_sec,
             health_recovery_backfill_max_days=health.health_recovery_backfill_max_days,
+            health_recovery_backfill_window_days=health.health_recovery_backfill_window_days,
+            health_recovery_backfill_max_windows_per_cycle=(
+                health.health_recovery_backfill_max_windows_per_cycle
+            ),
             health_state_file=repositories.health_state_file,
         )

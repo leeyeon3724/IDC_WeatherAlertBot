@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `5`
+- schema_version: `6`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -22,11 +22,12 @@
 | 3 | 2026-02-21 | 상태 저장소 무결성 검증 이벤트(`state.verify.complete`, `state.verify.failed`) 추가 | Backward-compatible |
 | 4 | 2026-02-21 | 알림 폭주 완화 이벤트(`notification.backpressure.applied`, `notification.circuit.*`) 및 cycle 비용 필드 확장 | Backward-compatible |
 | 5 | 2026-02-21 | 루프 예외 격리 이벤트(`cycle.iteration.failed`, `cycle.fatal_error`) 추가 | Backward-compatible |
+| 6 | 2026-02-21 | 복구 backfill 예산 필드(`health.backfill.*`, `startup.ready`) 확장 | Backward-compatible |
 
 ## Runtime Lifecycle
 
 - `startup.invalid_config`: `error`
-- `startup.ready`: `state_file`, `state_repository_type`, `sqlite_state_file`, `health_state_file`, `area_count`
+- `startup.ready`: `state_file`, `state_repository_type`, `sqlite_state_file`, `health_state_file`, `area_count`, `health_recovery_backfill_window_days`, `health_recovery_backfill_max_windows_per_cycle`
 - `shutdown.interrupt`: 없음
 - `shutdown.run_once_complete`: 없음
 - `shutdown.unexpected_error`: `error`
@@ -66,9 +67,9 @@
 - `health.evaluate`: `incident_open`, `health_event`, `should_notify`
 - `health.notification.sent`: `health_event`
 - `health.notification.failed`: `health_event`, `attempts`, `error`
-- `health.backfill.start`: `lookback_days`, `incident_duration_sec`
-- `health.backfill.complete`: `lookback_days`, `sent_count`, `pending_total`
-- `health.backfill.failed`: `lookback_days`, `error`
+- `health.backfill.start`: `lookback_days`, `incident_duration_sec`, `backfill_extra_days`, `window_days`, `max_windows`
+- `health.backfill.complete`: `lookback_days`, `sent_count`, `pending_total`, `backfill_extra_days`, `processed_days`, `remaining_days`, `processed_windows`, `window_days`, `max_windows`
+- `health.backfill.failed`: `lookback_days`, `backfill_extra_days`, `processed_days`, `remaining_days`, `processed_windows`, `error`
 - `health_state.invalid_json`: `file`, `backup`, `error`
 - `health_state.read_failed`: `file`, `error`
 - `health_state.backup_failed`: `file`, `error`

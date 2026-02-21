@@ -60,6 +60,8 @@ def make_settings(tmp_path: Path, **overrides: object) -> Settings:
         "health_heartbeat_interval_sec": 3600,
         "health_backoff_max_sec": 900,
         "health_recovery_backfill_max_days": 3,
+        "health_recovery_backfill_window_days": 1,
+        "health_recovery_backfill_max_windows_per_cycle": 3,
         "health_state_file": tmp_path / "health_state.json",
         "bot_name": "테스트봇",
         "timezone": "Asia/Seoul",

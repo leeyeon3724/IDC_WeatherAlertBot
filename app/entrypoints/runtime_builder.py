@@ -132,6 +132,10 @@ def log_startup(runtime: ServiceRuntime) -> None:
             health_alert_enabled=settings.health_alert_enabled,
             health_backoff_max_sec=settings.health_backoff_max_sec,
             health_recovery_backfill_max_days=settings.health_recovery_backfill_max_days,
+            health_recovery_backfill_window_days=settings.health_recovery_backfill_window_days,
+            health_recovery_backfill_max_windows_per_cycle=(
+                settings.health_recovery_backfill_max_windows_per_cycle
+            ),
             cleanup_enabled=settings.cleanup_enabled,
             cleanup_retention_days=settings.cleanup_retention_days,
             cleanup_include_unsent=settings.cleanup_include_unsent,

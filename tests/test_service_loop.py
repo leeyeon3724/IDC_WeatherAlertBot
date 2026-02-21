@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -166,6 +167,68 @@ def test_maybe_run_recovery_backfill_branches(tmp_path: Path) -> None:
     )
     service_loop.maybe_run_recovery_backfill(runtime=runtime_fail, health_decision=recovered)
     assert runtime_fail.processor.calls == 1
+
+
+def test_maybe_run_recovery_backfill_splits_windows_with_budget(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recovered = ApiHealthDecision(
+        incident_open=False,
+        event="recovered",
+        should_notify=False,
+        incident_duration_sec=7 * 86400,
+    )
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={
+            "lookback_days": 0,
+            "health_recovery_backfill_max_days": 5,
+            "health_recovery_backfill_window_days": 2,
+            "health_recovery_backfill_max_windows_per_cycle": 2,
+        },
+        decision=recovered,
+    )
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+
+    class _RangeProcessor:
+        def __init__(self, stats: CycleStats) -> None:
+            self.stats = stats
+            self.range_calls: list[tuple[str, str]] = []
+
+        def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
+            raise AssertionError("run_once should not be called when run_date_range is available")
+
+        def run_date_range(self, *, start_date: str, end_date: str) -> CycleStats:
+            self.range_calls.append((start_date, end_date))
+            return self.stats
+
+    processor = _RangeProcessor(runtime.processor.stats)
+    object.__setattr__(runtime, "processor", processor)
+
+    class _FixedDateTime:
+        @classmethod
+        def now(cls, tz: ZoneInfo | None = None) -> datetime:
+            fixed = datetime(2026, 2, 21, 10, 0, tzinfo=UTC)
+            if tz is None:
+                return fixed
+            return fixed.astimezone(tz)
+
+    monkeypatch.setattr(service_loop, "datetime", _FixedDateTime)
+    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
+
+    assert processor.range_calls == [("20260216", "20260218"), ("20260218", "20260220")]
+    payloads = [json.loads(message) for message in handler.messages]
+    complete_payloads = [
+        payload for payload in payloads if payload.get("event") == events.HEALTH_BACKFILL_COMPLETE
+    ]
+    assert len(complete_payloads) == 1
+    assert complete_payloads[0]["processed_days"] == 4
+    assert complete_payloads[0]["remaining_days"] == 1
+    assert complete_payloads[0]["processed_windows"] == 2
 
 
 def test_sleep_until_next_cycle_calls_sleep_when_adjusted(tmp_path: Path) -> None:
