@@ -5,19 +5,9 @@
 ## 1) 실행 명령
 
 ```bash
-make gate
-make testing-snapshot
-python3 -m scripts.check_env_defaults_sync
-python3 -m scripts.check_alarm_rules_sync
-python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
-python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-samples 20 --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
-python3 -m scripts.compare_perf_reports --base artifacts/perf/base.json --head artifacts/perf/head.json --output artifacts/perf/compare.local.json --markdown-output artifacts/perf/compare.local.md --max-regression-pct 20 --fail-on-regression
-python3 -m scripts.soak_report --cycles 3000 --area-count 3 --max-memory-growth-kib 8192 --json-output artifacts/soak/local.json --markdown-output artifacts/soak/local.md
-python3 -m scripts.slo_report --log-file artifacts/canary/service.log --json-output artifacts/slo/local.json --markdown-output artifacts/slo/local.md
-python3 -m scripts.select_tests --changed-files-file artifacts/pr-fast/changed_files.txt --selected-output artifacts/pr-fast/selected_tests.txt --json-output artifacts/pr-fast/selection.json --markdown-output artifacts/pr-fast/selection.md
-make live-e2e-local
-# make가 없으면:
-./scripts/run_live_e2e_local.sh .env.live-e2e
+make gate              # 전체 품질 게이트(lint/type/test/cov)
+make testing-snapshot  # docs/TESTING.md 수치 자동 갱신
+make live-e2e-local    # 실자격증명 1회 검증(ENABLE_LIVE_E2E=true 필요)
 ```
 
 ## 2) 현재 스냅샷

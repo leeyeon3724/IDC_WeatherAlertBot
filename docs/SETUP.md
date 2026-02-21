@@ -95,17 +95,6 @@ python3 main.py verify-state \
   --strict
 ```
 
-합성 soak 리포트(안정성 예산 점검):
-
-```bash
-python3 -m scripts.soak_report \
-  --cycles 3000 \
-  --area-count 3 \
-  --max-memory-growth-kib 8192 \
-  --json-output artifacts/soak/local.json \
-  --markdown-output artifacts/soak/local.md
-```
-
 ## 6. Docker 실행
 
 빌드:

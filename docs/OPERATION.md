@@ -97,7 +97,7 @@ python3 main.py migrate-state \
 - 트리거: `schedule(매일)`, `pull_request(main, 관련 경로)`, `workflow_dispatch`
 - 목적: 스테이징 성격의 실 API + 분리 webhook 채널 건전성 점검
 - 필수 시크릿: `SERVICE_API_KEY`, `CANARY_SERVICE_HOOK_URL`
-- 결과 산출물: `artifacts/canary/service.log`, `artifacts/canary/webhook_probe.json`, `artifacts/canary/report.json`, `artifacts/canary/report.md`
+- 결과 산출물: `artifacts/canary/service.log`, `artifacts/canary/webhook_probe.json`, `artifacts/canary/report.*`
 
 판정 규칙:
 - 성공 조건: `startup.ready`, `cycle.start`, `cycle.complete`, `shutdown.run_once_complete` 이벤트 존재 + webhook probe 성공 + 주요 실패 이벤트 부재
@@ -110,22 +110,13 @@ python3 main.py migrate-state \
 - 목적: 테스트용 실자격증명(API/Webhook)으로 실제 전송 경로를 보호 환경에서 검증
 - 필수 시크릿: `LIVE_E2E_SERVICE_API_KEY`, `LIVE_E2E_WEBHOOK_URL`
 - 필수 조건: GitHub Environment `live-e2e` 보호 규칙(승인자/브랜치 제한) 적용
-- 결과 산출물: `artifacts/live-e2e/service.log`, `artifacts/live-e2e/webhook_probe.json`, `artifacts/live-e2e/report.json`, `artifacts/live-e2e/report.md`
+- 결과 산출물: `artifacts/live-e2e/service.log`, `artifacts/live-e2e/webhook_probe.json`, `artifacts/live-e2e/report.*`
 
 판정 규칙:
 - 성공 조건: canary와 동일한 필수 이벤트 집합 + webhook probe 성공 + 주요 실패 이벤트 부재
 - 실패 시 분리 원칙: 코드 회귀(서비스 exit code, 필수 이벤트 누락)와 외부 장애(webhook/API 네트워크)를 각각 분류
 
-로컬 1회 검증(수동):
-- 스크립트: `scripts/run_live_e2e_local.sh`
-- 준비: `cp .env.live-e2e.example .env.live-e2e` 후 테스트용 실자격증명 입력
-- 실행: `make live-e2e-local`
-- 가드: `ENABLE_LIVE_E2E=true`가 없으면 실행 차단
-- 산출물:
-  - `artifacts/live-e2e/local/service.log`
-  - `artifacts/live-e2e/local/webhook_probe.json`
-  - `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/report.md`
-  - `artifacts/live-e2e/local/slo_report.json`, `artifacts/live-e2e/local/slo_report.md`
+로컬 실행: `docs/SETUP.md` §5 참고.
 
 ## 9. Soak 안정성 검증
 
@@ -144,7 +135,7 @@ python3 main.py migrate-state \
 
 - 스크립트: `scripts/slo_report.py`
 - 자동 생성: `.github/workflows/canary.yml`, `.github/workflows/live-e2e.yml` 내 SLO 리포트 단계
-- 산출물: `artifacts/canary/slo_report.json`, `artifacts/canary/slo_report.md`, `artifacts/live-e2e/slo_report.json`, `artifacts/live-e2e/slo_report.md`
+- 산출물: `artifacts/canary/slo_report.*`, `artifacts/live-e2e/slo_report.*`
 - 로컬 실행: `make slo-report` 또는 `python3 -m scripts.slo_report --log-file <service.log>`
 - 필드 누락 진단: `missing_field_causes`로 원인(`log_format`/`collection_gap`/`code_omission`)을 분류하고, 보정 시 `fallbacks_applied`에 근거 필드를 기록
 
@@ -199,8 +190,3 @@ python3 main.py migrate-state \
 | SOAK_NEW_EVENT_EVERY | `soak.yml` | `0` | 주기적 신규 이벤트 주입 간격 |
 | SOAK_MAX_MEMORY_GROWTH_KIB | `soak.yml` | `8192` | 메모리 증가 예산 |
 
-설정 검증 순서:
-1. `Canary` 워크플로를 `workflow_dispatch`로 1회 실행
-2. `Live E2E` 워크플로를 보호 환경 승인 후 `workflow_dispatch`로 1회 실행
-3. `Soak` 워크플로를 `workflow_dispatch`로 1회 실행
-4. 아티팩트(`artifacts/canary/*`, `artifacts/live-e2e/*`, `artifacts/soak/*`)와 Step Summary에서 PASS 확인

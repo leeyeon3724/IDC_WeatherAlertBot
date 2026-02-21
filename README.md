@@ -26,10 +26,6 @@ make live-e2e-local
 make testing-snapshot
 ```
 
-- 설치/환경변수/로컬 실행 상세: `docs/SETUP.md`
-- 운영/장애 대응/알람 기준: `docs/OPERATION.md`
-- 테스트/품질 게이트/자동화: `docs/TESTING.md`
-
 ## 문서
 
 - `docs/SETUP.md`: 설치, 환경변수, 로컬/도커 실행
