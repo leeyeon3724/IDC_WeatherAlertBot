@@ -54,6 +54,17 @@
 | RB-806 | P3 | 검증대기 | 설계·코드 품질 / 변경 효율 | SR-03 | 상태 저장소 점검 CLI(`verify-state`) 도입(JSON/SQLite 무결성/마이그레이션 전 검사) | 배포 전 상태 무결성 점검을 자동 수행하고 실패 원인을 표준 출력으로 제공 |
 | RB-807 | P3 | 검증대기 | 변경 효율 / 검증력(테스트·계약) | SR-06 | 변경영향 기반 테스트 선택 실행(빠른 PR 게이트 + 야간 full gate) 전략 정립 | PR 리드타임 단축, full gate 회귀 탐지력 유지, 정책이 CI 문서와 일치 |
 
+## 3.1) 검증대기 완료 전환 기준(운영데이터)
+
+| ID | 운영데이터 관찰 구간 | 완료 전환 기준(정량) | 근거 데이터/아티팩트 |
+|---|---|---|---|
+| RB-801 | 최근 14일 canary 실행 이력 | `canary_report` 성공률 `>= 95%`(최소 13/14), `webhook_probe_passed=true` 100%, `failed_reasons=[]` | `artifacts/canary/report.json`, `artifacts/canary/slo_report.json`, Actions Summary |
+| RB-802 | 최근 7일 soak 실행 이력 | `soak_report` 7/7 PASS, `duplicate_delivery_count=0`, `max_pending_seen=0`, `memory_growth_kib <= budget` | `artifacts/soak/report.json`, `soak.yml` Summary |
+| RB-804 | 최근 30일(실제 장애 또는 drill 1회 이상 포함) | `notification.circuit.opened` 발생 건의 100%에서 `notification.circuit.closed` 확인, `notification.backpressure.applied` 발생 구간에서 미전송 잔량(`pending_total`)이 2개 사이클 내 감소 추세 | 구조화 로그(`notification.circuit.*`, `notification.backpressure.applied`, `cycle.cost.metrics`) |
+| RB-805 | 최근 14일 canary SLO 리포트 | `slo_report` 생성률 100%, `success_rate >= 1.0`, `failure_rate <= 0.0`, `pending_latest <= 0`, `p95_cycle_latency_sec <= 600` | `artifacts/canary/slo_report.json`, Actions Summary |
+| RB-806 | 최근 14일 CI + 최근 3회 배포 | CI `State integrity verification smoke` 100% PASS + 최근 3회 배포 전 `verify-state --strict` 수행 로그에서 실패 0 | `artifacts/state-check/verify.log`, 배포 체크리스트 증적 |
+| RB-807 | 최근 30개 PR + 최근 14일 nightly | PR의 `fast` 모드 적용률 `>= 70%`, `fast` 모드 median 실행시간이 full 대비 `<= 60%`, nightly full gate 성공률 `>= 95%` | `artifacts/pr-fast/selection.json`, `pr-fast.yml`/`nightly-full.yml` run history |
+
 ## 4) Completed (Compact)
 
 | 구간 | 완료 범위 | 핵심 성과 |

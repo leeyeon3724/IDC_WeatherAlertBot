@@ -131,3 +131,32 @@ python3 main.py migrate-state \
   - 매핑 불가능/고위험 변경은 full 테스트로 자동 폴백
 - Nightly full gate: `.github/workflows/nightly-full.yml`
   - `make gate` 주기 실행으로 전체 회귀 탐지력 유지
+
+## 12. GitHub Secrets/Vars 설정 가이드
+
+설정 경로:
+- GitHub 저장소 -> `Settings` -> `Secrets and variables` -> `Actions`
+- 민감정보는 `Secrets`, 비민감 파라미터는 `Variables`에 등록
+
+필수 `Secrets`:
+
+| 이름 | 사용 워크플로 | 용도 | 비고 |
+|---|---|---|---|
+| SERVICE_API_KEY | `canary.yml` | 기상청 API 호출 인증 | 실제 운영 키 |
+| CANARY_SERVICE_HOOK_URL | `canary.yml` | canary webhook 검증 채널 | 운영 알림 채널과 분리 권장 |
+
+권장 `Variables`:
+
+| 이름 | 사용 워크플로 | 기본값 | 용도 |
+|---|---|---:|---|
+| CANARY_AREA_CODES | `canary.yml` | `["L1090000"]` | canary 대상 지역코드 |
+| CANARY_AREA_CODE_MAPPING | `canary.yml` | `{"L1090000":"서울"}` | canary 지역명 매핑 |
+| SOAK_CYCLES | `soak.yml` | `6000` | soak 사이클 수 |
+| SOAK_AREA_COUNT | `soak.yml` | `3` | soak 합성 지역 수 |
+| SOAK_NEW_EVENT_EVERY | `soak.yml` | `0` | 주기적 신규 이벤트 주입 간격 |
+| SOAK_MAX_MEMORY_GROWTH_KIB | `soak.yml` | `8192` | 메모리 증가 예산 |
+
+설정 검증 순서:
+1. `Canary` 워크플로를 `workflow_dispatch`로 1회 실행
+2. `Soak` 워크플로를 `workflow_dispatch`로 1회 실행
+3. 아티팩트(`artifacts/canary/*`, `artifacts/soak/*`)와 Step Summary에서 PASS 확인
