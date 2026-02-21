@@ -133,3 +133,32 @@ def test_run_service_uses_sqlite_state_repository(
 
     assert result == 0
     assert probe.sqlite_repo_file == settings.sqlite_state_file
+
+
+def test_run_service_uses_json_state_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = make_settings(
+        tmp_path,
+        state_repository_type="json",
+        sent_messages_file=tmp_path / "state.json",
+    )
+    probe = patch_service_runtime(
+        monkeypatch=monkeypatch,
+        settings=settings,
+        logger_name="test.main.smoke.json",
+        cycle_stats=CycleStats(
+            start_date="20260221",
+            end_date="20260222",
+            area_count=1,
+        ),
+        health_decision=ApiHealthDecision(incident_open=False),
+    )
+
+    result = entrypoint._run_service()
+
+    assert result == 0
+    assert probe.state_repo_kinds == ["json"]
+    assert probe.json_repo_file == settings.sent_messages_file
+    assert probe.sqlite_repo_file is None

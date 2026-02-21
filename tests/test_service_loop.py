@@ -139,8 +139,21 @@ def test_maybe_send_health_notification_handles_empty_and_failure(
     assert runtime.notifier.messages == []
 
     runtime_fail = _runtime(tmp_path, decision=decision, notifier_should_fail=True)
+    failure_handler = _CaptureHandler()
+    runtime_fail.logger.handlers = [failure_handler]
+    runtime_fail.logger.setLevel(logging.INFO)
+    runtime_fail.logger.propagate = False
     monkeypatch.setattr(service_loop, "build_health_notification_message", lambda _: "msg")
     service_loop.maybe_send_health_notification(runtime=runtime_fail, health_decision=decision)
+
+    payloads = [json.loads(message) for message in failure_handler.messages]
+    failure_events = [
+        payload for payload in payloads if payload.get("event") == events.HEALTH_NOTIFICATION_FAILED
+    ]
+    assert len(failure_events) == 1
+    assert failure_events[0]["health_event"] == "outage_detected"
+    assert failure_events[0]["attempts"] == 2
+    assert "boom" in str(failure_events[0]["error"])
 
 
 def test_maybe_run_recovery_backfill_branches(tmp_path: Path) -> None:
@@ -165,8 +178,27 @@ def test_maybe_run_recovery_backfill_branches(tmp_path: Path) -> None:
         decision=recovered,
         processor_raises=RuntimeError("backfill error"),
     )
+    failure_handler = _CaptureHandler()
+    runtime_fail.logger.handlers = [failure_handler]
+    runtime_fail.logger.setLevel(logging.INFO)
+    runtime_fail.logger.propagate = False
     service_loop.maybe_run_recovery_backfill(runtime=runtime_fail, health_decision=recovered)
     assert runtime_fail.processor.calls == 1
+
+    payloads = [json.loads(message) for message in failure_handler.messages]
+    start_events = [
+        payload for payload in payloads if payload.get("event") == events.HEALTH_BACKFILL_START
+    ]
+    failed_events = [
+        payload for payload in payloads if payload.get("event") == events.HEALTH_BACKFILL_FAILED
+    ]
+    assert len(start_events) == 1
+    assert len(failed_events) == 1
+    assert failed_events[0]["lookback_days"] == 2
+    assert failed_events[0]["backfill_extra_days"] == 2
+    assert failed_events[0]["processed_days"] == 0
+    assert failed_events[0]["processed_windows"] == 0
+    assert "backfill error" in str(failed_events[0]["error"])
 
 
 def test_maybe_run_recovery_backfill_splits_windows_with_budget(

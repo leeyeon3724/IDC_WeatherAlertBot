@@ -3,13 +3,13 @@
 이 문서는 **앞으로 진행할 리팩토링 작업만** 관리합니다.
 완료 이력은 커밋 로그로 추적하고, 이 문서에는 남기지 않습니다.
 기준 브랜치: `main`
-마지막 갱신: `2026-02-21` (신뢰성/안정성 액션 아이템 반영 및 정리)
+마지막 갱신: `2026-02-21` (런타임 테스트 코드 패치 반영)
 
 ## 1) 현재 기준선 (참고)
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
-- 테스트: `212 passed`
-- 커버리지: `93.93%` (최저 기준 `80%`)
+- 테스트: `214 passed`
+- 커버리지: `94.02%` (최저 기준 `80%`)
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
 - 로컬 실자격증명 검증: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`(비추적)
 

@@ -19,6 +19,8 @@ class ServiceRuntimeProbe:
     cleanup_calls: list[tuple[int, bool, bool]] = field(default_factory=list)
     notifier_messages: list[str] = field(default_factory=list)
     processor_lookback_calls: list[int | None] = field(default_factory=list)
+    state_repo_kinds: list[str] = field(default_factory=list)
+    json_repo_file: Path | None = None
     sqlite_repo_file: Path | None = None
 
 
@@ -98,15 +100,25 @@ def patch_service_runtime(
             self.logger = logger
             self.total_count = 0
             self.pending_count = 0
+            probe.state_repo_kinds.append("json")
+            probe.json_repo_file = file_path
 
         def cleanup_stale(self, days: int, include_unsent: bool, dry_run: bool = False) -> int:
             probe.cleanup_calls.append((days, include_unsent, dry_run))
             return 0
 
-    class FakeSqliteRepo(FakeStateRepo):
+    class FakeSqliteRepo:
         def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:
-            super().__init__(file_path=file_path, logger=logger)
+            self.file_path = file_path
+            self.logger = logger
+            self.total_count = 0
+            self.pending_count = 0
+            probe.state_repo_kinds.append("sqlite")
             probe.sqlite_repo_file = file_path
+
+        def cleanup_stale(self, days: int, include_unsent: bool, dry_run: bool = False) -> int:
+            probe.cleanup_calls.append((days, include_unsent, dry_run))
+            return 0
 
     class FakeHealthStateRepo:
         def __init__(self, file_path: Path, logger: logging.Logger | None = None) -> None:

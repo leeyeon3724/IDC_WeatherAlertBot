@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -355,7 +354,10 @@ def test_process_cycle_rejects_invalid_date_range(tmp_path) -> None:
         usecase.run_date_range(start_date="20260212", end_date="20260212")
 
 
-def test_process_cycle_parallel_fetch_ignores_area_interval(tmp_path) -> None:
+def test_process_cycle_parallel_fetch_ignores_area_interval(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     settings = Settings(
         service_api_key="test-key",
         service_hook_url="https://hook.example",
@@ -398,10 +400,15 @@ def test_process_cycle_parallel_fetch_ignores_area_interval(tmp_path) -> None:
         logger=logging.getLogger("test.processor.parallel"),
     )
 
-    start = time.perf_counter()
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        "app.usecases.process_cycle.time.sleep",
+        lambda value: sleep_calls.append(value),
+    )
     usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
-    elapsed = time.perf_counter() - start
-    assert elapsed < 1.0
+
+    assert sleep_calls == []
+    assert len(weather_client.calls) == 2
 
 
 def test_process_cycle_parallel_fetch_uses_isolated_weather_clients(

@@ -161,3 +161,16 @@ def test_build_state_repository_uses_sqlite_when_configured(tmp_path: Path) -> N
     repo = entrypoint._build_state_repository(settings=settings, logger=logger)
 
     assert repo.__class__.__name__ == "SqliteStateRepository"
+
+
+def test_build_state_repository_uses_json_when_configured(tmp_path: Path) -> None:
+    settings = make_settings(
+        tmp_path,
+        state_repository_type="json",
+        sent_messages_file=tmp_path / "state.json",
+    )
+    logger = logging.getLogger("test.main.repo_factory.json")
+
+    repo = entrypoint._build_state_repository(settings=settings, logger=logger)
+
+    assert repo.__class__.__name__ == "JsonStateRepository"
