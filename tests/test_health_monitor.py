@@ -120,3 +120,95 @@ def test_health_monitor_suggests_backoff_interval_when_incident_open(tmp_path) -
     assert monitor.state.incident_open is True
     adjusted = monitor.suggested_cycle_interval_sec(base_interval_sec=10)
     assert adjusted >= 20
+
+
+def test_health_monitor_short_heartbeat_policy_emits_periodic_heartbeat(tmp_path) -> None:
+    state_repo = JsonHealthStateRepository(tmp_path / "health_state.json")
+    policy = HealthPolicy(
+        outage_window_sec=300,
+        outage_fail_ratio_threshold=0.7,
+        outage_min_failed_cycles=2,
+        outage_consecutive_failures=2,
+        recovery_window_sec=600,
+        recovery_max_fail_ratio=0.1,
+        recovery_consecutive_successes=3,
+        heartbeat_interval_sec=60,
+    )
+    monitor = ApiHealthMonitor(state_repo=state_repo, policy=policy)
+    base = datetime(2026, 2, 21, 9, 0, tzinfo=UTC)
+
+    for offset in (0, 1):
+        monitor.observe_cycle(
+            now=base + timedelta(minutes=offset),
+            total_areas=4,
+            failed_areas=4,
+            error_counts={"timeout": 4},
+            representative_error="timeout",
+        )
+
+    heartbeat = monitor.observe_cycle(
+        now=base + timedelta(minutes=3),
+        total_areas=4,
+        failed_areas=4,
+        error_counts={"timeout": 4},
+        representative_error="timeout",
+    )
+    assert heartbeat.should_notify is True
+    assert heartbeat.event == "outage_heartbeat"
+    assert heartbeat.incident_open is True
+
+
+def test_health_monitor_long_recovery_window_delays_recovery(tmp_path) -> None:
+    state_repo = JsonHealthStateRepository(tmp_path / "health_state.json")
+    policy = HealthPolicy(
+        outage_window_sec=600,
+        outage_fail_ratio_threshold=0.7,
+        outage_min_failed_cycles=3,
+        outage_consecutive_failures=2,
+        recovery_window_sec=1800,
+        recovery_max_fail_ratio=0.1,
+        recovery_consecutive_successes=3,
+        heartbeat_interval_sec=300,
+    )
+    monitor = ApiHealthMonitor(state_repo=state_repo, policy=policy)
+    base = datetime(2026, 2, 21, 9, 0, tzinfo=UTC)
+
+    for offset in (0, 1, 2):
+        monitor.observe_cycle(
+            now=base + timedelta(minutes=offset),
+            total_areas=4,
+            failed_areas=4,
+            error_counts={"timeout": 4},
+            representative_error="timeout",
+        )
+
+    not_recovered = None
+    for offset in (10, 11, 12):
+        not_recovered = monitor.observe_cycle(
+            now=base + timedelta(minutes=offset),
+            total_areas=4,
+            failed_areas=0,
+            error_counts={},
+            representative_error=None,
+        )
+    assert not_recovered is not None
+    assert not_recovered.incident_open is True
+    assert not_recovered.should_notify is False
+
+    recovered_events: list[object] = []
+    for offset in (40, 41, 42):
+        decision = monitor.observe_cycle(
+            now=base + timedelta(minutes=offset),
+            total_areas=4,
+            failed_areas=0,
+            error_counts={},
+            representative_error=None,
+        )
+        recovered_events.append(decision)
+    recovered = next(
+        (decision for decision in recovered_events if decision.event == "recovered"),
+        None,
+    )
+    assert recovered is not None
+    assert recovered.should_notify is True
+    assert recovered.incident_open is False

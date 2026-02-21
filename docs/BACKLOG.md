@@ -27,7 +27,7 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `129 passed`
+- `131 passed`
 - 총 커버리지 `92.64%`
 - 주요 커버리지 지표
 - `app/entrypoints/service_loop.py` 98%
@@ -55,7 +55,6 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-501 | P2 | 예정 | 테스트가능성 | `health_monitor` 정책 파라미터 조합(긴 윈도우/짧은 heartbeat) 시뮬레이션 테스트 보강 | 정책 조합별 상태 전이 회귀 테스트 추가 |
 | RB-502 | P2 | 예정 | 성능/운영 | CI에서 경량 성능 벤치 리포트(참고용)를 생성해 추세를 저장 | PR 단위 성능 지표 비교가 가능한 리포트 산출 |
 | RB-503 | P3 | 예정 | 문서품질/운영 | `EVENTS.md`와 `OPERATION.md` 알람-대응 매핑 정합성 점검 체크리스트 자동화 | 이벤트 추가/변경 시 문서 누락 탐지 규칙 정립 |
 
@@ -94,6 +93,7 @@
 | RB-405 | P2 | 완료 | 보안/운영 | redaction 이벤트 통합 시나리오 테스트 추가(`area.failed`, `notification.final_failure`) |
 | RB-406 | P2 | 완료 | 성능 | SQLite bulk 경로에 배치 실행(`executemany`) 회귀 가드 테스트 추가 |
 | RB-407 | P3 | 완료 | 운영성 | `docs/OPERATION.md`에 이벤트-알람-즉시조치 매핑 표 추가 |
+| RB-501 | P2 | 완료 | 테스트가능성 | `health_monitor` 정책 조합(짧은 heartbeat/긴 recovery window) 시뮬레이션 테스트 보강 |
 
 ## 6) Maintenance Rules
 
