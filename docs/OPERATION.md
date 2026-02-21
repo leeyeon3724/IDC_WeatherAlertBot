@@ -123,3 +123,11 @@ python3 main.py migrate-state \
 - CI 연동: `.github/workflows/ci.yml`의 `State integrity verification smoke` 단계
 - 검증 경로: `migrate-state` -> `verify-state --strict`
 - 산출물: `artifacts/state-check/verify.log`, `artifacts/state-check/verify.md`
+
+## 11. PR/Nightly 검증 전략
+
+- PR fast gate: `.github/workflows/pr-fast.yml`
+  - 변경 파일 목록(`git diff`)을 `scripts/select_tests.py`로 분석해 관련 테스트 우선 실행
+  - 매핑 불가능/고위험 변경은 full 테스트로 자동 폴백
+- Nightly full gate: `.github/workflows/nightly-full.yml`
+  - `make gate` 주기 실행으로 전체 회귀 탐지력 유지

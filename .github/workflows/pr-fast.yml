@@ -1,0 +1,77 @@
+name: PR Fast Gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Build changed files list
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pr-fast
+          git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            > artifacts/pr-fast/changed_files.txt
+
+      - name: Select tests by change impact
+        id: select
+        run: |
+          set -euo pipefail
+          python -m scripts.select_tests \
+            --changed-files-file artifacts/pr-fast/changed_files.txt \
+            --selected-output artifacts/pr-fast/selected_tests.txt \
+            --json-output artifacts/pr-fast/selection.json \
+            --markdown-output artifacts/pr-fast/selection.md
+          cat artifacts/pr-fast/selection.md >> "$GITHUB_STEP_SUMMARY"
+
+          mode="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("artifacts/pr-fast/selection.json").read_text(encoding="utf-8"))
+          print(payload.get("mode", "full"))
+          PY
+          )"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+      - name: Run selected fast tests
+        if: steps.select.outputs.mode == 'fast'
+        run: |
+          set -euo pipefail
+          selected_tests="$(tr '\n' ' ' < artifacts/pr-fast/selected_tests.txt)"
+          python -m pytest -q $selected_tests
+
+      - name: Run full tests fallback
+        if: steps.select.outputs.mode != 'fast'
+        run: python -m pytest -q
+
+      - name: Upload PR fast artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-fast-${{ github.run_id }}
+          path: artifacts/pr-fast
+          if-no-files-found: warn

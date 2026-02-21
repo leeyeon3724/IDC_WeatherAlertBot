@@ -30,6 +30,7 @@ make perf-report
 make perf-baseline
 make soak-report
 make slo-report
+make select-tests
 make check-docs
 python3 main.py cleanup-state --days 30
 python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db

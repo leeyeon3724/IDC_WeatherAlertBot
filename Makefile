@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report check-docs check-arch check-hygiene
+.PHONY: install install-dev run dry-run test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -57,6 +57,9 @@ soak-report:
 
 slo-report:
 	$(PYTHON) -m scripts.slo_report --log-file $${LOG_FILE:-artifacts/canary/service.log} --json-output artifacts/slo/local.json --markdown-output artifacts/slo/local.md
+
+select-tests:
+	$(PYTHON) -m scripts.select_tests --changed-files-file $${CHANGED_FILES:-artifacts/pr-fast/changed_files.txt} --selected-output artifacts/pr-fast/selected_tests.txt --json-output artifacts/pr-fast/selection.json --markdown-output artifacts/pr-fast/selection.md
 
 check-docs:
 	$(PYTHON) -m scripts.check_event_docs_sync

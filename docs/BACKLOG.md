@@ -31,7 +31,7 @@
 ## 2) Evidence Snapshot
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov` 통과
-- 테스트/커버리지: `164 passed`, 총 커버리지 `91.54%`
+- 테스트/커버리지: `167 passed`, 총 커버리지 `91.54%`
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
 - canary 운영 검증 기반: `.github/workflows/canary.yml` + `scripts/canary_report.py` 도입(시크릿 구성 후 운영 검증 필요)
 - soak 안정성 검증 기반: `.github/workflows/soak.yml` + `scripts/soak_report.py` 도입(운영 추세 관측 축적 필요)
@@ -40,6 +40,7 @@
 - 이벤트 payload 계약 검증: `tests/contracts/event_payload_contract.json` + `scripts/event_payload_contract.py` 도입
 - 상태 무결성 점검 CLI: `python3 main.py verify-state ... --strict` 도입
 - CI 상태 무결성 스모크: `migrate-state` + `verify-state --strict` 자동 검증 단계 도입
+- 변경영향 기반 테스트 전략: PR fast gate(`pr-fast.yml`) + nightly full gate(`nightly-full.yml`) 도입
 - 서비스 요구사항 충족도: `6/8` (`SR-07`, `SR-08` 검증대기)
 
 ## 3) Active Backlog
@@ -51,7 +52,7 @@
 | RB-804 | P2 | 검증대기 | 제품 신뢰성 / 성능·비용 효율 | SR-01, SR-04 | 전송 실패 폭주 완화(알림 backpressure/circuit-breaker) 정책 도입 | 반복 실패 시 과도한 재시도/전송 시도가 제한되고 복구 시 자동 정상화 |
 | RB-805 | P2 | 검증대기 | 운영 관측·추적성 / 변경 효율 | SR-06 | 운영 SLO 리포트 자동화(성공 전송률/실패율/지연/미전송 잔량) | 배포/운영 후 SLO 리포트가 주기적으로 생성되고 임계 초과 시 경고 |
 | RB-806 | P3 | 검증대기 | 설계·코드 품질 / 변경 효율 | SR-03 | 상태 저장소 점검 CLI(`verify-state`) 도입(JSON/SQLite 무결성/마이그레이션 전 검사) | 배포 전 상태 무결성 점검을 자동 수행하고 실패 원인을 표준 출력으로 제공 |
-| RB-807 | P3 | 예정 | 변경 효율 / 검증력(테스트·계약) | SR-06 | 변경영향 기반 테스트 선택 실행(빠른 PR 게이트 + 야간 full gate) 전략 정립 | PR 리드타임 단축, full gate 회귀 탐지력 유지, 정책이 CI 문서와 일치 |
+| RB-807 | P3 | 검증대기 | 변경 효율 / 검증력(테스트·계약) | SR-06 | 변경영향 기반 테스트 선택 실행(빠른 PR 게이트 + 야간 full gate) 전략 정립 | PR 리드타임 단축, full gate 회귀 탐지력 유지, 정책이 CI 문서와 일치 |
 
 ## 4) Completed (Compact)
 
