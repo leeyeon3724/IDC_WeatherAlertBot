@@ -8,6 +8,17 @@
 - 필드명은 `snake_case`를 사용합니다.
 - 동일한 의미의 필드는 이벤트 간 동일 키를 유지합니다.
 
+## Event Schema
+
+- schema_version: `1`
+- 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
+
+## Schema Change Log
+
+| version | date | change | compatibility |
+|---|---|---|---|
+| 1 | 2026-02-21 | 이벤트 스키마 버전 기준 수립 및 동기화 검증 도입 | Initial |
+
 ## Runtime Lifecycle
 
 - `startup.invalid_config`: `error`
