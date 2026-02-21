@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 
 import requests
@@ -54,6 +55,7 @@ class DoorayNotifier:
         self.logger = logger or logging.getLogger("weather_alert_bot.notifier")
         self._consecutive_failures = 0
         self._circuit_open_until_monotonic: float | None = None
+        self._lock = threading.Lock()
 
     def _is_circuit_open(self, now: float) -> bool:
         return (
@@ -74,22 +76,24 @@ class DoorayNotifier:
         self.logger.info(log_event(events.NOTIFICATION_CIRCUIT_CLOSED))
 
     def send(self, message: str, report_url: str | None = None) -> None:
-        now = time.monotonic()
-        self._close_circuit_if_ready(now)
-        if self._is_circuit_open(now):
-            remaining_sec = int(self._circuit_open_until_monotonic - now)  # type: ignore[operator]
-            self.logger.warning(
-                log_event(
-                    events.NOTIFICATION_CIRCUIT_BLOCKED,
-                    remaining_sec=remaining_sec,
-                    consecutive_failures=self._consecutive_failures,
+        with self._lock:
+            now = time.monotonic()
+            self._close_circuit_if_ready(now)
+            if self._is_circuit_open(now):
+                assert self._circuit_open_until_monotonic is not None
+                remaining_sec = int(self._circuit_open_until_monotonic - now)
+                self.logger.warning(
+                    log_event(
+                        events.NOTIFICATION_CIRCUIT_BLOCKED,
+                        remaining_sec=remaining_sec,
+                        consecutive_failures=self._consecutive_failures,
+                    )
                 )
-            )
-            raise NotificationError(
-                "Dooray webhook send blocked by circuit breaker",
-                attempts=0,
-                last_error=RuntimeError("circuit_open"),
-            )
+                raise NotificationError(
+                    "Dooray webhook send blocked by circuit breaker",
+                    attempts=0,
+                    last_error=RuntimeError("circuit_open"),
+                )
 
         payload: dict[str, object] = {
             "botName": self.bot_name,
@@ -114,7 +118,8 @@ class DoorayNotifier:
                     timeout=(self.connect_timeout_sec, self.read_timeout_sec),
                 )
                 response.raise_for_status()
-                self._consecutive_failures = 0
+                with self._lock:
+                    self._consecutive_failures = 0
                 self.logger.debug("notifier.sent report_url=%s", bool(report_url))
                 return
             except requests.RequestException as exc:
@@ -134,20 +139,21 @@ class DoorayNotifier:
                     time.sleep(backoff_seconds)
                 backoff_seconds = max(backoff_seconds * 2, self.retry_delay_sec)
 
-        if self.circuit_breaker_enabled:
-            self._consecutive_failures += 1
-            if (
-                self._consecutive_failures >= self.circuit_failure_threshold
-                and self._circuit_open_until_monotonic is None
-            ):
-                self._circuit_open_until_monotonic = time.monotonic() + self.circuit_reset_sec
-                self.logger.warning(
-                    log_event(
-                        events.NOTIFICATION_CIRCUIT_OPENED,
-                        consecutive_failures=self._consecutive_failures,
-                        reset_sec=self.circuit_reset_sec,
+        with self._lock:
+            if self.circuit_breaker_enabled:
+                self._consecutive_failures += 1
+                if (
+                    self._consecutive_failures >= self.circuit_failure_threshold
+                    and self._circuit_open_until_monotonic is None
+                ):
+                    self._circuit_open_until_monotonic = time.monotonic() + self.circuit_reset_sec
+                    self.logger.warning(
+                        log_event(
+                            events.NOTIFICATION_CIRCUIT_OPENED,
+                            consecutive_failures=self._consecutive_failures,
+                            reset_sec=self.circuit_reset_sec,
+                        )
                     )
-                )
 
         raise NotificationError(
             "Dooray webhook send failed",

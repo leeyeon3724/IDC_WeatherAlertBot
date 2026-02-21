@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import pytest
 import requests
 
@@ -197,3 +199,43 @@ def test_notifier_payload_includes_attachment_when_report_url_given() -> None:
     assert isinstance(attachments, list) and len(attachments) == 1
     assert attachments[0]["titleLink"] == "https://example.com/report/1"
     assert attachments[0]["color"] == "blue"
+
+
+def test_notifier_circuit_breaker_consecutive_failures_thread_safe() -> None:
+    """다중 스레드에서 동시에 send()가 실패해도 _consecutive_failures가 정확히 집계되어야 한다."""
+    thread_count = 8
+    barrier = threading.Barrier(thread_count)
+
+    class BarrierSession:
+        def post(self, *args, **kwargs) -> None:
+            barrier.wait()
+            raise requests.Timeout("concurrent timeout")
+
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        circuit_breaker_enabled=True,
+        circuit_failure_threshold=thread_count + 1,
+        circuit_reset_sec=300,
+        session=BarrierSession(),
+    )
+
+    errors: list[NotificationError] = []
+
+    def worker() -> None:
+        try:
+            notifier.send("hello")
+        except NotificationError as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(thread_count)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(errors) == thread_count
+    assert notifier._consecutive_failures == thread_count
