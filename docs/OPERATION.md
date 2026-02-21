@@ -104,3 +104,29 @@ python3 main.py migrate-state \
 1. `STATE_REPOSITORY_TYPE=json`으로 설정 복귀
 2. 백업한 `sent_messages.json` 복원
 3. `RUN_ONCE=true` 점검 실행 후 정상 알림/중복 방지 동작 확인
+
+## 8. 알람 룰 템플릿
+
+### 8.1 API 실패율 급증
+
+- 지표: `area.failed` 이벤트 수 / 5분
+- 예시 조건: 5분 합계 `>= 20` 이고 `error_code=timeout|connection` 비중 `>= 60%`
+- 대응: 외부 네트워크/서비스 상태 확인, 필요 시 `CYCLE_INTERVAL_SEC` 임시 상향
+
+### 8.2 Webhook 전송 실패 연속 발생
+
+- 지표: `notification.final_failure` 이벤트 수 / 10분
+- 예시 조건: 10분 합계 `>= 5`
+- 대응: Webhook URL/권한 확인, Dooray 측 수신 상태 확인
+
+### 8.3 장기 장애 상태
+
+- 지표: `health.notification.sent` 중 `health_event=outage_heartbeat`
+- 예시 조건: heartbeat 2회 이상 연속 발생(기본 1시간 간격 기준 2시간+)
+- 대응: `area.failed` 주요 `error_code` 기준으로 원인 축소 후 우회/복구 수행
+
+### 8.4 상태 정리/마이그레이션 실패
+
+- 지표: `state.cleanup.failed`, `state.migration.failed`
+- 예시 조건: 단일 이벤트 발생 시 즉시 경고
+- 대응: 파일 권한/디스크 상태/경로 오설정 우선 확인

@@ -8,17 +8,17 @@
 
 | 관점 | 점수(5점) | 평가 |
 |---|---:|---|
-| 정확성 | 4.4 | 핵심 알림/중복 방지/헬스 흐름 안정적, 마이그레이션 타임스탬프/sent 보존 반영 |
+| 정확성 | 4.5 | 핵심 알림/중복 방지/헬스 흐름 안정적이며 health/json 경계 테스트가 보강됨 |
 | 가독성 | 4.3 | 엔트리포인트/명령/루프 책임 분리와 이벤트 문서화가 정착됨 |
 | 복잡성 | 4.3 | 고복잡 경로(`service_loop`)가 테스트로 보호되어 변경 리스크 감소 |
 | 응집도/결합도 | 4.3 | 프로토콜 기반 의존으로 저장소 결합도 완화, 경계가 명확함 |
-| 테스트 가능성 | 4.4 | `service_loop/commands/migration` 분기 테스트 보강 완료 |
+| 테스트 가능성 | 4.6 | `service_loop/commands/health/json_state_repo` 분기 테스트 보강 완료 |
 | 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
 | 성능 | 4.4 | SQLite WAL/busy_timeout/batch + cleanup SQL 필터링 최적화 적용 |
 | 안정성 | 4.4 | CLI 실패 경로 이벤트/종료코드 표준화로 운영 복원력 향상 |
 | 보안 | 4.2 | 로그 민감정보 redaction 가드 및 운영 체크리스트 반영 |
 | 일관성 | 4.4 | health_state 포함 주요 오류 로그가 구조화 이벤트로 통일 |
-| 기술부채 | 4.2 | RB-201~RB-208 완료, 다음 부채는 정밀 테스트/운영 자동화 중심 |
+| 기술부채 | 4.3 | RB-201~RB-304 완료, 다음 부채는 운영 자동화/알람 규칙 고도화 중심 |
 
 ## 2) Evidence Snapshot
 
@@ -27,8 +27,8 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `97 passed`
-- 총 커버리지 `89.37%`
+- `109 passed`
+- 총 커버리지 `91.05%`
 - 주요 커버리지 지표
 - `app/entrypoints/service_loop.py` 98%
 - `app/entrypoints/commands.py` 94%
@@ -51,10 +51,10 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-301 | P1 | 예정 | 테스트가능성 | `health.py` 전이 조건(임계치/윈도우) 경계 테스트 강화 | `app/domain/health.py` 커버리지 90%+ |
-| RB-302 | P1 | 예정 | 정확성 | `json_state_repo` 손상/레거시 마이그레이션 경로 정밀 테스트 | 손상/이관 분기 회귀 테스트 케이스 확장 |
-| RB-303 | P2 | 예정 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 | end-to-end 스모크 테스트 추가 |
-| RB-304 | P2 | 예정 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 | `docs/OPERATION.md` 알람 기준 섹션 추가 |
+| RB-301 | P1 | 완료 | 테스트가능성 | `health.py` 전이 조건(임계치/윈도우) 경계 테스트 강화 | `app/domain/health.py` 커버리지 90%+ |
+| RB-302 | P1 | 완료 | 정확성 | `json_state_repo` 손상/레거시 마이그레이션 경로 정밀 테스트 | 손상/이관 분기 회귀 테스트 케이스 확장 |
+| RB-303 | P2 | 완료 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 | end-to-end 스모크 테스트 추가 |
+| RB-304 | P2 | 완료 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 | `docs/OPERATION.md` 알람 기준 섹션 추가 |
 
 ## 5) Completed History
 
