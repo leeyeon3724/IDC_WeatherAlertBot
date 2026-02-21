@@ -70,6 +70,27 @@
 | RB-806 | 최근 14일 CI + 최근 3회 배포 | CI `State integrity verification smoke` 100% PASS + 최근 3회 배포 전 `verify-state --strict` 수행 로그에서 실패 0 | `artifacts/state-check/verify.log`, 배포 체크리스트 증적 |
 | RB-807 | 최근 30개 PR + 최근 14일 nightly | PR의 `fast` 모드 적용률 `>= 70%`, `fast` 모드 median 실행시간이 full 대비 `<= 60%`, nightly full gate 성공률 `>= 95%` | `artifacts/pr-fast/selection.json`, `pr-fast.yml`/`nightly-full.yml` run history |
 
+## 3.2) 검증 스윕 결과 (2026-02-21)
+
+| ID | 판정 | 근거 | 완료 전환 |
+|---|---|---|---|
+| RB-801 | 미충족 | GitHub Actions `Canary` 실행 이력 `0`회 (최근 14일) | 유지(`검증대기`) |
+| RB-802 | 미충족 | GitHub Actions `Soak` 실행 이력 `0`회 (최근 7일) | 유지(`검증대기`) |
+| RB-804 | 미충족 | 기능/테스트는 충족하나 30일 운영 로그(회로 open/close, backpressure 추세) 미축적 | 유지(`검증대기`) |
+| RB-805 | 미충족 | canary SLO 리포트 운영 이력 `0`회 (최근 14일) | 유지(`검증대기`) |
+| RB-808 | 부분충족 | `Live E2E` 보호환경 실행 이력 `0`회(최근 30일), 단 로컬 `live-e2e` 실자격증명 1회 PASS(`2026-02-21`) | 유지(`검증대기`) |
+| RB-806 | 미충족 | 최근 14일 CI 전체 성공률 `73.3%`(11/15), 배포 전 `verify-state` 3회 증적 미확보 | 유지(`검증대기`) |
+| RB-807 | 미충족 | `PR Fast Gate`/`Nightly Full Gate` 실행 이력 `0`회 | 유지(`검증대기`) |
+
+검증 결론:
+- 이번 스윕에서 `검증대기 -> 완료` 전환 가능한 항목은 없음
+- 구현 자체는 존재하므로 다음 단계는 운영 데이터 축적(수동 실행 + 일정 기간 관찰)
+
+즉시 실행 권장(데이터 축적 시작):
+1. `Canary` 수동 1회 + `Soak` 수동 1회 + `Live E2E` 보호환경 승인 실행 1회
+2. CI 실패 원인 정리(최근 실패 런) 및 `State integrity verification smoke` 단계 증적 보관
+3. 7/14/30일 관찰 창 종료 시 `3.2` 재평가 후 완료 전환
+
 ## 4) Completed (Compact)
 
 | 구간 | 완료 범위 | 핵심 성과 |
