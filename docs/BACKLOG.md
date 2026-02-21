@@ -34,7 +34,7 @@
     - 이벤트별 필수 라인/필드(비율, 카운트, duration, representative_error) 단정 추가
     - 미지원 이벤트(empty message) 및 duration 경계(0분/시간 전환) 케이스 추가
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 헬스 모니터 정책 경계/누적 상태 테스트 보강
   - 근거: `tests/test_health_monitor.py`는 backoff multiplier(2/4/8), max_backoff cap, incident counter/error_counts 누적/복구 reset 분기 검증이 부족함
   - 완료 기준:
