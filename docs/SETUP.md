@@ -124,6 +124,7 @@ Compose:
 ```bash
 docker compose up -d --build
 docker compose logs -f weather-alert-bot
+docker inspect --format='{{json .State.Health}}' weather-alert-bot
 ```
 
 컨테이너 단독 실행:

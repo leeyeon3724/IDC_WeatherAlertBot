@@ -19,12 +19,6 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-상태: 진행중
-중요도: 중간
-항목: 운영 배포 안정화를 위한 graceful shutdown/컨테이너 헬스체크 정비
-근거: 런루프는 `KeyboardInterrupt` 중심 종료만 처리하고 SIGTERM 종료 시 정리 동작 보장이 부족하며, 컨테이너 정의에 `HEALTHCHECK`가 없어 오케스트레이터가 비정상 상태를 표준 방식으로 감지하기 어려움.
-완료 기준: SIGTERM 수신 시 안전 종료 플로우(사이클 종료/리소스 정리/종료 이벤트 로깅)를 구현하고, Dockerfile 또는 compose에 헬스체크를 추가해 배포 환경에서 자동 감시/재시작 정책과 연동함.
-
 신규 리스크 등록 템플릿:
 
 ```text

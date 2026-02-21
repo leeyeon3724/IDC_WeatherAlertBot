@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
 from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -368,6 +369,49 @@ def test_sleep_until_next_cycle_calls_sleep_when_adjusted(tmp_path: Path) -> Non
     assert sleep_calls == [30.0]
 
 
+def test_install_shutdown_signal_handlers_marks_state_and_restores(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _runtime(tmp_path)
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
+    shutdown_state = {"requested": False}
+
+    previous_handlers: dict[signal.Signals, object] = {}
+    assigned_handlers: dict[signal.Signals, list[object]] = {}
+
+    def _fake_getsignal(sig: signal.Signals) -> object:
+        previous = object()
+        previous_handlers[sig] = previous
+        return previous
+
+    def _fake_signal(sig: signal.Signals, assigned: object) -> None:
+        assigned_handlers.setdefault(sig, []).append(assigned)
+
+    monkeypatch.setattr(service_loop.signal, "getsignal", _fake_getsignal)
+    monkeypatch.setattr(service_loop.signal, "signal", _fake_signal)
+
+    restore = service_loop._install_shutdown_signal_handlers(
+        runtime=runtime,
+        shutdown_state=shutdown_state,
+    )
+    sigterm_handler = assigned_handlers[signal.SIGTERM][0]
+    assert callable(sigterm_handler)
+
+    sigterm_handler(signal.SIGTERM, None)  # type: ignore[misc]
+
+    assert shutdown_state["requested"] is True
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(payload.get("event") == events.SHUTDOWN_INTERRUPT for payload in payloads) == 1
+
+    restore()
+    assert assigned_handlers[signal.SIGTERM][-1] is previous_handlers[signal.SIGTERM]
+    assert assigned_handlers[signal.SIGINT][-1] is previous_handlers[signal.SIGINT]
+
+
 def test_run_loop_handles_keyboard_interrupt_from_processor(tmp_path: Path) -> None:
     runtime = _runtime(tmp_path, processor_raises=KeyboardInterrupt())
 
@@ -378,6 +422,46 @@ def test_run_loop_handles_keyboard_interrupt_from_processor(tmp_path: Path) -> N
     )
 
     assert result == 0
+    assert runtime.processor.closed is True
+    assert runtime.notifier.closed is True
+
+
+def test_run_loop_gracefully_stops_when_shutdown_state_is_requested(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": False, "cycle_interval_sec": 10},
+        suggested_sec=10,
+    )
+    state_ref: dict[str, dict[str, bool]] = {}
+
+    def _fake_install(
+        *,
+        runtime: ServiceRuntime,
+        shutdown_state: dict[str, bool],
+    ):
+        state_ref["value"] = shutdown_state
+        return lambda: None
+
+    monkeypatch.setattr(service_loop, "_install_shutdown_signal_handlers", _fake_install)
+    sleep_calls: list[float] = []
+
+    def _sleep_and_request_shutdown(seconds: float) -> None:
+        sleep_calls.append(seconds)
+        state_ref["value"]["requested"] = True
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+        sleep_fn=_sleep_and_request_shutdown,
+    )
+
+    assert result == 0
+    assert sleep_calls == [10.0]
+    assert runtime.processor.calls == 1
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
 

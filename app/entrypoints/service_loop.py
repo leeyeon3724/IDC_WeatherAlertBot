@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import math
+import signal
 import time
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.domain.health import ApiHealthDecision
@@ -37,6 +39,33 @@ def _maybe_close_resource(runtime: ServiceRuntime, resource_name: str) -> None:
 def close_runtime_resources(runtime: ServiceRuntime) -> None:
     _maybe_close_resource(runtime, "processor")
     _maybe_close_resource(runtime, "notifier")
+
+
+def _install_shutdown_signal_handlers(
+    *,
+    runtime: ServiceRuntime,
+    shutdown_state: dict[str, bool],
+) -> Callable[[], None]:
+    previous_handlers: dict[signal.Signals, Any] = {}
+
+    def _mark_shutdown(*_: object) -> None:
+        if shutdown_state["requested"]:
+            return
+        shutdown_state["requested"] = True
+        runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
+
+    try:
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            previous_handlers[sig] = signal.getsignal(sig)
+            signal.signal(sig, _mark_shutdown)
+    except (ValueError, OSError):
+        return lambda: None
+
+    def _restore() -> None:
+        for sig, handler in previous_handlers.items():
+            signal.signal(sig, handler)
+
+    return _restore
 
 
 def maybe_auto_cleanup(
@@ -435,9 +464,16 @@ def run_loop(
     local_date = now_local_date_fn or (
         lambda timezone: datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d")
     )
+    shutdown_state = {"requested": False}
+    restore_signal_handlers = _install_shutdown_signal_handlers(
+        runtime=runtime,
+        shutdown_state=shutdown_state,
+    )
     last_cleanup_date: str | None = None
     try:
         while True:
+            if shutdown_state["requested"]:
+                return 0
             try:
                 last_cleanup_date = maybe_auto_cleanup(
                     runtime=runtime,
@@ -463,6 +499,8 @@ def run_loop(
                         pending_total=stats.pending_total,
                     )
                 )
+                if shutdown_state["requested"]:
+                    return 0
                 if runtime.settings.run_once:
                     runtime.logger.info(log_event(events.SHUTDOWN_RUN_ONCE_COMPLETE))
                     return 0
@@ -482,6 +520,8 @@ def run_loop(
                     )
                     return 1
 
+                if shutdown_state["requested"]:
+                    return 0
                 runtime.logger.error(
                     log_event(
                         events.CYCLE_ITERATION_FAILED,
@@ -501,4 +541,5 @@ def run_loop(
         )
         return 1
     finally:
+        restore_signal_handlers()
         close_runtime_resources(runtime)
