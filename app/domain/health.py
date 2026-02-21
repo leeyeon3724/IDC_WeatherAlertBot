@@ -108,6 +108,8 @@ class ApiHealthState:
     incident_total_cycles: int = 0
     incident_failed_cycles: int = 0
     incident_error_counts: dict[str, int] = field(default_factory=dict)
+    recovery_backfill_pending_start_date: str | None = None
+    recovery_backfill_pending_end_date: str | None = None
     recent_cycles: list[HealthCycleSample] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
@@ -130,6 +132,8 @@ class ApiHealthState:
             "incident_total_cycles": self.incident_total_cycles,
             "incident_failed_cycles": self.incident_failed_cycles,
             "incident_error_counts": dict(self.incident_error_counts),
+            "recovery_backfill_pending_start_date": self.recovery_backfill_pending_start_date,
+            "recovery_backfill_pending_end_date": self.recovery_backfill_pending_end_date,
             "recent_cycles": [cycle.to_dict() for cycle in self.recent_cycles],
         }
 
@@ -149,6 +153,12 @@ class ApiHealthState:
             incident_total_cycles=_non_negative_int(raw.get("incident_total_cycles")),
             incident_failed_cycles=_non_negative_int(raw.get("incident_failed_cycles")),
             incident_error_counts=_normalize_error_counts(raw.get("incident_error_counts")),
+            recovery_backfill_pending_start_date=_normalize_compact_date(
+                raw.get("recovery_backfill_pending_start_date")
+            ),
+            recovery_backfill_pending_end_date=_normalize_compact_date(
+                raw.get("recovery_backfill_pending_end_date")
+            ),
         )
 
         raw_cycles = raw.get("recent_cycles")
@@ -212,3 +222,12 @@ def _normalize_error_counts(raw: object) -> dict[str, int]:
         if isinstance(key, str) and isinstance(value, int) and value >= 0:
             normalized[key] = value
     return normalized
+
+
+def _normalize_compact_date(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if len(text) != 8 or not text.isdigit():
+        return None
+    return text

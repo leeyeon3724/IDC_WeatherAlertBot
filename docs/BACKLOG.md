@@ -20,12 +20,6 @@
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
 상태: 진행중
-중요도: 높음
-항목: 복구 백필 부분 처리의 지속 실행 보장
-근거: `recovered` 이벤트 시점에만 백필이 1회 실행되고, `HEALTH_RECOVERY_BACKFILL_MAX_WINDOWS_PER_CYCLE` 제한으로 남은 구간이 다음 사이클에서 자동 이어지지 않아 장기 장애 후 일부 기간 누락 위험이 존재함.
-완료 기준: 백필 진행 상태(예: remaining_days/cursor)를 health state에 영속화하고, 매 사이클 예산 내에서 이어서 처리되며, 재시작 후에도 재개되는 테스트를 추가함.
-
-상태: 진행중
 중요도: 중간
 항목: `cleanup-state` CLI 인자/동작 정합성 개선
 근거: `STATE_REPOSITORY_TYPE=sqlite`일 때 `--state-file`이 사실상 무시되어 운영자가 정리 대상 파일을 오인할 수 있음.

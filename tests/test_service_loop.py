@@ -64,12 +64,27 @@ class _FakeHealthMonitor:
     def __init__(self, decision: ApiHealthDecision, *, suggested_sec: int = 0) -> None:
         self.decision = decision
         self.suggested_sec = suggested_sec
+        self._recovery_backfill_window: tuple[str, str] | None = None
 
     def observe_cycle(self, **kwargs: object) -> ApiHealthDecision:
         return self.decision
 
     def suggested_cycle_interval_sec(self, base_interval_sec: int) -> int:
         return self.suggested_sec
+
+    def get_recovery_backfill_window(self) -> tuple[str, str] | None:
+        return self._recovery_backfill_window
+
+    def set_recovery_backfill_window(
+        self,
+        *,
+        start_date: str | None,
+        end_date: str | None,
+    ) -> None:
+        if start_date is None or end_date is None or start_date >= end_date:
+            self._recovery_backfill_window = None
+            return
+        self._recovery_backfill_window = (start_date, end_date)
 
 
 def _runtime(
@@ -261,6 +276,74 @@ def test_maybe_run_recovery_backfill_splits_windows_with_budget(
     assert complete_payloads[0]["processed_days"] == 4
     assert complete_payloads[0]["remaining_days"] == 1
     assert complete_payloads[0]["processed_windows"] == 2
+
+
+def test_maybe_run_recovery_backfill_resumes_pending_window_next_calls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recovered = ApiHealthDecision(
+        incident_open=False,
+        event="recovered",
+        should_notify=False,
+        incident_duration_sec=7 * 86400,
+    )
+    stable = ApiHealthDecision(
+        incident_open=False,
+        event=None,
+        should_notify=False,
+    )
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={
+            "lookback_days": 0,
+            "health_recovery_backfill_max_days": 5,
+            "health_recovery_backfill_window_days": 2,
+            "health_recovery_backfill_max_windows_per_cycle": 1,
+        },
+        decision=recovered,
+    )
+
+    class _RangeProcessor:
+        def __init__(self, stats: CycleStats) -> None:
+            self.stats = stats
+            self.range_calls: list[tuple[str, str]] = []
+
+        def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
+            raise AssertionError("run_once should not be called when run_date_range is available")
+
+        def run_date_range(self, *, start_date: str, end_date: str) -> CycleStats:
+            self.range_calls.append((start_date, end_date))
+            return self.stats
+
+    processor = _RangeProcessor(runtime.processor.stats)
+    object.__setattr__(runtime, "processor", processor)
+
+    class _FixedDateTime:
+        @classmethod
+        def now(cls, tz: ZoneInfo | None = None) -> datetime:
+            fixed = datetime(2026, 2, 21, 10, 0, tzinfo=UTC)
+            if tz is None:
+                return fixed
+            return fixed.astimezone(tz)
+
+    monkeypatch.setattr(service_loop, "datetime", _FixedDateTime)
+
+    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
+    assert processor.range_calls == [("20260216", "20260218")]
+    assert runtime.health_monitor.get_recovery_backfill_window() == ("20260218", "20260221")
+
+    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
+    assert processor.range_calls == [("20260216", "20260218"), ("20260218", "20260220")]
+    assert runtime.health_monitor.get_recovery_backfill_window() == ("20260220", "20260221")
+
+    service_loop.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
+    assert processor.range_calls == [
+        ("20260216", "20260218"),
+        ("20260218", "20260220"),
+        ("20260220", "20260221"),
+    ]
+    assert runtime.health_monitor.get_recovery_backfill_window() is None
 
 
 def test_sleep_until_next_cycle_calls_sleep_when_adjusted(tmp_path: Path) -> None:

@@ -126,6 +126,33 @@ class ApiHealthMonitor:
         suggested = max(base_interval_sec, suggested)
         return min(suggested, self.policy.max_backoff_sec)
 
+    def get_recovery_backfill_window(self) -> tuple[str, str] | None:
+        start_date = self.state.recovery_backfill_pending_start_date
+        end_date = self.state.recovery_backfill_pending_end_date
+        if not start_date or not end_date:
+            return None
+        if start_date >= end_date:
+            return None
+        return start_date, end_date
+
+    def set_recovery_backfill_window(
+        self,
+        *,
+        start_date: str | None,
+        end_date: str | None,
+    ) -> None:
+        if (
+            start_date is None
+            or end_date is None
+            or start_date >= end_date
+        ):
+            self.state.recovery_backfill_pending_start_date = None
+            self.state.recovery_backfill_pending_end_date = None
+        else:
+            self.state.recovery_backfill_pending_start_date = start_date
+            self.state.recovery_backfill_pending_end_date = end_date
+        self.state_repo.update_state(self.state)
+
     def _is_outage(self, window: list[HealthCycleSample], severe_failed: int) -> bool:
         if severe_failed < self.policy.outage_min_failed_cycles:
             return False

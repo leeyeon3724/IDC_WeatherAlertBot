@@ -293,3 +293,17 @@ def test_health_monitor_accumulates_incident_counts_and_resets_after_recovery(tm
     assert monitor.state.incident_failed_cycles == 0
     assert monitor.state.incident_error_counts == {}
     assert monitor.state.consecutive_severe_failures == 0
+
+
+def test_health_monitor_persists_recovery_backfill_window(tmp_path) -> None:
+    monitor = _monitor(tmp_path)
+
+    assert monitor.get_recovery_backfill_window() is None
+    monitor.set_recovery_backfill_window(start_date="20260218", end_date="20260221")
+    assert monitor.get_recovery_backfill_window() == ("20260218", "20260221")
+
+    reloaded = _monitor(tmp_path)
+    assert reloaded.get_recovery_backfill_window() == ("20260218", "20260221")
+
+    reloaded.set_recovery_backfill_window(start_date="20260221", end_date="20260220")
+    assert reloaded.get_recovery_backfill_window() is None

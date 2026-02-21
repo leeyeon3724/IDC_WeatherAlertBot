@@ -92,6 +92,8 @@ def test_api_health_state_from_dict_normalizes_values() -> None:
             "incident_total_cycles": -1,
             "incident_failed_cycles": 4,
             "incident_error_counts": {"timeout": 5, "bad": -1, 123: 1},
+            "recovery_backfill_pending_start_date": "20260218",
+            "recovery_backfill_pending_end_date": "invalid",
             "recent_cycles": [
                 {
                     "recorded_at": "2026-02-21T00:00:00Z",
@@ -115,6 +117,8 @@ def test_api_health_state_from_dict_normalizes_values() -> None:
     assert state.incident_total_cycles == 0
     assert state.incident_failed_cycles == 4
     assert state.incident_error_counts == {"timeout": 5}
+    assert state.recovery_backfill_pending_start_date == "20260218"
+    assert state.recovery_backfill_pending_end_date is None
     assert len(state.recent_cycles) == 1
 
 
