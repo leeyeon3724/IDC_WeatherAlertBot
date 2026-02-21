@@ -457,7 +457,7 @@ def test_process_cycle_parallel_fetch_ignores_area_interval(
 
     sleep_calls: list[float] = []
     monkeypatch.setattr(
-        "app.usecases.process_cycle.time.sleep",
+        "app.usecases.process_cycle_components.time.sleep",
         lambda value: sleep_calls.append(value),
     )
     usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
