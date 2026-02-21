@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `6`
+- schema_version: `7`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -23,6 +23,7 @@
 | 4 | 2026-02-21 | 알림 폭주 완화 이벤트(`notification.backpressure.applied`, `notification.circuit.*`) 및 cycle 비용 필드 확장 | Backward-compatible |
 | 5 | 2026-02-21 | 루프 예외 격리 이벤트(`cycle.iteration.failed`, `cycle.fatal_error`) 추가 | Backward-compatible |
 | 6 | 2026-02-21 | 복구 backfill 예산 필드(`health.backfill.*`, `startup.ready`) 확장 | Backward-compatible |
+| 7 | 2026-02-21 | 헬스 알림 이벤트 필드(`incident_duration_sec`, `incident_failed_cycles`) 확장 | Backward-compatible |
 
 ## Runtime Lifecycle
 
@@ -65,7 +66,7 @@
 ## Health
 
 - `health.evaluate`: `incident_open`, `health_event`, `should_notify`
-- `health.notification.sent`: `health_event`
+- `health.notification.sent`: `health_event`, `incident_duration_sec`, `incident_failed_cycles`
 - `health.notification.failed`: `health_event`, `attempts`, `error`
 - `health.backfill.start`: `lookback_days`, `incident_duration_sec`, `backfill_extra_days`, `window_days`, `max_windows`
 - `health.backfill.complete`: `lookback_days`, `sent_count`, `pending_total`, `backfill_extra_days`, `processed_days`, `remaining_days`, `processed_windows`, `window_days`, `max_windows`

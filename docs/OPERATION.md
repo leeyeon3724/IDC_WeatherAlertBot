@@ -74,10 +74,14 @@ python3 main.py migrate-state \
 | `notification.final_failure` | 10분 합계 `>= 5` | `attempts`, `event_id`, `error` | Webhook URL/권한/수신 시스템 상태 점검 | 실패 이벤트 재전송 여부 확인, 웹훅 교체 시 설정 반영 |
 | `notification.circuit.opened` | 단일 이벤트 즉시 경고 | `consecutive_failures`, `reset_sec` | 반복 실패 폭주로 판단, 웹훅/네트워크 즉시 점검 | 회로 닫힘(`notification.circuit.closed`) 이후 정상 전송 복구 여부 확인 |
 | `notification.backpressure.applied` | 10분 합계 `>= 1` | `area_code`, `max_attempts_per_cycle`, `skipped` | 사이클 전송 예산 도달 여부 확인, 실패 누적 원인 확인 | `NOTIFIER_MAX_ATTEMPTS_PER_CYCLE` 조정 및 실패 원인 제거 |
-| `health.notification.sent` (`outage_detected`) | 단일 이벤트 즉시 경고 | `health_event`, `incident_duration_sec` | 장애 공지 전파, 외부 의존성 상태 확인 | heartbeat 발생 추세 모니터링 및 복구 조건 점검 |
-| `health.notification.sent` (`outage_heartbeat`) | 2회 연속 발생 | `health_event`, `incident_failed_cycles` | 장기 장애로 분류, 우회 경로 검토 | API 실패 코드 분포 기준으로 공급자/네트워크 이슈 분리 |
+| `health.notification.sent` (`outage_detected`) | 단일 이벤트 즉시 경고 | `health_event` | 장애 공지 전파, 외부 의존성 상태 확인 | heartbeat 발생 추세 모니터링 및 복구 조건 점검 |
+| `health.notification.sent` (`outage_heartbeat`) | 2회 연속 발생 | `health_event` | 장기 장애로 분류, 우회 경로 검토 | API 실패 코드 분포 기준으로 공급자/네트워크 이슈 분리 |
 | `state.cleanup.failed` | 단일 이벤트 즉시 경고 | `state_file`, `error` | 파일 권한/경로/디스크 용량 확인 | 스토리지 정책 수정 및 cleanup 재실행 |
 | `state.migration.failed` | 단일 이벤트 즉시 경고 | `json_state_file`, `sqlite_state_file`, `error` | 마이그레이션 중지 후 JSON 모드 롤백 | 원인 제거 후 재마이그레이션, 완료 이벤트 확인 |
+
+알람 규칙 단일 기준:
+- 스키마: `docs/alarm_rules.json`
+- 동기화 검증: `python3 -m scripts.check_alarm_rules_sync`
 
 ## 6. 성능 리포트 정책
 

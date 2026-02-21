@@ -145,7 +145,10 @@ def test_verify_sqlite_state_missing_file_is_error_when_strict(tmp_path: Path) -
     assert issues[0].code == "file_missing"
 
 
-def test_verify_sqlite_state_handles_open_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_verify_sqlite_state_handles_open_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     sqlite_state_file = tmp_path / "state.db"
     sqlite_state_file.write_text("placeholder", encoding="utf-8")
 

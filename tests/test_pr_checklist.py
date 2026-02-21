@@ -9,6 +9,7 @@ def _body_with_all_checks() -> str:
     - [x] `python3 -m mypy`
     - [x] `python3 -m scripts.check_architecture_rules`
     - [x] `python3 -m scripts.check_event_docs_sync`
+    - [x] `python3 -m scripts.check_alarm_rules_sync`
     - [x] `python3 -m scripts.check_repo_hygiene`
     - [x] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
     - [x] `docs/EVENTS.md` 이벤트/필드 사전 반영
@@ -36,6 +37,7 @@ def test_build_report_fails_when_event_impact_required_but_unchecked() -> None:
     - [x] `python3 -m mypy`
     - [x] `python3 -m scripts.check_architecture_rules`
     - [x] `python3 -m scripts.check_event_docs_sync`
+    - [x] `python3 -m scripts.check_alarm_rules_sync`
     - [x] `python3 -m scripts.check_repo_hygiene`
     - [x] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
     - [ ] `docs/EVENTS.md` 이벤트/필드 사전 반영

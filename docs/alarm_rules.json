@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "cycle-cost-spike",
+      "event": "cycle.cost.metrics",
+      "threshold_display": "1시간 평균 대비 api_fetch_calls 또는 notification_attempts >= 2x",
+      "fields": [
+        "api_fetch_calls",
+        "notification_attempts",
+        "notification_failures",
+        "pending_total"
+      ]
+    },
+    {
+      "id": "area-failed-burst",
+      "event": "area.failed",
+      "threshold_display": "5분 합계 >= 20",
+      "fields": [
+        "error_code",
+        "area_code",
+        "error"
+      ],
+      "eval": {
+        "type": "count_gte",
+        "window_sec": 300,
+        "count": 20
+      }
+    },
+    {
+      "id": "notification-final-failure-burst",
+      "event": "notification.final_failure",
+      "threshold_display": "10분 합계 >= 5",
+      "fields": [
+        "attempts",
+        "event_id",
+        "error"
+      ],
+      "eval": {
+        "type": "count_gte",
+        "window_sec": 600,
+        "count": 5
+      }
+    },
+    {
+      "id": "notification-circuit-opened",
+      "event": "notification.circuit.opened",
+      "threshold_display": "단일 이벤트 즉시 경고",
+      "fields": [
+        "consecutive_failures",
+        "reset_sec"
+      ],
+      "eval": {
+        "type": "single_event"
+      }
+    },
+    {
+      "id": "notification-backpressure-applied",
+      "event": "notification.backpressure.applied",
+      "threshold_display": "10분 합계 >= 1",
+      "fields": [
+        "area_code",
+        "max_attempts_per_cycle",
+        "skipped"
+      ],
+      "eval": {
+        "type": "count_gte",
+        "window_sec": 600,
+        "count": 1
+      }
+    },
+    {
+      "id": "health-notification-outage-detected",
+      "event": "health.notification.sent",
+      "variant": "outage_detected",
+      "threshold_display": "단일 이벤트 즉시 경고",
+      "fields": [
+        "health_event"
+      ],
+      "eval": {
+        "type": "single_event"
+      }
+    },
+    {
+      "id": "health-notification-outage-heartbeat",
+      "event": "health.notification.sent",
+      "variant": "outage_heartbeat",
+      "threshold_display": "2회 연속 발생",
+      "fields": [
+        "health_event"
+      ],
+      "eval": {
+        "type": "count_gte",
+        "window_sec": 7200,
+        "count": 2
+      }
+    },
+    {
+      "id": "state-cleanup-failed",
+      "event": "state.cleanup.failed",
+      "threshold_display": "단일 이벤트 즉시 경고",
+      "fields": [
+        "state_file",
+        "error"
+      ],
+      "eval": {
+        "type": "single_event"
+      }
+    },
+    {
+      "id": "state-migration-failed",
+      "event": "state.migration.failed",
+      "threshold_display": "단일 이벤트 즉시 경고",
+      "fields": [
+        "json_state_file",
+        "sqlite_state_file",
+        "error"
+      ],
+      "eval": {
+        "type": "single_event"
+      }
+    }
+  ]
+}

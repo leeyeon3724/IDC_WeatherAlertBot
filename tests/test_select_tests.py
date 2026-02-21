@@ -35,3 +35,4 @@ def test_build_report_includes_perf_script_tests_for_scripts_change() -> None:
     selected = set(report["selected_tests"])
     assert "tests/test_compare_perf_reports.py" in selected
     assert "tests/test_perf_baseline.py" in selected
+    assert "tests/test_alarm_rules_sync.py" in selected

@@ -7,7 +7,7 @@
 
 ## 1) 현재 기준선 (참고)
 
-- 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
+- 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
 - 테스트: `181 passed`
 - 커버리지: `93.63%` (최저 기준 `80%`)
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
@@ -33,7 +33,7 @@
 | RB-909 | P2 | 완료 | 복구 백필 실행 예산화 | 운영 문서상 복구 후 backfill 수행 시 단일 사이클 지연이 커질 수 있어 알람 지연 위험 | backfill을 시간/건수 예산 기반으로 분할 실행하거나 별도 잡으로 분리 | 백필 중에도 주기 지연 상한 충족(`cycle_latency_p95`) + 기능 회귀 없음 |
 | RB-910 | P2 | 완료 | SLO 리포트 강건성 개선 | `docs/TESTING.md` 리스크와 운영 SLO 자동화 기준 대비, 로그 필드 누락 시 판정 신뢰성 저하 | `slo_report`에 필드 누락 원인 분류(로그 포맷/수집 공백/코드 누락) 및 보정 로직 추가 | canary/live-e2e SLO 리포트에서 실패 원인 분류가 명확하고 재현 테스트 제공 |
 | RB-911 | P2 | 완료 | 성능 회귀 게이트 구체화 | 문서상 perf baseline은 추세 지표라 절대 기준 부재, 회귀 탐지 자동화가 약함 | 핵심 지표별 허용 회귀율(예: +20%)을 정의하고 PR 비교 리포트에 fail 조건 추가 | 회귀율 초과 PR 자동 실패 + 허용치/예외 처리 규칙 문서화 |
-| RB-912 | P3 | 진행중 | 운영 알람 규칙 테스트화 | 운영 문서 알람 매핑은 정의돼 있으나 규칙 변경 시 회귀를 자동 검증하기 어려움 | 주요 이벤트/임계값 매핑을 스키마화하고 검증 스크립트+테스트 추가 | 알람 규칙 변경 시 문서/코드 불일치 CI 실패 + 샘플 로그 기반 테스트 PASS |
+| RB-912 | P3 | 완료 | 운영 알람 규칙 테스트화 | 운영 문서 알람 매핑은 정의돼 있으나 규칙 변경 시 회귀를 자동 검증하기 어려움 | 주요 이벤트/임계값 매핑을 스키마화하고 검증 스크립트+테스트 추가 | 알람 규칙 변경 시 문서/코드 불일치 CI 실패 + 샘플 로그 기반 테스트 PASS |
 
 ## 3) 운영 관찰 (참고, 완료 게이트 아님)
 

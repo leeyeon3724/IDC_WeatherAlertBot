@@ -102,6 +102,8 @@ def maybe_send_health_notification(
             log_event(
                 events.HEALTH_NOTIFICATION_SENT,
                 health_event=health_decision.event,
+                incident_duration_sec=health_decision.incident_duration_sec,
+                incident_failed_cycles=health_decision.incident_failed_cycles,
             )
         )
     except NotificationError as exc:

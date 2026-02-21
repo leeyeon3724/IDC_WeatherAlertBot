@@ -99,7 +99,9 @@
     "health_event"
   ],
   "health.notification.sent": [
-    "health_event"
+    "health_event",
+    "incident_duration_sec",
+    "incident_failed_cycles"
   ],
   "health_state.backup_failed": [
     "error",
