@@ -37,11 +37,13 @@ HEALTH_BACKFILL_FAILED = "health.backfill.failed"
 HEALTH_STATE_INVALID_JSON = "health_state.invalid_json"
 HEALTH_STATE_READ_FAILED = "health_state.read_failed"
 HEALTH_STATE_BACKUP_FAILED = "health_state.backup_failed"
+HEALTH_STATE_PERSIST_FAILED = "health_state.persist_failed"
 
 # State
 STATE_INVALID_JSON = "state.invalid_json"
 STATE_READ_FAILED = "state.read_failed"
 STATE_BACKUP_FAILED = "state.backup_failed"
+STATE_PERSIST_FAILED = "state.persist_failed"
 STATE_CLEANUP_AUTO = "state.cleanup.auto"
 STATE_CLEANUP_COMPLETE = "state.cleanup.complete"
 STATE_CLEANUP_FAILED = "state.cleanup.failed"

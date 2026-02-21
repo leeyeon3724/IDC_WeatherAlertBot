@@ -50,12 +50,14 @@
 - `health_state.invalid_json`: `file`, `backup`, `error`
 - `health_state.read_failed`: `file`, `error`
 - `health_state.backup_failed`: `file`, `error`
+- `health_state.persist_failed`: `file`, `temp_file`, `error`
 
 ## State
 
 - `state.invalid_json`: `file`, `backup`, `error`
 - `state.read_failed`: `file`, `error`
 - `state.backup_failed`: `file`, `error`
+- `state.persist_failed`: `file`, `temp_file`, `error`
 - `state.cleanup.auto`: `date`, `days`, `include_unsent`, `removed`, `total`, `pending`
 - `state.cleanup.complete`: `state_file`, `days`, `include_unsent`, `dry_run`, `removed`, `total`, `pending`
 - `state.cleanup.failed`: `state_file`, `days`, `include_unsent`, `dry_run`, `error`

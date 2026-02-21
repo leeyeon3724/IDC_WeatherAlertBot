@@ -27,14 +27,14 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `109 passed`
-- 총 커버리지 `91.07%`
+- `112 passed`
+- 총 커버리지 `91.26%`
 - 주요 커버리지 지표
 - `app/entrypoints/service_loop.py` 98%
 - `app/entrypoints/commands.py` 94%
-- `app/repositories/health_state_repo.py` 85%
+- `app/repositories/health_state_repo.py` 89%
 - `app/logging_utils.py` 88%
-- `app/repositories/json_state_repo.py` 87%
+- `app/repositories/json_state_repo.py` 88%
 - `app/services/weather_api.py` 89%
 - `app/settings.py` 86%
 
@@ -55,7 +55,6 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-402 | P1 | 예정 | 안정성 | JSON/Health 상태 저장소의 persist/backup 실패 경로 테스트 확대 | 파일 I/O 실패 분기 회귀 테스트 추가 |
 | RB-403 | P1 | 예정 | 복잡성/유지보수성 | `settings.from_env`를 섹션별 파서(네트워크/저장소/헬스)로 분해하고 구성 검증 책임을 분리 | `settings.py` 단일 메서드 복잡도 축소 + 섹션 단위 테스트 추가 |
 | RB-404 | P1 | 예정 | 정확성/안정성 | `weather_api` 결과코드/페이지네이션/파싱 경계(`N/A`, totalCount 비정상값) 테스트 확대 | 경계 분기 회귀 테스트 추가 및 실패 코드 분류 안정화 |
 | RB-405 | P2 | 예정 | 보안/운영 | redaction 정책을 이벤트 통합 시나리오에서 검증(서비스키/토큰/쿼리스트링) | 통합 테스트에서 민감정보 미노출 보장 |
@@ -91,6 +90,7 @@
 | RB-303 | P2 | 완료 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 |
 | RB-304 | P2 | 완료 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 |
 | RB-401 | P1 | 완료 | 일관성/관측성 | `json_state_repo` 에러 로그를 `log_event()`로 통일 + 이벤트 문서 반영 |
+| RB-402 | P1 | 완료 | 안정성 | JSON/Health 상태 저장소 persist/backup 실패 경로 테스트 확대 + 실패 로그 이벤트 보강 |
 
 ## 6) Maintenance Rules
 

@@ -140,9 +140,20 @@ class JsonStateRepository:
             "version": STATE_SCHEMA_VERSION,
             "events": self._state,
         }
-        with temp_path.open("w", encoding="utf-8") as file:
-            json.dump(payload, file, ensure_ascii=False, indent=2, sort_keys=True)
-        temp_path.replace(self.file_path)
+        try:
+            with temp_path.open("w", encoding="utf-8") as file:
+                json.dump(payload, file, ensure_ascii=False, indent=2, sort_keys=True)
+            temp_path.replace(self.file_path)
+        except OSError as exc:
+            self.logger.error(
+                log_event(
+                    events.STATE_PERSIST_FAILED,
+                    file=str(self.file_path),
+                    temp_file=str(temp_path),
+                    error=str(exc),
+                )
+            )
+            raise
 
     def upsert_notifications(self, notifications: Iterable[AlertNotification]) -> int:
         now = utc_now_iso()

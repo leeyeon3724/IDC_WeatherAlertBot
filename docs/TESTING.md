@@ -12,8 +12,8 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 ## 2. 현재 스냅샷
 
-- 테스트 수: `109`
-- 전체 커버리지: `91.07%`
+- 테스트 수: `112`
+- 전체 커버리지: `91.26%`
 - 최소 커버리지 기준: `80%`
 
 ## 3. 테스트 적절성 평가
@@ -26,7 +26,6 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 
 리스크/보완 포인트:
 
-- `health_state_repo`의 파일 I/O 예외 분기는 핵심 경로 대비 커버리지가 낮은 편
 - redaction은 단위 테스트는 있으나 이벤트 로그 통합 시나리오 검증 범위를 더 넓힐 수 있음
 - `settings.py`는 환경변수 파싱 책임이 커서 회귀 시 영향 반경이 넓고 섹션 단위 검증 강화가 필요
 - `weather_api.py`는 경계 입력(`totalCount` 비정상, 페이지 경계 NODATA) 커버리지 여지가 남아 있음
@@ -42,11 +41,12 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 - `health.py` 경계/정규화 테스트 추가 (`tests/test_health_domain.py`)
 - `json_state_repo` 손상/백업 실패/정규화 분기 테스트 추가 (`tests/test_json_state_repo.py`)
 - `json_state_repo` 오류 로그를 구조화 이벤트(`log_event`)로 통일하고 이벤트 필드 단언 테스트 반영
+- `health_state_repo` backup/persist 실패 경로 테스트 추가 (`tests/test_health_state_repo.py`)
+- `json_state_repo` persist 실패 경로 테스트 추가 (`tests/test_json_state_repo.py`)
 - 장애 감지→heartbeat→복구→backfill 통합 스모크 테스트 추가 (`tests/test_service_loop_integration.py`)
 
 ## 5. 다음 개선 우선순위
 
-1. `health_state_repo`의 파일 I/O 실패 분기(backup/persist) 테스트 확대
-2. `settings.from_env`를 섹션 단위로 분해할 수 있도록 테스트를 정책별(네트워크/저장소/헬스)로 보강
-3. `weather_api`의 결과코드/페이지네이션 경계 케이스 회귀 테스트 확대
-4. redaction이 적용된 이벤트 로그 통합 시나리오 테스트 추가
+1. `settings.from_env`를 섹션 단위로 분해할 수 있도록 테스트를 정책별(네트워크/저장소/헬스)로 보강
+2. `weather_api`의 결과코드/페이지네이션 경계 케이스 회귀 테스트 확대
+3. redaction이 적용된 이벤트 로그 통합 시나리오 테스트 추가

@@ -84,3 +84,54 @@ def test_health_state_repo_logs_read_failure(
         JsonHealthStateRepository(state_file)
 
     assert any(events.HEALTH_STATE_READ_FAILED in record.message for record in caplog.records)
+
+
+def test_health_state_repo_logs_backup_failure_when_replace_fails(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    state_file = tmp_path / "health_state.json"
+    state_file.write_text("{invalid-json", encoding="utf-8")
+    original_replace = Path.replace
+
+    def _patched_replace(self: Path, target: Path, *args: object, **kwargs: object):
+        if self == state_file and ".broken-" in str(target):
+            raise OSError("backup failed")
+        return original_replace(self, target, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "replace", _patched_replace)
+
+    with caplog.at_level(logging.ERROR, logger="weather_alert_bot.health_state"):
+        repo = JsonHealthStateRepository(state_file)
+
+    assert repo.state.incident_open is False
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(payload.get("event") == events.HEALTH_STATE_BACKUP_FAILED for payload in payloads)
+    assert any(payload.get("event") == events.HEALTH_STATE_INVALID_JSON for payload in payloads)
+
+
+def test_health_state_repo_logs_persist_failure_when_write_fails(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    state_file = tmp_path / "health_state.json"
+    temp_file = state_file.with_suffix(".json.tmp")
+    repo = JsonHealthStateRepository(state_file)
+    original_open = Path.open
+
+    def _failing_open(self: Path, mode: str = "r", *args: object, **kwargs: object):
+        if self == temp_file and "w" in mode:
+            raise OSError("persist failed")
+        return original_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _failing_open)
+    state = ApiHealthState(incident_open=True)
+
+    with caplog.at_level(logging.ERROR, logger="weather_alert_bot.health_state"):
+        with pytest.raises(OSError, match="persist failed"):
+            repo.update_state(state)
+
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(payload.get("event") == events.HEALTH_STATE_PERSIST_FAILED for payload in payloads)

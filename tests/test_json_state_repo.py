@@ -241,6 +241,37 @@ def test_state_repo_logs_backup_failure_when_replace_fails(
     assert any(payload.get("event") == events.STATE_INVALID_JSON for payload in payloads)
 
 
+def test_state_repo_logs_persist_failure_when_write_fails(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    state_file = tmp_path / "state.json"
+    temp_file = state_file.with_suffix(".json.tmp")
+    repo = JsonStateRepository(state_file)
+    original_open = Path.open
+
+    def _failing_open(self: Path, mode: str = "r", *args: object, **kwargs: object):
+        if self == temp_file and "w" in mode:
+            raise OSError("persist failed")
+        return original_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", _failing_open)
+    notification = AlertNotification(
+        event_id="event:persist:1",
+        area_code="11B00000",
+        message="persist",
+        report_url=None,
+    )
+
+    with caplog.at_level(logging.ERROR, logger="weather_alert_bot.state"):
+        with pytest.raises(OSError, match="persist failed"):
+            repo.upsert_notifications([notification])
+
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(payload.get("event") == events.STATE_PERSIST_FAILED for payload in payloads)
+
+
 def test_state_repo_drops_invalid_records_and_persists(tmp_path) -> None:
     state_file = tmp_path / "state.json"
     payload = {
