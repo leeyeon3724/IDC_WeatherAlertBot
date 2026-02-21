@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run live-e2e-local test test-cov lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene
+.PHONY: install install-dev run dry-run live-e2e-local test test-cov testing-snapshot lint typecheck quality gate clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report perf-baseline soak-report slo-report select-tests check-docs check-arch check-hygiene
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -22,6 +22,9 @@ test:
 
 test-cov:
 	$(PYTHON) -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+
+testing-snapshot:
+	$(PYTHON) -m scripts.update_testing_snapshot --doc-file docs/TESTING.md --cov-config .coveragerc --log-output artifacts/testing/test-cov.log
 
 lint:
 	$(PYTHON) -m ruff check .

@@ -23,6 +23,7 @@ DRY_RUN=true RUN_ONCE=true python3 main.py
 make install
 make install-dev
 make test
+make testing-snapshot
 make gate
 make check-arch
 make check-hygiene
