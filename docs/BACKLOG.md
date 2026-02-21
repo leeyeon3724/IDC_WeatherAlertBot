@@ -2,23 +2,23 @@
 
 이 문서는 코드베이스/문서/테스트 평가와 리팩토링 백로그를 통합 관리합니다.
 기준 브랜치: `main`
-평가일: `2026-02-20`
+평가일: `2026-02-21`
 
 ## 1) Current Assessment
 
 | 관점 | 점수(5점) | 평가 |
 |---|---:|---|
-| 정확성 | 4.5 | 핵심 알림/중복 방지/헬스 흐름 안정적이며 health/json 경계 테스트가 보강됨 |
+| 정확성 | 4.5 | 핵심 알림/중복 방지/헬스 흐름 안정적이며 도메인/저장소 경계 테스트가 강화됨 |
 | 가독성 | 4.3 | 엔트리포인트/명령/루프 책임 분리와 이벤트 문서화가 정착됨 |
-| 복잡성 | 4.3 | 고복잡 경로(`service_loop`)가 테스트로 보호되어 변경 리스크 감소 |
+| 복잡성 | 4.2 | 고복잡 경로(`service_loop`)는 안정화됐지만 `settings.from_env` 응집도 개선 여지 존재 |
 | 응집도/결합도 | 4.3 | 프로토콜 기반 의존으로 저장소 결합도 완화, 경계가 명확함 |
-| 테스트 가능성 | 4.6 | `service_loop/commands/health/json_state_repo` 분기 테스트 보강 완료 |
+| 테스트 가능성 | 4.6 | `service_loop/commands/health/json_state_repo` 분기 테스트 보강으로 회귀 탐지력 향상 |
 | 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
 | 성능 | 4.4 | SQLite WAL/busy_timeout/batch + cleanup SQL 필터링 최적화 적용 |
 | 안정성 | 4.4 | CLI 실패 경로 이벤트/종료코드 표준화로 운영 복원력 향상 |
 | 보안 | 4.2 | 로그 민감정보 redaction 가드 및 운영 체크리스트 반영 |
 | 일관성 | 4.4 | health_state 포함 주요 오류 로그가 구조화 이벤트로 통일 |
-| 기술부채 | 4.3 | RB-201~RB-304 완료, 다음 부채는 운영 자동화/알람 규칙 고도화 중심 |
+| 기술부채 | 4.2 | RB-201~RB-304 완료, 다음 부채는 설정 파서 복잡도/로그 일관성/운영 자동화 중심 |
 
 ## 2) Evidence Snapshot
 
@@ -33,6 +33,10 @@
 - `app/entrypoints/service_loop.py` 98%
 - `app/entrypoints/commands.py` 94%
 - `app/repositories/health_state_repo.py` 85%
+- `app/logging_utils.py` 88%
+- `app/repositories/json_state_repo.py` 87%
+- `app/services/weather_api.py` 89%
+- `app/settings.py` 86%
 
 ## 3) Refactoring Backlog (Current Wave)
 
@@ -51,10 +55,13 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-301 | P1 | 완료 | 테스트가능성 | `health.py` 전이 조건(임계치/윈도우) 경계 테스트 강화 | `app/domain/health.py` 커버리지 90%+ |
-| RB-302 | P1 | 완료 | 정확성 | `json_state_repo` 손상/레거시 마이그레이션 경로 정밀 테스트 | 손상/이관 분기 회귀 테스트 케이스 확장 |
-| RB-303 | P2 | 완료 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 | end-to-end 스모크 테스트 추가 |
-| RB-304 | P2 | 완료 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 | `docs/OPERATION.md` 알람 기준 섹션 추가 |
+| RB-401 | P1 | 예정 | 일관성/관측성 | `json_state_repo` 에러 로그를 `log_event()` + `docs/EVENTS.md` 이벤트 사전으로 통일 | 비구조 문자열 로그 제거, 이벤트 문서 반영 |
+| RB-402 | P1 | 예정 | 안정성 | JSON/Health 상태 저장소의 persist/backup 실패 경로 테스트 확대 | 파일 I/O 실패 분기 회귀 테스트 추가 |
+| RB-403 | P1 | 예정 | 복잡성/유지보수성 | `settings.from_env`를 섹션별 파서(네트워크/저장소/헬스)로 분해하고 구성 검증 책임을 분리 | `settings.py` 단일 메서드 복잡도 축소 + 섹션 단위 테스트 추가 |
+| RB-404 | P1 | 예정 | 정확성/안정성 | `weather_api` 결과코드/페이지네이션/파싱 경계(`N/A`, totalCount 비정상값) 테스트 확대 | 경계 분기 회귀 테스트 추가 및 실패 코드 분류 안정화 |
+| RB-405 | P2 | 예정 | 보안/운영 | redaction 정책을 이벤트 통합 시나리오에서 검증(서비스키/토큰/쿼리스트링) | 통합 테스트에서 민감정보 미노출 보장 |
+| RB-406 | P2 | 예정 | 성능 | SQLite bulk upsert/cleanup 경로의 성능 회귀 체크(간이 벤치/기준선) 추가 | 기준선 대비 회귀 감지 규칙 문서화 |
+| RB-407 | P3 | 예정 | 운영성 | 이벤트 기반 알람 룰 템플릿을 실행 가능한 체크리스트/대시보드 매핑으로 고도화 | `docs/OPERATION.md`에 알람-대응 매핑 완성 |
 
 ## 5) Completed History
 
@@ -80,6 +87,10 @@
 | RB-206 | P2 | 완료 | 성능/안정성 | SQLite cleanup SQL 최적화 + bulk 테스트 |
 | RB-207 | P2 | 완료 | 보안/운영 | 로그 민감정보 redaction 가드 |
 | RB-208 | P3 | 완료 | 운영성 | 마이그레이션/롤백 runbook 확장 |
+| RB-301 | P1 | 완료 | 테스트가능성 | `health.py` 전이 조건(임계치/윈도우) 경계 테스트 강화 |
+| RB-302 | P1 | 완료 | 정확성 | `json_state_repo` 손상/레거시 마이그레이션 경로 정밀 테스트 |
+| RB-303 | P2 | 완료 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 |
+| RB-304 | P2 | 완료 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 |
 
 ## 6) Maintenance Rules
 
