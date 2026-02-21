@@ -60,6 +60,7 @@ def _settings(
         "request_read_timeout_sec": 3,
         "max_retries": max_retries,
         "retry_delay_sec": retry_delay_sec,
+        "api_soft_rate_limit_per_sec": 0,
         "notifier_timeout_sec": 1,
         "notifier_connect_timeout_sec": 1,
         "notifier_read_timeout_sec": 1,
@@ -185,9 +186,46 @@ def test_new_worker_client_creates_isolated_session(tmp_path) -> None:
         assert worker_client.settings is client.settings
         assert worker_client.logger is client.logger
         assert worker_client.session is not client.session
+        assert worker_client._request_rate_limiter is client._request_rate_limiter
     finally:
         client.session.close()
         worker_client.session.close()
+
+
+def test_fetch_alerts_soft_rate_limit_applies_between_requests(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(200, _xml_with_item(total_count=101, tm_seq="1")),
+            DummyResponse(200, _xml_with_item(total_count=101, tm_seq="2")),
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(
+            tmp_path,
+            max_retries=1,
+            retry_delay_sec=0,
+            api_soft_rate_limit_per_sec=2,
+        ),
+        session=session,
+        logger=logging.getLogger("test.weather.api.soft_rate_limit"),
+    )
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("app.services.weather_api.time.monotonic", lambda: 0.0)
+    monkeypatch.setattr("app.services.weather_api.time.sleep", lambda sec: sleep_calls.append(sec))
+
+    alerts = client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    assert len(alerts) == 2
+    assert len(session.calls) == 2
+    assert sleep_calls == [0.5]
 
 
 def test_fetch_alerts_retries_then_succeeds(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -213,6 +251,77 @@ def test_fetch_alerts_retries_then_succeeds(tmp_path, monkeypatch: pytest.Monkey
     )
 
     assert len(alerts) == 1
+    assert len(session.calls) == 2
+    assert sleep_calls == [1]
+
+
+def test_fetch_alerts_retries_on_result_code_22_then_succeeds(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                b"<response><header><resultCode>22</resultCode></header></response>",
+            ),
+            DummyResponse(200, _xml_with_item()),
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=2, retry_delay_sec=1),
+        session=session,
+        logger=logging.getLogger("test.weather.api.retry.result_code_22.success"),
+    )
+    sleep_calls: list[int] = []
+    monkeypatch.setattr("time.sleep", lambda seconds: sleep_calls.append(seconds))
+
+    alerts = client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    assert len(alerts) == 1
+    assert len(session.calls) == 2
+    assert sleep_calls == [1]
+
+
+def test_fetch_alerts_raises_when_result_code_22_retries_exhausted(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                b"<response><header><resultCode>22</resultCode></header></response>",
+            ),
+            DummyResponse(
+                200,
+                b"<response><header><resultCode>22</resultCode></header></response>",
+            ),
+        ]
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=2, retry_delay_sec=1),
+        session=session,
+        logger=logging.getLogger("test.weather.api.retry.result_code_22.fail"),
+    )
+    sleep_calls: list[int] = []
+    monkeypatch.setattr("time.sleep", lambda seconds: sleep_calls.append(seconds))
+
+    with pytest.raises(WeatherApiError, match="API response error 22") as exc_info:
+        client.fetch_alerts(
+            area_code="L1070100",
+            start_date="20260218",
+            end_date="20260219",
+            area_name="대구",
+        )
+
+    assert exc_info.value.code == API_ERROR_RESULT
+    assert exc_info.value.result_code == "22"
     assert len(session.calls) == 2
     assert sleep_calls == [1]
 
@@ -346,10 +455,10 @@ def test_fetch_alerts_logs_unmapped_codes_with_fallback_values(
         )
 
     assert len(alerts) == 1
-    assert alerts[0].warn_var == "UNKNOWN(warnVar:99)"
-    assert alerts[0].warn_stress == "UNKNOWN(warnStress:7)"
-    assert alerts[0].command == "UNKNOWN(command:9)"
-    assert alerts[0].cancel == "UNKNOWN(cancel:9)"
+    assert alerts[0].warn_var == "99"
+    assert alerts[0].warn_stress == "7"
+    assert alerts[0].command == "9"
+    assert alerts[0].cancel == "9"
 
     warning_payloads = [
         json.loads(record.message)

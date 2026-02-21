@@ -10,6 +10,7 @@
 - [ ] `python3 -m mypy`
 - [ ] `python3 -m scripts.check_architecture_rules`
 - [ ] `python3 -m scripts.check_event_docs_sync`
+- [ ] `python3 -m scripts.check_alarm_rules_sync`
 - [ ] `python3 -m scripts.check_repo_hygiene`
 - [ ] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
 
@@ -21,6 +22,13 @@
 - [ ] `docs/OPERATION.md` 알람-대응 매핑 영향 검토
 - [ ] 대시보드/알람 룰 영향도 검토(필드명, 이벤트명, 임계값)
 - [ ] `scripts.check_event_docs_sync` 통과 확인
+
+## Dooray Webhook Impact (if applicable)
+
+`app/services/notifier.py` 또는 `docs/DOORAY_WEBHOOK_REFERENCE.md`를 변경한 경우 모두 체크:
+
+- [ ] `docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영
+- [ ] `tests/test_notifier.py` 정책 회귀 테스트/수정 반영
 
 ## Additional Notes
 

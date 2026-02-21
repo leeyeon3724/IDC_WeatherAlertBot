@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,7 @@ DEFAULT_ALERT_API_URL = "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPw
 DEFAULT_SENT_MESSAGES_FILE = "./data/sent_messages.json"
 DEFAULT_WEATHER_API_ALLOWED_HOSTS = ["apis.data.go.kr"]
 DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES = ["/1360000/WthrWrnInfoService/"]
+RE_PERCENT_ENCODED_TRIPLET = re.compile(r"%[0-9A-Fa-f]{2}")
 
 
 class SettingsError(ValueError):
@@ -186,6 +188,15 @@ def _validate_weather_api_url(
         )
 
 
+def _validate_service_api_key(value: str) -> None:
+    # requests encodes query params; pre-encoded keys become double-encoded.
+    if RE_PERCENT_ENCODED_TRIPLET.search(value):
+        raise SettingsError(
+            "SERVICE_API_KEY appears URL-encoded. "
+            "Provide the raw(decoded) key value, not a pre-encoded value."
+        )
+
+
 @dataclass(frozen=True)
 class _CoreConfig:
     service_api_key: str
@@ -219,8 +230,10 @@ class _TimeoutConfig:
 class _RuntimeConfig:
     max_retries: int
     retry_delay_sec: int
+    api_soft_rate_limit_per_sec: int
     notifier_max_retries: int
     notifier_retry_delay_sec: int
+    notifier_send_rate_limit_per_sec: float
     notifier_max_attempts_per_cycle: int
     notifier_circuit_breaker_enabled: bool
     notifier_circuit_failure_threshold: int
@@ -266,6 +279,7 @@ def _parse_core_config() -> _CoreConfig:
 
     if not service_api_key:
         raise SettingsError("SERVICE_API_KEY is required.")
+    _validate_service_api_key(service_api_key)
     if not service_hook_url:
         raise SettingsError("SERVICE_HOOK_URL is required.")
     _validate_service_hook_url(service_hook_url)
@@ -383,8 +397,14 @@ def _parse_runtime_config() -> _RuntimeConfig:
     return _RuntimeConfig(
         max_retries=_parse_int_env("MAX_RETRIES", 3, minimum=1),
         retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
+        api_soft_rate_limit_per_sec=_parse_int_env("API_SOFT_RATE_LIMIT_PER_SEC", 30, minimum=0),
         notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
         notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
+        notifier_send_rate_limit_per_sec=_parse_float_env(
+            "NOTIFIER_SEND_RATE_LIMIT_PER_SEC",
+            1.0,
+            minimum=0.0,
+        ),
         notifier_max_attempts_per_cycle=_parse_int_env(
             "NOTIFIER_MAX_ATTEMPTS_PER_CYCLE",
             100,
@@ -492,11 +512,13 @@ class Settings:
     request_read_timeout_sec: int = 5
     max_retries: int = 3
     retry_delay_sec: int = 5
+    api_soft_rate_limit_per_sec: int = 30
     notifier_timeout_sec: int = 5
     notifier_connect_timeout_sec: int = 5
     notifier_read_timeout_sec: int = 5
     notifier_max_retries: int = 3
     notifier_retry_delay_sec: int = 1
+    notifier_send_rate_limit_per_sec: float = 1.0
     notifier_max_attempts_per_cycle: int = 100
     notifier_circuit_breaker_enabled: bool = True
     notifier_circuit_failure_threshold: int = 5
@@ -555,11 +577,13 @@ class Settings:
             request_read_timeout_sec=timeouts.request_read_timeout_sec,
             max_retries=runtime.max_retries,
             retry_delay_sec=runtime.retry_delay_sec,
+            api_soft_rate_limit_per_sec=runtime.api_soft_rate_limit_per_sec,
             notifier_timeout_sec=timeouts.notifier_timeout_sec,
             notifier_connect_timeout_sec=timeouts.notifier_connect_timeout_sec,
             notifier_read_timeout_sec=timeouts.notifier_read_timeout_sec,
             notifier_max_retries=runtime.notifier_max_retries,
             notifier_retry_delay_sec=runtime.notifier_retry_delay_sec,
+            notifier_send_rate_limit_per_sec=runtime.notifier_send_rate_limit_per_sec,
             notifier_max_attempts_per_cycle=runtime.notifier_max_attempts_per_cycle,
             notifier_circuit_breaker_enabled=runtime.notifier_circuit_breaker_enabled,
             notifier_circuit_failure_threshold=runtime.notifier_circuit_failure_threshold,

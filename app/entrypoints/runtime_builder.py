@@ -74,6 +74,7 @@ def build_runtime(
         read_timeout_sec=settings.notifier_read_timeout_sec,
         max_retries=settings.notifier_max_retries,
         retry_delay_sec=settings.notifier_retry_delay_sec,
+        send_rate_limit_per_sec=settings.notifier_send_rate_limit_per_sec,
         circuit_breaker_enabled=settings.notifier_circuit_breaker_enabled,
         circuit_failure_threshold=settings.notifier_circuit_failure_threshold,
         circuit_reset_sec=settings.notifier_circuit_reset_sec,
@@ -126,6 +127,8 @@ def log_startup(runtime: ServiceRuntime) -> None:
             health_state_file=str(settings.health_state_file),
             area_count=len(settings.area_codes),
             area_max_workers=settings.area_max_workers,
+            api_soft_rate_limit_per_sec=settings.api_soft_rate_limit_per_sec,
+            notifier_send_rate_limit_per_sec=settings.notifier_send_rate_limit_per_sec,
             dry_run=settings.dry_run,
             run_once=settings.run_once,
             lookback_days=settings.lookback_days,
@@ -139,5 +142,26 @@ def log_startup(runtime: ServiceRuntime) -> None:
             cleanup_enabled=settings.cleanup_enabled,
             cleanup_retention_days=settings.cleanup_retention_days,
             cleanup_include_unsent=settings.cleanup_include_unsent,
+        )
+    )
+    missing_area_codes = [
+        area_code
+        for area_code in settings.area_codes
+        if area_code not in settings.area_code_mapping
+    ]
+    if not missing_area_codes:
+        return
+
+    area_codes_count = len(settings.area_codes)
+    mapped_count = max(area_codes_count - len(missing_area_codes), 0)
+    coverage_pct = round((mapped_count / area_codes_count) * 100.0, 2) if area_codes_count else 0.0
+    runtime.logger.warning(
+        log_event(
+            events.AREA_MAPPING_COVERAGE_WARNING,
+            area_codes_count=area_codes_count,
+            mapped_count=mapped_count,
+            missing_count=len(missing_area_codes),
+            missing_area_codes=missing_area_codes,
+            coverage_pct=coverage_pct,
         )
     )

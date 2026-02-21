@@ -120,6 +120,14 @@
     "default": 5
   },
   {
+    "name": "api_soft_rate_limit_per_sec",
+    "annotation": "int",
+    "required": false,
+    "has_default": true,
+    "has_default_factory": false,
+    "default": 30
+  },
+  {
     "name": "notifier_timeout_sec",
     "annotation": "int",
     "required": false,
@@ -158,6 +166,14 @@
     "has_default": true,
     "has_default_factory": false,
     "default": 1
+  },
+  {
+    "name": "notifier_send_rate_limit_per_sec",
+    "annotation": "float",
+    "required": false,
+    "has_default": true,
+    "has_default_factory": false,
+    "default": 1.0
   },
   {
     "name": "notifier_max_attempts_per_cycle",

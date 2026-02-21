@@ -30,23 +30,27 @@
 - `DRY_RUN=true`는 전송 없이 로그만 기록
 - 민감정보(`serviceKey`, `apiKey`, `SERVICE_API_KEY`)는 로그에서 마스킹
 - 두레이 웹훅 상세 명세는 `docs/DOORAY_WEBHOOK_REFERENCE.md`를 기준으로 참고
-- 현재 웹훅 성공 판정은 `app/services/notifier.py` 기준 HTTP 상태 코드(2xx) 중심이며, 응답 바디 `header.isSuccessful` 검증은 미적용
+- 웹훅 성공 판정은 HTTP 상태 코드 + 응답 바디 `header.isSuccessful`를 함께 확인
+- API 조회 보호는 `API_SOFT_RATE_LIMIT_PER_SEC`(기본 30 req/sec), 웹훅 전송 보호는 `NOTIFIER_SEND_RATE_LIMIT_PER_SEC`(기본 1 req/sec)로 전역 적용
 
 ## 3. 일상 점검 체크리스트
 
 - API 키/웹훅/지역코드 설정 유효성 확인
 - 상태 저장소 경로/권한/디스크 여유 확인
 - `area.failed`, `notification.final_failure`, `pending_total` 추세 확인
+- `area.mapping_coverage_warning` 발생 시 누락된 지역코드 매핑 보강
 - `notification.circuit.*`, `notification.backpressure.applied` 급증 여부 확인
 
 ## 4. 장애 대응 런북
 
 API 실패 지속:
 - `area.failed`의 `error_code` 분포로 네트워크/API 장애를 분리
+- `error_code=api_result_error`가 반복될 때 `error` 본문의 `resultCode`(예: `22`)를 함께 확인
 - 필요 시 `CYCLE_INTERVAL_SEC` 상향으로 장애 파급 완화
 
 Webhook 실패 지속:
 - `notification.final_failure`의 `attempts`, `error` 확인
+- `attempts=1` 반복 시 4xx 또는 바디 검증 실패(`resultCode`) 가능성을 우선 점검
 - 회로 오픈(`notification.circuit.opened`) 발생 시 수신 시스템/네트워크 우선 점검
 
 상태 저장소 손상/의심:
@@ -84,6 +88,7 @@ CI 워크플로:
 python3 -m scripts.check_event_docs_sync
 python3 -m scripts.check_alarm_rules_sync
 python3 -m scripts.check_repo_hygiene
+python3 -m scripts.check_area_mapping_sync
 python3 -m scripts.perf_baseline --max-samples 20
 python3 -m scripts.slo_report --log-file <service.log>
 ```

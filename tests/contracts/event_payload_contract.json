@@ -26,6 +26,13 @@
     "page_count",
     "total_count"
   ],
+  "area.mapping_coverage_warning": [
+    "area_codes_count",
+    "coverage_pct",
+    "mapped_count",
+    "missing_area_codes",
+    "missing_count"
+  ],
   "area.name_mapping_warning": [
     "area_code",
     "configured_area_name",
@@ -183,6 +190,7 @@
     "error"
   ],
   "startup.ready": [
+    "api_soft_rate_limit_per_sec",
     "area_count",
     "area_max_workers",
     "cleanup_enabled",
@@ -196,6 +204,7 @@
     "health_recovery_backfill_window_days",
     "health_state_file",
     "lookback_days",
+    "notifier_send_rate_limit_per_sec",
     "run_once",
     "sqlite_state_file",
     "state_file",

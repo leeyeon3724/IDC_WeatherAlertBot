@@ -6,20 +6,41 @@ import pytest
 import requests
 
 from app.services import notifier as notifier_module
-from app.services.notifier import DoorayNotifier, NotificationError
+from app.services.notifier import DoorayNotifier, DoorayResponseError, NotificationError
 
 
 class DummyResponse:
-    def __init__(self, should_raise: bool = False):
-        self.should_raise = should_raise
+    def __init__(
+        self,
+        status_code: int = 200,
+        *,
+        json_body: object | None = None,
+        json_error: Exception | None = None,
+    ) -> None:
+        self.status_code = status_code
+        self._json_body = json_body or {
+            "header": {
+                "isSuccessful": True,
+                "resultCode": "0",
+                "resultMessage": "Success",
+            }
+        }
+        self._json_error = json_error
 
     def raise_for_status(self) -> None:
-        if self.should_raise:
-            raise requests.HTTPError("http error")
+        if 400 <= self.status_code:
+            error = requests.HTTPError(f"http error {self.status_code}")
+            error.response = self
+            raise error
+
+    def json(self) -> object:
+        if self._json_error is not None:
+            raise self._json_error
+        return self._json_body
 
 
 class FakeSession:
-    def __init__(self, outcomes):
+    def __init__(self, outcomes: list[object]) -> None:
         self.outcomes = list(outcomes)
         self.calls = 0
 
@@ -39,14 +60,14 @@ class CapturingSession:
 
     def post(self, url: str, **kwargs) -> DummyResponse:
         self.captured.append(kwargs.get("json", {}))
-        return DummyResponse(should_raise=False)
+        return DummyResponse()
 
 
-def test_notifier_retries_then_succeeds() -> None:
+def test_notifier_retries_then_succeeds_on_timeout() -> None:
     session = FakeSession(
         [
             requests.Timeout("timeout"),
-            DummyResponse(should_raise=False),
+            DummyResponse(),
         ]
     )
     notifier = DoorayNotifier(
@@ -55,11 +76,105 @@ def test_notifier_retries_then_succeeds() -> None:
         timeout_sec=1,
         max_retries=2,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         session=session,
     )
 
     notifier.send("hello")
     assert session.calls == 2
+
+
+def test_notifier_retries_on_http_5xx_then_succeeds() -> None:
+    session = FakeSession([DummyResponse(status_code=503), DummyResponse()])
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=2,
+        retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
+        session=session,
+    )
+
+    notifier.send("hello")
+    assert session.calls == 2
+
+
+def test_notifier_does_not_retry_on_http_4xx() -> None:
+    session = FakeSession([DummyResponse(status_code=400), DummyResponse()])
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=3,
+        retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
+        session=session,
+    )
+
+    with pytest.raises(NotificationError) as exc_info:
+        notifier.send("hello")
+    assert exc_info.value.attempts == 1
+    assert isinstance(exc_info.value.last_error, requests.HTTPError)
+    assert session.calls == 1
+
+
+def test_notifier_does_not_retry_on_unsuccessful_dooray_body() -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                json_body={
+                    "header": {
+                        "isSuccessful": False,
+                        "resultCode": "INVALID_PAYLOAD",
+                        "resultMessage": "text field is required",
+                    }
+                }
+            ),
+            DummyResponse(),
+        ]
+    )
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=3,
+        retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
+        session=session,
+    )
+
+    with pytest.raises(NotificationError) as exc_info:
+        notifier.send("hello")
+    assert exc_info.value.attempts == 1
+    assert isinstance(exc_info.value.last_error, DoorayResponseError)
+    assert "INVALID_PAYLOAD" in str(exc_info.value.last_error)
+    assert "text field is required" in str(exc_info.value.last_error)
+    assert session.calls == 1
+
+
+def test_notifier_does_not_retry_when_response_json_parse_fails() -> None:
+    session = FakeSession(
+        [
+            DummyResponse(json_error=ValueError("invalid json")),
+            DummyResponse(),
+        ]
+    )
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=3,
+        retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
+        session=session,
+    )
+
+    with pytest.raises(NotificationError) as exc_info:
+        notifier.send("hello")
+    assert exc_info.value.attempts == 1
+    assert isinstance(exc_info.value.last_error, DoorayResponseError)
+    assert session.calls == 1
 
 
 def test_notifier_raises_after_max_retries() -> None:
@@ -76,6 +191,7 @@ def test_notifier_raises_after_max_retries() -> None:
         timeout_sec=1,
         max_retries=3,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         session=session,
     )
 
@@ -91,7 +207,7 @@ def test_notifier_circuit_breaker_blocks_until_reset(monkeypatch: pytest.MonkeyP
         [
             requests.Timeout("timeout-1"),
             requests.Timeout("timeout-2"),
-            DummyResponse(should_raise=False),
+            DummyResponse(),
         ]
     )
     current = [0.0]
@@ -103,6 +219,7 @@ def test_notifier_circuit_breaker_blocks_until_reset(monkeypatch: pytest.MonkeyP
         timeout_sec=1,
         max_retries=1,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         circuit_breaker_enabled=True,
         circuit_failure_threshold=2,
         circuit_reset_sec=30,
@@ -139,7 +256,7 @@ def test_notifier_backoff_stays_zero_when_retry_delay_is_zero(
         [
             requests.Timeout("timeout-1"),
             requests.Timeout("timeout-2"),
-            DummyResponse(should_raise=False),
+            DummyResponse(),
         ]
     )
     notifier = DoorayNotifier(
@@ -148,6 +265,7 @@ def test_notifier_backoff_stays_zero_when_retry_delay_is_zero(
         timeout_sec=1,
         max_retries=3,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         session=session,
     )
 
@@ -166,7 +284,7 @@ def test_notifier_backoff_doubles_when_retry_delay_is_positive(
         [
             requests.Timeout("timeout-1"),
             requests.Timeout("timeout-2"),
-            DummyResponse(should_raise=False),
+            DummyResponse(),
         ]
     )
     notifier = DoorayNotifier(
@@ -175,6 +293,7 @@ def test_notifier_backoff_doubles_when_retry_delay_is_positive(
         timeout_sec=1,
         max_retries=3,
         retry_delay_sec=1,
+        send_rate_limit_per_sec=0,
         session=session,
     )
 
@@ -197,6 +316,7 @@ def test_notifier_circuit_disabled_never_blocks_send() -> None:
         timeout_sec=1,
         max_retries=1,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         circuit_breaker_enabled=False,
         circuit_failure_threshold=1,
         circuit_reset_sec=30,
@@ -224,6 +344,7 @@ def test_notifier_payload_includes_bot_name_and_message() -> None:
         timeout_sec=1,
         max_retries=1,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         session=session,
     )
 
@@ -245,6 +366,7 @@ def test_notifier_payload_includes_attachment_when_report_url_given() -> None:
         timeout_sec=1,
         max_retries=1,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         session=session,
     )
 
@@ -276,6 +398,7 @@ def test_notifier_circuit_breaker_consecutive_failures_thread_safe() -> None:
         timeout_sec=1,
         max_retries=1,
         retry_delay_sec=0,
+        send_rate_limit_per_sec=0,
         circuit_breaker_enabled=True,
         circuit_failure_threshold=thread_count + 1,
         circuit_reset_sec=300,
@@ -298,3 +421,25 @@ def test_notifier_circuit_breaker_consecutive_failures_thread_safe() -> None:
 
     assert len(errors) == thread_count
     assert notifier._consecutive_failures == thread_count
+
+
+def test_notifier_send_rate_limit_applies_globally(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = FakeSession([DummyResponse(), DummyResponse()])
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="test-bot",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        send_rate_limit_per_sec=1.0,
+        session=session,
+    )
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(notifier_module.time, "monotonic", lambda: 0.0)
+    monkeypatch.setattr(notifier_module.time, "sleep", lambda sec: sleep_calls.append(sec))
+
+    notifier.send("hello-1")
+    notifier.send("hello-2")
+
+    assert session.calls == 2
+    assert sleep_calls == [1.0]

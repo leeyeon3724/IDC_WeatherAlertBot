@@ -10,7 +10,7 @@
 
 ## Event Schema
 
-- schema_version: `9`
+- schema_version: `10`
 - 이벤트 계약(이름/핵심 필드) 변경 시 이 문서의 Change Log를 함께 갱신합니다.
 
 ## Schema Change Log
@@ -26,11 +26,12 @@
 | 7 | 2026-02-21 | 헬스 알림 이벤트 필드(`incident_duration_sec`, `incident_failed_cycles`) 확장 | Backward-compatible |
 | 8 | 2026-02-21 | 미매핑 특보 코드 감지 이벤트(`area.code_unmapped`) 추가 | Backward-compatible |
 | 9 | 2026-02-21 | 지역명 매핑 경고 이벤트(`area.name_mapping_warning`) 추가 | Backward-compatible |
+| 10 | 2026-02-21 | 지역코드 매핑 커버리지 경고(`area.mapping_coverage_warning`) 및 startup rate-limit 필드 확장 | Backward-compatible |
 
 ## Runtime Lifecycle
 
 - `startup.invalid_config`: `error`
-- `startup.ready`: `state_file`, `state_repository_type`, `sqlite_state_file`, `health_state_file`, `area_count`, `health_recovery_backfill_window_days`, `health_recovery_backfill_max_windows_per_cycle`
+- `startup.ready`: `state_file`, `state_repository_type`, `sqlite_state_file`, `health_state_file`, `area_count`, `area_max_workers`, `api_soft_rate_limit_per_sec`, `notifier_send_rate_limit_per_sec`, `health_recovery_backfill_window_days`, `health_recovery_backfill_max_windows_per_cycle`
 - `shutdown.interrupt`: 없음
 - `shutdown.run_once_complete`: 없음
 - `shutdown.unexpected_error`: `error`
@@ -54,6 +55,7 @@
 - `area.fetch.retry`: `area_code`, `attempt`, `max_retries`, `error_code`, `error`, `backoff_sec`
 - `area.code_unmapped`: `area_code`, `area_name`, `field`, `raw_code`, `fallback_value`
 - `area.name_mapping_warning`: `area_code`, `reason`, `configured_area_name`, `response_area_name`, `resolved_area_name`
+- `area.mapping_coverage_warning`: `area_codes_count`, `mapped_count`, `missing_count`, `missing_area_codes`, `coverage_pct`
 
 ## Notifications
 

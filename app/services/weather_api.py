@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -109,12 +110,34 @@ class WeatherApiRequestParamsBuilder:
         return params
 
 
+class _SoftRateLimiter:
+    def __init__(self, limit_per_sec: int) -> None:
+        self.limit_per_sec = max(0, limit_per_sec)
+        self._lock = threading.Lock()
+        self._next_allowed_monotonic = 0.0
+
+    def acquire(self) -> None:
+        if self.limit_per_sec <= 0:
+            return
+
+        min_interval_sec = 1.0 / float(self.limit_per_sec)
+        with self._lock:
+            now = time.monotonic()
+            slot_time = max(now, self._next_allowed_monotonic)
+            self._next_allowed_monotonic = slot_time + min_interval_sec
+            wait_sec = slot_time - now
+
+        if wait_sec > 0:
+            time.sleep(wait_sec)
+
+
 class WeatherAlertClient:
     def __init__(
         self,
         settings: Settings,
         session: requests.Session | None = None,
         logger: logging.Logger | None = None,
+        request_rate_limiter: _SoftRateLimiter | None = None,
     ) -> None:
         self.settings = settings
         self.session = session or requests.Session()
@@ -126,6 +149,9 @@ class WeatherAlertClient:
             )
         )
         self._area_name_warning_cache: set[tuple[str, str, str, str]] = set()
+        self._request_rate_limiter = request_rate_limiter or _SoftRateLimiter(
+            settings.api_soft_rate_limit_per_sec
+        )
 
     def fetch_alerts(
         self,
@@ -141,7 +167,7 @@ class WeatherAlertClient:
         page_count = 0
 
         while True:
-            root = self._fetch_xml_root(
+            root = self._fetch_xml_root_with_result_retry(
                 area_code=area_code,
                 start_date=start_date,
                 end_date=end_date,
@@ -195,8 +221,63 @@ class WeatherAlertClient:
         )
         return all_alerts
 
+    def _fetch_xml_root_with_result_retry(
+        self,
+        *,
+        area_code: str,
+        start_date: str,
+        end_date: str,
+        page_no: int,
+        page_size: int,
+    ) -> ET.Element:
+        backoff_seconds = self.settings.retry_delay_sec
+        root: ET.Element | None = None
+
+        for attempt in range(1, self.settings.max_retries + 1):
+            root = self._fetch_xml_root(
+                area_code=area_code,
+                start_date=start_date,
+                end_date=end_date,
+                page_no=page_no,
+                page_size=page_size,
+            )
+            result_code = self._extract_result_code(root)
+            if result_code != "22":
+                return root
+            if attempt == self.settings.max_retries:
+                return root
+
+            result_msg = RESPONSE_CODE_MAPPING.get(result_code, "알 수 없는 응답 코드")
+            self.logger.warning(
+                log_event(
+                    events.AREA_FETCH_RETRY,
+                    attempt=attempt,
+                    max_retries=self.settings.max_retries,
+                    area_code=area_code,
+                    error_code=API_ERROR_RESULT,
+                    error=f"API response error {result_code}: {result_msg}",
+                    backoff_sec=backoff_seconds,
+                )
+            )
+            if backoff_seconds > 0:
+                time.sleep(backoff_seconds)
+            backoff_seconds = max(backoff_seconds * 2, self.settings.retry_delay_sec)
+
+        # max_retries is validated in settings and this branch is unreachable,
+        # but keep a safe fallback to satisfy static type checking.
+        if root is not None:
+            return root
+        raise WeatherApiError(
+            f"Failed to fetch area_code={area_code}: unknown",
+            code=API_ERROR_UNKNOWN,
+        )
+
     def new_worker_client(self) -> WeatherAlertClient:
-        return WeatherAlertClient(settings=self.settings, logger=self.logger)
+        return WeatherAlertClient(
+            settings=self.settings,
+            logger=self.logger,
+            request_rate_limiter=self._request_rate_limiter,
+        )
 
     def close(self) -> None:
         self.session.close()
@@ -223,6 +304,7 @@ class WeatherAlertClient:
         last_error: WeatherApiError | None = None
         for attempt in range(1, self.settings.max_retries + 1):
             try:
+                self._request_rate_limiter.acquire()
                 response = self.session.get(
                     self.settings.weather_alert_data_api_url,
                     params=params,
@@ -436,7 +518,7 @@ class WeatherAlertClient:
         if normalized_code.upper() == "N/A":
             return "N/A"
 
-        fallback_value = f"UNKNOWN({field_name}:{normalized_code})"
+        fallback_value = normalized_code
         self.logger.warning(
             log_event(
                 events.AREA_CODE_UNMAPPED,

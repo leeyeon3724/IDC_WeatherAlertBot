@@ -25,6 +25,21 @@ class NotificationError(RuntimeError):
         self.last_error = last_error
 
 
+class DoorayResponseError(RuntimeError):
+    """Raised when Dooray response body indicates a failed delivery."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        result_code: object | None = None,
+        result_message: object | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.result_code = result_code
+        self.result_message = result_message
+
+
 class DoorayNotifier:
     def __init__(
         self,
@@ -38,6 +53,7 @@ class DoorayNotifier:
         circuit_breaker_enabled: bool = True,
         circuit_failure_threshold: int = 5,
         circuit_reset_sec: int = 300,
+        send_rate_limit_per_sec: float = 1.0,
         session: requests.Session | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
@@ -51,10 +67,12 @@ class DoorayNotifier:
         self.circuit_breaker_enabled = circuit_breaker_enabled
         self.circuit_failure_threshold = max(1, circuit_failure_threshold)
         self.circuit_reset_sec = max(1, circuit_reset_sec)
+        self.send_rate_limit_per_sec = max(0.0, send_rate_limit_per_sec)
         self.session = session or requests.Session()
         self.logger = logger or logging.getLogger("weather_alert_bot.notifier")
         self._consecutive_failures = 0
         self._circuit_open_until_monotonic: float | None = None
+        self._next_send_allowed_monotonic = 0.0
         self._lock = threading.Lock()
 
     def _is_circuit_open(self, now: float) -> bool:
@@ -74,6 +92,63 @@ class DoorayNotifier:
         self._circuit_open_until_monotonic = None
         self._consecutive_failures = 0
         self.logger.info(log_event(events.NOTIFICATION_CIRCUIT_CLOSED))
+
+    def _acquire_send_slot(self) -> None:
+        if self.send_rate_limit_per_sec <= 0:
+            return
+
+        min_interval_sec = 1.0 / self.send_rate_limit_per_sec
+        with self._lock:
+            now = time.monotonic()
+            slot_time = max(now, self._next_send_allowed_monotonic)
+            self._next_send_allowed_monotonic = slot_time + min_interval_sec
+            wait_sec = slot_time - now
+
+        if wait_sec > 0:
+            time.sleep(wait_sec)
+
+    @staticmethod
+    def _is_retryable_error(exc: Exception) -> bool:
+        if isinstance(exc, DoorayResponseError):
+            return False
+        if isinstance(exc, requests.Timeout):
+            return True
+        if isinstance(exc, requests.ConnectionError):
+            return True
+        if isinstance(exc, requests.HTTPError):
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code is None:
+                return False
+            return 500 <= status_code < 600
+        if isinstance(exc, requests.RequestException):
+            return True
+        return False
+
+    @staticmethod
+    def _validate_response_body(response: requests.Response) -> None:
+        try:
+            response_body = response.json()
+        except ValueError as exc:
+            raise DoorayResponseError(
+                f"Dooray response JSON parse failed: {exc}",
+            ) from exc
+
+        header = response_body.get("header") if isinstance(response_body, dict) else None
+        if not isinstance(header, dict):
+            raise DoorayResponseError("Dooray response missing 'header' block")
+
+        is_successful = header.get("isSuccessful")
+        if is_successful is True:
+            return
+
+        result_code = header.get("resultCode")
+        result_message = header.get("resultMessage")
+        raise DoorayResponseError(
+            "Dooray response unsuccessful: "
+            f"resultCode={result_code!r}, resultMessage={result_message!r}",
+            result_code=result_code,
+            result_message=result_message,
+        )
 
     def send(self, message: str, report_url: str | None = None) -> None:
         with self._lock:
@@ -110,21 +185,25 @@ class DoorayNotifier:
 
         backoff_seconds = self.retry_delay_sec
         last_error: Exception | None = None
+        attempts = 0
         for attempt in range(1, self.max_retries + 1):
+            attempts = attempt
             try:
+                self._acquire_send_slot()
                 response = self.session.post(
                     self.hook_url,
                     json=payload,
                     timeout=(self.connect_timeout_sec, self.read_timeout_sec),
                 )
                 response.raise_for_status()
+                self._validate_response_body(response)
                 with self._lock:
                     self._consecutive_failures = 0
                 self.logger.debug("notifier.sent report_url=%s", bool(report_url))
                 return
-            except requests.RequestException as exc:
+            except (requests.RequestException, DoorayResponseError) as exc:
                 last_error = exc
-                if attempt == self.max_retries:
+                if attempt == self.max_retries or not self._is_retryable_error(exc):
                     break
                 self.logger.warning(
                     log_event(
@@ -156,7 +235,11 @@ class DoorayNotifier:
                     )
 
         raise NotificationError(
-            "Dooray webhook send failed",
-            attempts=self.max_retries,
+            (
+                f"Dooray webhook send failed: {last_error}"
+                if last_error is not None
+                else "Dooray webhook send failed"
+            ),
+            attempts=attempts,
             last_error=last_error,
         )

@@ -24,11 +24,13 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "REQUEST_READ_TIMEOUT_SEC",
         "MAX_RETRIES",
         "RETRY_DELAY_SEC",
+        "API_SOFT_RATE_LIMIT_PER_SEC",
         "NOTIFIER_TIMEOUT_SEC",
         "NOTIFIER_CONNECT_TIMEOUT_SEC",
         "NOTIFIER_READ_TIMEOUT_SEC",
         "NOTIFIER_MAX_RETRIES",
         "NOTIFIER_RETRY_DELAY_SEC",
+        "NOTIFIER_SEND_RATE_LIMIT_PER_SEC",
         "NOTIFIER_MAX_ATTEMPTS_PER_CYCLE",
         "NOTIFIER_CIRCUIT_BREAKER_ENABLED",
         "NOTIFIER_CIRCUIT_FAILURE_THRESHOLD",
@@ -81,10 +83,12 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.sqlite_state_file.as_posix().endswith("data/sent_messages.db")
     assert settings.notifier_max_retries == 3
     assert settings.notifier_retry_delay_sec == 1
+    assert settings.notifier_send_rate_limit_per_sec == 1.0
     assert settings.notifier_max_attempts_per_cycle == 100
     assert settings.notifier_circuit_breaker_enabled is True
     assert settings.notifier_circuit_failure_threshold == 5
     assert settings.notifier_circuit_reset_sec == 300
+    assert settings.api_soft_rate_limit_per_sec == 30
     assert settings.request_connect_timeout_sec == 5
     assert settings.request_read_timeout_sec == 5
     assert settings.notifier_timeout_sec == 5
@@ -175,6 +179,17 @@ def test_settings_missing_required(monkeypatch: pytest.MonkeyPatch) -> None:
         Settings.from_env(env_file=None)
 
 
+def test_settings_rejects_url_encoded_service_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "abc%2Bdef%3D")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+
+    with pytest.raises(SettingsError, match="URL-encoded"):
+        Settings.from_env(env_file=None)
+
+
 def test_settings_invalid_bool(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
     monkeypatch.setenv("SERVICE_API_KEY", "key-123")
@@ -246,9 +261,11 @@ def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NOTIFIER_CONNECT_TIMEOUT_SEC", "3")
     monkeypatch.setenv("NOTIFIER_READ_TIMEOUT_SEC", "8")
     monkeypatch.setenv("NOTIFIER_MAX_ATTEMPTS_PER_CYCLE", "50")
+    monkeypatch.setenv("NOTIFIER_SEND_RATE_LIMIT_PER_SEC", "0.5")
     monkeypatch.setenv("NOTIFIER_CIRCUIT_BREAKER_ENABLED", "false")
     monkeypatch.setenv("NOTIFIER_CIRCUIT_FAILURE_THRESHOLD", "7")
     monkeypatch.setenv("NOTIFIER_CIRCUIT_RESET_SEC", "120")
+    monkeypatch.setenv("API_SOFT_RATE_LIMIT_PER_SEC", "12")
     monkeypatch.setenv("AREA_MAX_WORKERS", "4")
 
     settings = Settings.from_env(env_file=None)
@@ -258,10 +275,12 @@ def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.notifier_timeout_sec == 6
     assert settings.notifier_connect_timeout_sec == 3
     assert settings.notifier_read_timeout_sec == 8
+    assert settings.notifier_send_rate_limit_per_sec == 0.5
     assert settings.notifier_max_attempts_per_cycle == 50
     assert settings.notifier_circuit_breaker_enabled is False
     assert settings.notifier_circuit_failure_threshold == 7
     assert settings.notifier_circuit_reset_sec == 120
+    assert settings.api_soft_rate_limit_per_sec == 12
     assert settings.area_max_workers == 4
 
 
@@ -414,6 +433,34 @@ def test_settings_rejects_invalid_notifier_circuit_failure_threshold(
     monkeypatch.setenv("AREA_CODES", '["11B00000"]')
     monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
     monkeypatch.setenv("NOTIFIER_CIRCUIT_FAILURE_THRESHOLD", "0")
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_negative_api_soft_rate_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("API_SOFT_RATE_LIMIT_PER_SEC", "-1")
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_negative_notifier_send_rate_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("NOTIFIER_SEND_RATE_LIMIT_PER_SEC", "-0.1")
 
     with pytest.raises(SettingsError):
         Settings.from_env(env_file=None)

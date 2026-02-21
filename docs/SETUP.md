@@ -36,12 +36,15 @@ cp .env.example .env
 ## 4. 필수 환경변수
 
 - `SERVICE_API_KEY`: 기상청 Open API 서비스 키
+  - URL-encoded 값이 아닌 원문(raw/decoded) 키를 사용합니다.
 - `SERVICE_HOOK_URL`: Dooray Incoming Webhook URL (`https`만 허용)
 - `AREA_CODES`: 조회 지역코드 목록(JSON 배열)
 - `AREA_CODE_MAPPING`: 지역코드-지역명 매핑(JSON 객체)
 
 선택 환경변수는 `.env.example`을 기준으로 관리합니다.
 주의: `WEATHER_ALERT_DATA_API_URL` 기본 엔드포인트는 현재 `http`만 지원합니다.
+주의: `API_SOFT_RATE_LIMIT_PER_SEC` 기본값은 `30`이며(`0`은 비활성), 병렬 조회(`AREA_MAX_WORKERS>1`)에서도 전체 호출률 상한으로 적용됩니다.
+주의: `NOTIFIER_SEND_RATE_LIMIT_PER_SEC` 기본값은 `1.0`이며, 두레이 발송을 전역 기준 초당 1회로 제한합니다(`0`은 비활성).
 주의: `CLEANUP_INCLUDE_UNSENT` 기본값은 `false`이며, 자동 cleanup은 기본적으로 전송완료(`sent=true`) 데이터만 삭제합니다.
 
 ## 5. 로컬 실행

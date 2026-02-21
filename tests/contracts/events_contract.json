@@ -3,6 +3,7 @@
   "AREA_FAILED": "area.failed",
   "AREA_FETCH_RETRY": "area.fetch.retry",
   "AREA_FETCH_SUMMARY": "area.fetch.summary",
+  "AREA_MAPPING_COVERAGE_WARNING": "area.mapping_coverage_warning",
   "AREA_NAME_MAPPING_WARNING": "area.name_mapping_warning",
   "AREA_START": "area.start",
   "CYCLE_AREA_INTERVAL_IGNORED": "cycle.area_interval_ignored",

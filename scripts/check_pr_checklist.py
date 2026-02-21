@@ -24,6 +24,11 @@ EVENT_IMPACT_LABELS = [
     "`scripts.check_event_docs_sync` 통과 확인",
 ]
 
+DOORAY_IMPACT_LABELS = [
+    "`docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영",
+    "`tests/test_notifier.py` 정책 회귀 테스트/수정 반영",
+]
+
 
 def _read_text(path: Path) -> str:
     if not path.exists():
@@ -55,6 +60,15 @@ def _requires_event_impact(changed_files: list[str]) -> bool:
     return False
 
 
+def _requires_dooray_impact(changed_files: list[str]) -> bool:
+    for file_name in changed_files:
+        if file_name == "app/services/notifier.py":
+            return True
+        if file_name == "docs/DOORAY_WEBHOOK_REFERENCE.md":
+            return True
+    return False
+
+
 def build_report(*, pr_body: str, changed_files: list[str]) -> dict[str, object]:
     missing_quality_checks = [
         label for label in QUALITY_CHECK_LABELS if not _is_checked(pr_body, label)
@@ -67,13 +81,22 @@ def build_report(*, pr_body: str, changed_files: list[str]) -> dict[str, object]
             label for label in EVENT_IMPACT_LABELS if not _is_checked(pr_body, label)
         ]
 
-    passed = not missing_quality_checks and not missing_event_checks
+    dooray_impact_required = _requires_dooray_impact(changed_files)
+    missing_dooray_checks: list[str] = []
+    if dooray_impact_required:
+        missing_dooray_checks = [
+            label for label in DOORAY_IMPACT_LABELS if not _is_checked(pr_body, label)
+        ]
+
+    passed = not missing_quality_checks and not missing_event_checks and not missing_dooray_checks
     return {
         "passed": passed,
         "changed_files_count": len(changed_files),
         "event_impact_required": event_impact_required,
+        "dooray_impact_required": dooray_impact_required,
         "missing_quality_checks": missing_quality_checks,
         "missing_event_checks": missing_event_checks,
+        "missing_dooray_checks": missing_dooray_checks,
     }
 
 
@@ -85,9 +108,11 @@ def render_markdown(report: dict[str, object]) -> str:
         f"- status: `{status}`",
         f"- changed_files_count: `{report['changed_files_count']}`",
         f"- event_impact_required: `{report['event_impact_required']}`",
+        f"- dooray_impact_required: `{report['dooray_impact_required']}`",
         "",
         f"- missing_quality_checks: `{report['missing_quality_checks']}`",
         f"- missing_event_checks: `{report['missing_event_checks']}`",
+        f"- missing_dooray_checks: `{report['missing_dooray_checks']}`",
     ]
     return "\n".join(lines)
 

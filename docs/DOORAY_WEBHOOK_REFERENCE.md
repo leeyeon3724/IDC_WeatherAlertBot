@@ -1,18 +1,9 @@
 # 두레이 인커밍 웹훅 명세 문서
 
-**문서 버전**: 1.0  
 **작성일**: 2026-02-21  
-**대상**: 두레이 웹훅 연동 개발자
 
 이 문서는 두레이(Dooray) 인커밍 웹훅의 상태 코드 처리, 응답 구조, 사용 방식을 체계적으로 정리한 것입니다.
 명세 기반 권장 처리와 이 프로젝트의 현재 구현 상태를 분리해 기록합니다.
-
-## 0) 문서 범위
-
-- 명세/권장 처리:
-  Dooray 공식 도움말 기준의 권장 성공 판정/재시도 정책
-- 프로젝트 현재 구현:
-  `app/services/notifier.py`의 실제 동작 기준(운영 시점 판정 로직)
 
 ## 1) 기본 개념 및 흐름
 
@@ -136,16 +127,27 @@ if ($httpCode === 200) {
 - 재시도 횟수/최종 실패율
 - 타임아웃/5xx 급증 시점 알림
 
-## 5) 이 프로젝트 적용 상태 (2026-02-21 기준)
+## 5) 프로젝트 적용 상태
 
-- 구현 파일: `app/services/notifier.py`
-- 성공 판정: HTTP 상태 코드 기반(`response.raise_for_status()`), 응답 바디 `header.isSuccessful`는 현재 미검증
-- 재시도 대상: `requests.RequestException` 전반(타임아웃/연결오류/HTTP 오류 포함)
-- 재시도 횟수/백오프: `NOTIFIER_MAX_RETRIES`, `NOTIFIER_RETRY_DELAY_SEC` 환경변수로 제어
-- 회로 차단기: `NOTIFIER_CIRCUIT_*` 환경변수로 제어, 연속 실패 시 차단/복구
+기준 코드:
+- `app/services/notifier.py`
+- `app/entrypoints/runtime_builder.py`
+- `app/settings.py`
 
-정합성 메모:
+적용 현황:
+- 응답 성공 판정:
+  HTTP 2xx 이후 응답 JSON `header.isSuccessful == true`를 필수 확인하도록 적용
+- 실패 전파:
+  `isSuccessful=false` 또는 바디 파싱 실패 시 `NotificationError.last_error`에 `resultCode`/`resultMessage` 포함 문자열 전파
+- 재시도 분기:
+  `HTTP 4xx`는 즉시 실패(재시도 없음), `HTTP 5xx`/`Timeout`/`ConnectionError`는 지수 백오프 재시도
+- 전송률 제한:
+  전역 전송률 제한 기본값 `NOTIFIER_SEND_RATE_LIMIT_PER_SEC=1.0`(초당 1회), `0`이면 비활성
 
-- 명세 권장과 현재 구현 사이에 차이(바디 성공 판정, 4xx 비재시도 정책)가 있으므로 개선 작업은 `docs/BACKLOG.md`에서 추적
+운영 확인 포인트:
+- `notification.retry`는 재시도 대상(5xx/timeout/연결오류)에만 기록
+- `notification.final_failure.error`에서 `resultCode`/`resultMessage` 확인 가능
+- 연속 실패 시 `notification.circuit.*` 이벤트와 함께 원인 분리
+
 
 주의: 두레이 정책/응답 스키마 변경 가능성이 있으므로 운영 적용 전 공식 도움말을 최우선 기준으로 재확인하세요.
