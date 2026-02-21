@@ -11,7 +11,6 @@ from app.domain.alert_rules import (
     default_alert_rules,
     load_alert_rules,
 )
-from app.domain.code_maps import WARN_VAR_MAPPING
 
 
 def _write_rules_file(tmp_path: Path, payload: dict[str, object]) -> Path:
@@ -37,10 +36,6 @@ def test_load_alert_rules_v2_schema_file() -> None:
     assert rules.code_maps.warn_var["2"] == "호우"
     assert rules.code_maps.command["1"] == "발표"
     assert "{command}" in rules.message_rules.release_or_update_template
-
-
-def test_code_maps_compatibility_constants_use_default_rules() -> None:
-    assert WARN_VAR_MAPPING["2"] == "호우"
 
 
 def test_default_alert_rules_returns_independent_mapping_objects() -> None:

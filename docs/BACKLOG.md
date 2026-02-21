@@ -20,12 +20,6 @@
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
 상태: 진행중
-중요도: 낮음
-항목: `app/domain/code_maps.py` 호환 레이어 정리(Deprecation)
-근거: 규칙 외부화 이후에도 호환 상수가 남아 있어 규칙 소스 이중화 리스크가 존재함.
-완료 기준: 런타임 비즈니스 경로의 `code_maps.py` 직접 의존을 제거하고 단일 소스(`alert_rules`)로 통일함.
-
-상태: 진행중
 중요도: 중간
 항목: `ProcessCycle` 컴포넌트 계약(Protocol) 고정
 근거: `app/usecases/process_cycle_components.py` 인터페이스가 암묵적이라 교체/확장 시 회귀 가능성이 있음.

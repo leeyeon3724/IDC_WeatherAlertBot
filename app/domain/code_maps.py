@@ -1,3 +1,9 @@
+"""Deprecated compatibility aliases for alert code maps.
+
+New code should read mappings from `app.domain.alert_rules` via Settings.alert_rules.
+This module remains only for temporary backward compatibility.
+"""
+
 from __future__ import annotations
 
 from app.domain.alert_rules import default_alert_rules
