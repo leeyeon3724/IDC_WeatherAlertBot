@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from app.domain.models import AlertEvent
+from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
 from app.services.notifier import NotificationError
 from app.services.weather_api import API_ERROR_TIMEOUT, WeatherApiError
@@ -274,3 +278,84 @@ def test_process_cycle_lookback_override(tmp_path) -> None:
     assert stats.start_date == "20260217"
     assert stats.end_date == "20260221"
     assert weather_client.calls[0][1] == "20260217"
+
+
+def test_process_cycle_redacts_sensitive_values_in_area_failure_log(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient(
+        {
+            "11B00000": WeatherApiError(
+                "fetch failed serviceKey=RAW-KEY&apiKey=RAW-API&SERVICE_API_KEY=RAW-ENV",
+                code=API_ERROR_TIMEOUT,
+            )
+        }
+    )
+    notifier = FakeNotifier(should_fail=False)
+    logger = logging.getLogger("test.processor.redaction.area")
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=notifier,
+        state_repo=repo,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.ERROR, logger=logger.name):
+        usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
+
+    payloads = [json.loads(record.message) for record in caplog.records]
+    area_failed = [payload for payload in payloads if payload.get("event") == events.AREA_FAILED]
+    assert len(area_failed) == 1
+    error_text = str(area_failed[0].get("error"))
+    assert "RAW-KEY" not in error_text
+    assert "RAW-API" not in error_text
+    assert "RAW-ENV" not in error_text
+    assert "serviceKey=***" in error_text
+    assert "apiKey=***" in error_text
+    assert "SERVICE_API_KEY=***" in error_text
+
+
+def test_process_cycle_redacts_sensitive_values_in_notification_failure_log(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = _settings(tmp_path)
+    repo = JsonStateRepository(settings.sent_messages_file)
+    weather_client = FakeWeatherClient({"11B00000": [_sample_alert()]})
+    logger = logging.getLogger("test.processor.redaction.notification")
+
+    class _SecretFailingNotifier:
+        def send(self, message: str, report_url: str | None = None) -> None:
+            raise NotificationError(
+                "forced failure",
+                attempts=2,
+                last_error=RuntimeError("apiKey=RAW-API service_api_key=RAW-ENV"),
+            )
+
+    usecase = ProcessCycleUseCase(
+        settings=settings,
+        weather_client=weather_client,
+        notifier=_SecretFailingNotifier(),
+        state_repo=repo,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.ERROR, logger=logger.name):
+        stats = usecase.run_once(now=datetime(2026, 2, 20, 10, 0, tzinfo=ZoneInfo("Asia/Seoul")))
+
+    assert stats.send_failures == 1
+    payloads = [json.loads(record.message) for record in caplog.records]
+    failures = [
+        payload for payload in payloads if payload.get("event") == events.NOTIFICATION_FINAL_FAILURE
+    ]
+    assert len(failures) == 1
+    error_text = str(failures[0].get("error"))
+    assert "RAW-API" not in error_text
+    assert "RAW-ENV" not in error_text
+    assert "apiKey=***" in error_text
+    assert "service_api_key=***" in error_text

@@ -16,9 +16,9 @@
 | 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
 | 성능 | 4.4 | SQLite WAL/busy_timeout/batch + cleanup SQL 필터링 최적화 적용 |
 | 안정성 | 4.4 | CLI 실패 경로 이벤트/종료코드 표준화로 운영 복원력 향상 |
-| 보안 | 4.2 | 로그 민감정보 redaction 가드 및 운영 체크리스트 반영 |
+| 보안 | 4.4 | redaction 단위+통합 테스트로 민감정보 로그 비노출을 회귀 검증 |
 | 일관성 | 4.4 | health_state 포함 주요 오류 로그가 구조화 이벤트로 통일 |
-| 기술부채 | 4.4 | RB-201~RB-404 완료, 다음 부채는 보안 통합 시나리오/운영 자동화 중심 |
+| 기술부채 | 4.5 | RB-201~RB-405 완료, 다음 부채는 성능 기준선/운영 자동화 중심 |
 
 ## 2) Evidence Snapshot
 
@@ -27,7 +27,7 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `126 passed`
+- `128 passed`
 - 총 커버리지 `92.64%`
 - 주요 커버리지 지표
 - `app/entrypoints/service_loop.py` 98%
@@ -55,7 +55,6 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-405 | P2 | 예정 | 보안/운영 | redaction 정책을 이벤트 통합 시나리오에서 검증(서비스키/토큰/쿼리스트링) | 통합 테스트에서 민감정보 미노출 보장 |
 | RB-406 | P2 | 예정 | 성능 | SQLite bulk upsert/cleanup 경로의 성능 회귀 체크(간이 벤치/기준선) 추가 | 기준선 대비 회귀 감지 규칙 문서화 |
 | RB-407 | P3 | 예정 | 운영성 | 이벤트 기반 알람 룰 템플릿을 실행 가능한 체크리스트/대시보드 매핑으로 고도화 | `docs/OPERATION.md`에 알람-대응 매핑 완성 |
 
@@ -91,6 +90,7 @@
 | RB-402 | P1 | 완료 | 안정성 | JSON/Health 상태 저장소 persist/backup 실패 경로 테스트 확대 + 실패 로그 이벤트 보강 |
 | RB-403 | P1 | 완료 | 복잡성/유지보수성 | `settings.from_env`를 섹션 파서로 분해하고 정책별 테스트를 보강 |
 | RB-404 | P1 | 완료 | 정확성/안정성 | `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장 |
+| RB-405 | P2 | 완료 | 보안/운영 | redaction 이벤트 통합 시나리오 테스트 추가(`area.failed`, `notification.final_failure`) |
 
 ## 6) Maintenance Rules
 
