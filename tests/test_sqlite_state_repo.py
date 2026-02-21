@@ -118,6 +118,17 @@ def test_sqlite_state_repo_mark_many_sent_handles_duplicates(tmp_path) -> None:
     assert repo.pending_count == 0
 
 
+def test_sqlite_state_repo_mark_sent_returns_false_for_missing_event_id(tmp_path) -> None:
+    repo = SqliteStateRepository(tmp_path / "state.db")
+    assert repo.mark_sent("event:missing") is False
+
+
+def test_sqlite_state_repo_cleanup_stale_rejects_negative_days(tmp_path) -> None:
+    repo = SqliteStateRepository(tmp_path / "state.db")
+    with pytest.raises(ValueError, match="days must be >= 0"):
+        repo.cleanup_stale(days=-1)
+
+
 def test_sqlite_state_repo_cleanup_stale_bulk_records(tmp_path) -> None:
     repo = SqliteStateRepository(tmp_path / "state.db")
     notifications = [_notification(f"event:{idx}") for idx in range(200)]

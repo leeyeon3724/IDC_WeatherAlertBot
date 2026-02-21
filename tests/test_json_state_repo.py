@@ -192,6 +192,17 @@ def test_state_repo_mark_many_sent(tmp_path) -> None:
     assert reloaded.pending_count == 0
 
 
+def test_state_repo_mark_sent_returns_false_for_missing_event_id(tmp_path) -> None:
+    repo = JsonStateRepository(tmp_path / "state.json")
+    assert repo.mark_sent("event:missing") is False
+
+
+def test_state_repo_cleanup_stale_rejects_negative_days(tmp_path) -> None:
+    repo = JsonStateRepository(tmp_path / "state.json")
+    with pytest.raises(ValueError, match="days must be >= 0"):
+        repo.cleanup_stale(days=-1)
+
+
 def test_state_repo_logs_read_failure_when_open_fails(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,

@@ -55,7 +55,7 @@
     - weather_api result-code 오류 통합 시나리오 추가
     - notifier의 circuit disabled 및 backoff(1,2,4...) 경로 단정 추가
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 상태 저장소/검증 테스트의 경계·오류 분기 보강
   - 근거: `tests/test_json_state_repo.py`/`tests/test_sqlite_state_repo.py`에 `cleanup_stale(days<0)` 예외 경로, `mark_sent` 미존재 ID 경로 검증이 부족하고 `tests/test_state_verifier.py`는 aggregate(strict/non-strict) 경계 시나리오 보강 여지 있음
   - 완료 기준:

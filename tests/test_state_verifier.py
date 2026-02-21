@@ -281,3 +281,29 @@ def test_verify_state_files_passes_for_valid_json_and_sqlite(tmp_path: Path) -> 
 
     assert report.passed is True
     assert report.error_count == 0
+
+
+def test_verify_state_files_warning_only_passes_when_not_strict(tmp_path: Path) -> None:
+    report = verify_state_files(
+        json_state_file=tmp_path / "missing.json",
+        sqlite_state_file=tmp_path / "missing.db",
+        strict=False,
+    )
+
+    assert report.passed is True
+    assert report.error_count == 0
+    assert report.warning_count == 2
+    assert {issue.code for issue in report.issues} == {"file_missing"}
+
+
+def test_verify_state_files_missing_files_fail_when_strict(tmp_path: Path) -> None:
+    report = verify_state_files(
+        json_state_file=tmp_path / "missing.json",
+        sqlite_state_file=tmp_path / "missing.db",
+        strict=True,
+    )
+
+    assert report.passed is False
+    assert report.error_count == 2
+    assert report.warning_count == 0
+    assert {issue.code for issue in report.issues} == {"file_missing"}
