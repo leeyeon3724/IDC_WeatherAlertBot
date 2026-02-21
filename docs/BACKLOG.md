@@ -1,6 +1,6 @@
 # BACKLOG
 
-이 문서는 코드베이스/문서/테스트 평가와 리팩토링 백로그를 통합 관리합니다.
+이 문서는 코드베이스 평가와 리팩토링 우선순위를 단일 기준으로 관리합니다.
 기준 브랜치: `main`
 평가일: `2026-02-21`
 
@@ -8,101 +8,47 @@
 
 | 관점 | 점수(5점) | 평가 |
 |---|---:|---|
-| 정확성 | 4.6 | 핵심 알림/중복 방지/헬스 흐름 안정적이며 Weather API 경계 테스트까지 강화됨 |
-| 가독성 | 4.3 | 엔트리포인트/명령/루프 책임 분리와 이벤트 문서화가 정착됨 |
-| 복잡성 | 4.4 | `settings.from_env`를 섹션 파서로 분해해 설정 변경 시 영향 범위를 축소함 |
-| 응집도/결합도 | 4.3 | 프로토콜 기반 의존으로 저장소 결합도 완화, 경계가 명확함 |
-| 테스트 가능성 | 4.7 | `service_loop/commands/health/json_state_repo/weather_api` 분기 테스트 보강으로 회귀 탐지력 향상 |
-| 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
-| 성능 | 4.7 | CI 경량 성능 리포트 + 중앙값 기준선 집계로 노이즈 완화된 비교 기반 확보 |
-| 안정성 | 4.5 | CLI 실패 경로 이벤트/종료코드 표준화와 상태 저장소 실패 가드로 운영 복원력 향상 |
-| 보안 | 4.4 | redaction 단위+통합 테스트로 민감정보 로그 비노출을 회귀 검증 |
-| 일관성 | 4.7 | 이벤트 정의-운영 문서 매핑 정합성 검사 자동화로 누락 리스크를 낮춤 |
-| 기술부채 | 4.8 | RB-201~RB-505 완료, 다음 부채는 성능 지표 시각화/장기 보존 정책 중심 |
+| 정확성 | 4.6 | 핵심 알림/중복 방지/헬스 흐름이 안정적이고 Weather API 경계 테스트가 강화됨 |
+| 가독성/복잡성 | 4.4 | 엔트리포인트 분리와 설정 파서 분해로 변경 영향 범위가 감소함 |
+| 테스트 가능성 | 4.7 | 핵심 경로(`service_loop`, `commands`, `weather_api`, 상태 저장소) 회귀 탐지력이 높음 |
+| 안정성 | 4.5 | 실패 이벤트 표준화와 상태 저장소 실패 분기 가드로 운영 복원력이 향상됨 |
+| 보안 | 4.4 | redaction 단위+통합 시나리오 검증으로 민감정보 로그 노출 리스크를 낮춤 |
+| 성능 | 4.7 | SQLite 배치 회귀 가드 + CI 경량 perf 리포트/기준선으로 성능 추세 관측 기반 확보 |
+| 일관성 | 4.7 | `events.py`-`EVENTS.md`-`OPERATION.md` 정합성 점검 자동화로 문서 누락 리스크 감소 |
+| 기술부채 | 4.8 | 기존 핵심 부채(RB-101~RB-505)가 대부분 해소되고 운영 고도화 단계로 진입 |
+| 배포 신뢰성 (신규) | 4.1 | CI 품질 게이트는 강하지만 배포 전 최종 검증(환경 매트릭스/부트 체크)이 제한적 |
+| 운영 비용 효율성 (신규) | 3.9 | 성능 지표는 있으나 API 호출량/알림량의 비용 관점 가시성이 부족함 |
+| 감사 가능성/추적성 (신규) | 4.0 | 이벤트 체계는 정리됐으나 스키마 변경 이력과 버전 관리 체계가 미약함 |
+| 변경 리드타임 (신규) | 4.2 | 자동 점검은 늘었지만 “한 번에 검증/릴리스 판단” 흐름은 더 단순화 여지 존재 |
 
 ## 2) Evidence Snapshot
 
-- 품질 게이트
-- `python3 -m ruff check .` 통과
-- `python3 -m mypy` 통과
-- `python3 -m scripts.check_event_docs_sync` 통과
-- `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
-- 테스트/커버리지
-- `131 passed`
-- 총 커버리지 `92.64%`
-- 주요 커버리지 지표
-- `app/entrypoints/service_loop.py` 98%
-- `app/entrypoints/commands.py` 94%
-- `app/repositories/health_state_repo.py` 89%
-- `app/logging_utils.py` 88%
-- `app/repositories/json_state_repo.py` 88%
-- `app/services/weather_api.py` 99%
-- `app/settings.py` 90%
+- 품질 게이트: `ruff`, `mypy`, `scripts.check_event_docs_sync`, `pytest --cov` 통과
+- 테스트/커버리지: `131 passed`, 총 커버리지 `92.64%`
+- 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
 
-## 3) Refactoring Backlog (Current Wave)
+## 3) Active Backlog
 
-| ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
+| ID | Priority | 상태 | 근거 관점 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-201 | P0 | 완료 | 정확성/데이터무결성 | JSON->SQLite 마이그레이션 시 `first_seen_at/updated_at/last_sent_at/sent` 원본 보존 | 타임스탬프/전송상태 동일성 테스트 추가 |
-| RB-202 | P0 | 완료 | 안정성/운영성 | `migrate-state`/`cleanup-state` 실패 경로 예외 처리 + `state.*.failed` 이벤트 추가 | 실패 이벤트/종료코드 테스트 추가 |
-| RB-203 | P1 | 완료 | 테스트가능성 | `service_loop.py`, `commands.py` 단위 테스트 보강 | `service_loop >= 85%`, `commands >= 90%` 달성 |
-| RB-204 | P1 | 완료 | 일관성/관측성 | `health_state_repo.py` 에러 로그를 `log_event()`로 통일 | 비구조 문자열 로그 제거 + 이벤트 문서 반영 |
-| RB-205 | P1 | 완료 | 문서품질 | `docs/TESTING.md` 리스크/우선순위 정합성 갱신 | 테스트 현황/우선순위가 실제 코드와 일치 |
-| RB-206 | P2 | 완료 | 성능/안정성 | `SqliteStateRepository.cleanup_stale()` SQL 필터링 최적화 + 대량 데이터 검증 | bulk cleanup 테스트 추가 |
-| RB-207 | P2 | 완료 | 보안/운영 | 민감정보(`serviceKey/apiKey/SERVICE_API_KEY`) 로그 redaction 가드 + 테스트/정책 문서화 | redaction 단위 테스트 + 운영 체크리스트 반영 |
-| RB-208 | P3 | 완료 | 운영성 | 마이그레이션/롤백/장애 대응 runbook 확장 (`docs/OPERATION.md`) | 체크리스트 기반 절차 문서 추가 |
+| RB-506 | P3 | 예정 | 성능/운영 비용 효율성 | perf 비교 결과를 추세 시각화(markdown chart)로 축적 | 리포트 누적 규칙 + 시각화 포맷 정의 |
+| RB-507 | P3 | 예정 | 성능/운영 비용 효율성 | 성능 리포트 보존 기간/샘플 정책(예: 최근 20회) 표준화 | CI/운영 문서에 보존 정책 명시 |
+| RB-601 | P1 | 예정 | 배포 신뢰성 | CI에 Python 3.11/3.12 최소 실행 검증 매트릭스 도입(핵심 smoke + startup check) | 버전별 smoke 통과 결과를 요약/아티팩트로 확인 가능 |
+| RB-602 | P2 | 예정 | 감사 가능성/추적성 | 이벤트 스키마 버전(`EVENT_SCHEMA_VERSION`)과 변경 로그 정책 수립 | 이벤트 호환성 변경 시 버전/변경기록이 문서와 함께 업데이트 |
+| RB-603 | P2 | 예정 | 운영 비용 효율성 | 사이클당 API 호출량/전송량 지표 이벤트 추가 및 대시보드 기준 정의 | 운영에서 과호출/과전송 이상 징후를 이벤트 기반으로 탐지 가능 |
+| RB-604 | P2 | 예정 | 변경 리드타임 | `make gate`(lint+type+docs-check+tests) 단일 명령 추가 | 로컬에서 릴리스 전 판단을 1회 명령으로 재현 가능 |
+| RB-605 | P3 | 예정 | 배포 신뢰성/감사 가능성 | PR 템플릿 체크 항목을 CI에서 부분 강제(예: 이벤트 변경 시 문서 동기화 확인) | 템플릿 누락과 실제 검증 결과 간 괴리 감소 |
 
-## 4) Next Candidates
+## 4) Completed (Compact)
 
-| ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
-|---|---|---|---|---|---|
-| RB-506 | P3 | 예정 | 성능/운영 | perf 비교 결과를 추세 시각화(markdown chart)로 저장하는 운영안 정리 | 리포트 누적 규칙과 시각화 포맷 문서화 |
-| RB-507 | P3 | 예정 | 성능/운영 | 성능 리포트 보존 기간 및 샘플 정책(예: 최근 20회) 표준화 | CI/운영 문서에 보존 정책 명시 |
+| 구간 | 완료 범위 | 핵심 성과 |
+|---|---|---|
+| Foundation Wave | RB-101~RB-208 | URL 정책 분리, 저장소 안정화, CLI 실패 경로 표준화, 운영 문서 기반 확립 |
+| Reliability Wave | RB-301~RB-407 | 도메인/저장소/루프 테스트 강화, 구조화 이벤트/운영 매핑 정착 |
+| CI & Governance Wave | RB-501~RB-505 | 정책 시나리오 테스트, perf 리포트/기준선, 문서 정합성 검사, PR 체크리스트 도입 |
 
-## 5) Completed History
+## 5) Maintenance Rules
 
-| ID | Priority | 상태 | 영역 | 작업 |
-|---|---|---|---|---|
-| RB-101 | P0 | 완료 | 보안/정확성 | 기상청 API `http-only` 제약 반영 보완 통제(허용 도메인/경로 검증 + 운영 통제) |
-| RB-102 | P0 | 완료 | 보안 | URL 검증 정책 분리(Webhook=`https` 강제, Weather API=허용목록 기반 `http`) |
-| RB-103 | P1 | 완료 | 결합도 | `HealthStateRepository` 프로토콜 도입 및 `ApiHealthMonitor` 추상화 의존 전환 |
-| RB-104 | P1 | 완료 | 복잡성 | `cli.py`를 `runtime_builder.py`, `service_loop.py`, `commands.py`로 분리 |
-| RB-105 | P1 | 완료 | 가독성/응집도 | `settings.py` 코드 매핑 상수 분리(`domain/code_maps.py`) |
-| RB-106 | P1 | 완료 | 일관성 | notifier/weather_api 재시도 로그를 `log_event()`로 통일 |
-| RB-107 | P2 | 완료 | 성능/안정성 | SQLite `PRAGMA busy_timeout`, WAL 모드 적용 |
-| RB-108 | P2 | 완료 | 성능 | SQLite upsert/mark 경로 batch 최적화(`executemany`) |
-| RB-109 | P2 | 완료 | 성능 | JSON 저장소 `pending_count` 비용 최적화 |
-| RB-110 | P2 | 완료 | 테스트가능성 | `tests/test_main.py` monkeypatch 의존 축소(헬퍼/스모크 분리) |
-| RB-111 | P3 | 완료 | 운영성 | 이벤트 사전 문서(`docs/EVENTS.md`) 신설 |
-| RB-112 | P3 | 완료 | 운영성 | JSON->SQLite 마이그레이션 유틸 추가 |
-| RB-201 | P0 | 완료 | 정확성/데이터무결성 | 마이그레이션 타임스탬프/전송상태 보존 |
-| RB-202 | P0 | 완료 | 안정성/운영성 | CLI 실패 경로 표준화 + 실패 이벤트 추가 |
-| RB-203 | P1 | 완료 | 테스트가능성 | `service_loop/commands` 테스트 보강 |
-| RB-204 | P1 | 완료 | 일관성/관측성 | health_state 저장소 로그 구조화 |
-| RB-205 | P1 | 완료 | 문서품질 | TESTING 문서 정합성 갱신 |
-| RB-206 | P2 | 완료 | 성능/안정성 | SQLite cleanup SQL 최적화 + bulk 테스트 |
-| RB-207 | P2 | 완료 | 보안/운영 | 로그 민감정보 redaction 가드 |
-| RB-208 | P3 | 완료 | 운영성 | 마이그레이션/롤백 runbook 확장 |
-| RB-301 | P1 | 완료 | 테스트가능성 | `health.py` 전이 조건(임계치/윈도우) 경계 테스트 강화 |
-| RB-302 | P1 | 완료 | 정확성 | `json_state_repo` 손상/레거시 마이그레이션 경로 정밀 테스트 |
-| RB-303 | P2 | 완료 | 운영성 | 장애 감지→heartbeat→복구→backfill 통합 시나리오 테스트 |
-| RB-304 | P2 | 완료 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 |
-| RB-401 | P1 | 완료 | 일관성/관측성 | `json_state_repo` 에러 로그를 `log_event()`로 통일 + 이벤트 문서 반영 |
-| RB-402 | P1 | 완료 | 안정성 | JSON/Health 상태 저장소 persist/backup 실패 경로 테스트 확대 + 실패 로그 이벤트 보강 |
-| RB-403 | P1 | 완료 | 복잡성/유지보수성 | `settings.from_env`를 섹션 파서로 분해하고 정책별 테스트를 보강 |
-| RB-404 | P1 | 완료 | 정확성/안정성 | `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장 |
-| RB-405 | P2 | 완료 | 보안/운영 | redaction 이벤트 통합 시나리오 테스트 추가(`area.failed`, `notification.final_failure`) |
-| RB-406 | P2 | 완료 | 성능 | SQLite bulk 경로에 배치 실행(`executemany`) 회귀 가드 테스트 추가 |
-| RB-407 | P3 | 완료 | 운영성 | `docs/OPERATION.md`에 이벤트-알람-즉시조치 매핑 표 추가 |
-| RB-501 | P2 | 완료 | 테스트가능성 | `health_monitor` 정책 조합(짧은 heartbeat/긴 recovery window) 시뮬레이션 테스트 보강 |
-| RB-502 | P2 | 완료 | 성능/운영 | CI에서 경량 성능 리포트 생성/비교 및 아티팩트 저장 자동화 |
-| RB-503 | P3 | 완료 | 문서품질/운영 | `events.py`/`EVENTS.md`/`OPERATION.md` 정합성 자동 점검 스크립트 + CI 게이트 추가 |
-| RB-504 | P3 | 완료 | 성능/운영 | perf 리포트 다건 중앙값 기준선(`scripts.perf_baseline`) 집계 + CI 요약 반영 |
-| RB-505 | P3 | 완료 | 운영성/관측성 | 이벤트 변경 PR 템플릿 체크리스트(`.github/pull_request_template.md`) 도입 |
-
-## 6) Maintenance Rules
-
-- 변경 단위별 품질 게이트(`ruff`, `mypy`, `pytest`) 통과 후 병합
-- 기능 변경은 작은 PR/커밋 단위로 진행
-- 이벤트 정의 변경 시 `scripts.check_event_docs_sync` 결과를 함께 확인
-- 문서 경계는 `README/SETUP/OPERATION/TESTING/EVENTS/BACKLOG`로 유지
+- 변경 단위별 품질 게이트(`ruff`, `mypy`, `scripts.check_event_docs_sync`, `pytest`) 통과 후 병합
+- 기능 변경은 작은 커밋 단위로 분리하고, 각 단위에서 백로그 상태를 함께 갱신
+- 문서 경계는 `README/SETUP/OPERATION/TESTING/EVENTS/BACKLOG`로 고정

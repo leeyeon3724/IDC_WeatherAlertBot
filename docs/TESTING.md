@@ -1,8 +1,8 @@
 # TESTING
 
-이 문서는 테스트 전략, 현재 적절성 평가, 보완 방향을 다룹니다.
+이 문서는 테스트 실행 기준, 현재 적절성, 남은 리스크를 간결하게 관리합니다.
 
-## 1. 실행 명령
+## 1) 실행 명령
 
 ```bash
 python3 -m ruff check .
@@ -13,51 +13,35 @@ python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-out
 python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
 ```
 
-## 2. 현재 스냅샷
+## 2) 현재 스냅샷
 
 - 테스트 수: `131`
 - 전체 커버리지: `92.64%`
 - 최소 커버리지 기준: `80%`
 
-## 3. 테스트 적절성 평가
+## 3) 적절성 평가
 
 강점:
 
-- 핵심 비즈니스 흐름(중복 방지, 재시도, 장애/복구)은 테스트로 보호됨
-- `json/sqlite` 저장소가 각각 독립 테스트로 검증됨
-- 설정 파싱/검증 실패 케이스가 비교적 촘촘함
+- 핵심 비즈니스 흐름(조회-중복방지-전송-헬스)은 회귀 테스트로 보호됨
+- JSON/SQLite 저장소, 설정 파싱, 경계 입력(`weather_api`) 검증이 충분히 강화됨
+- 문서 정합성(`events.py` ↔ 문서)과 성능 리포트 생성이 CI 단계에 포함됨
 
-리스크/보완 포인트:
+잔여 리스크:
 
-- 문서 정합성 점검은 이벤트명/매핑 존재 여부 중심이라 필드 의미 변화까지는 완전 탐지하지 못함
-- 성능 리포트는 참고 지표이며 아직 장기 기준선 정책/자동 회귀 판정은 미도입 상태
+- 문서 정합성 체크는 이벤트 "존재/매핑" 중심이라 필드 의미 변화까지는 완전 탐지하지 못함
+- 성능 리포트는 참고 지표이며 장기 기준선 정책(보존/판정 규칙)은 추가 정리가 필요함
 
-## 4. 최근 보완 사항
+## 4) 최근 보완 (요약)
 
-- `state_models` 파싱 경계값 테스트 추가 (`tests/test_state_models.py`)
-- Weather API 페이지네이션 경계 테스트 추가 (`tests/test_weather_api.py`)
-- 엔트리포인트 테스트를 helper/smoke 구조로 분리 (`tests/main_test_harness.py`, `tests/test_main_smoke.py`)
-- JSON->SQLite 마이그레이션 회귀 테스트 추가 (`tests/test_state_migration.py`)
-- `service_loop` 분기/예외/sleep 경로 테스트 추가 (`tests/test_service_loop.py`)
-- `commands` 실패 이벤트/종료코드 테스트 추가 (`tests/test_commands.py`)
-- `health.py` 경계/정규화 테스트 추가 (`tests/test_health_domain.py`)
-- `json_state_repo` 손상/백업 실패/정규화 분기 테스트 추가 (`tests/test_json_state_repo.py`)
-- `json_state_repo` 오류 로그를 구조화 이벤트(`log_event`)로 통일하고 이벤트 필드 단언 테스트 반영
-- `health_state_repo` backup/persist 실패 경로 테스트 추가 (`tests/test_health_state_repo.py`)
-- `json_state_repo` persist 실패 경로 테스트 추가 (`tests/test_json_state_repo.py`)
-- `settings.from_env`를 섹션별 파서로 분해하고 네트워크/런타임 경계 테스트 추가 (`tests/test_settings.py`)
-- `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장 (`tests/test_weather_api.py`)
-- `process_cycle` 에러 이벤트의 민감정보 redaction 통합 시나리오 테스트 추가 (`tests/test_process_cycle.py`)
-- `sqlite_state_repo` 대량 경로 배치 실행(`executemany`) 회귀 가드 테스트 추가 (`tests/test_sqlite_state_repo.py`)
-- `health_monitor` 정책 조합(짧은 heartbeat/긴 recovery window) 시뮬레이션 테스트 추가 (`tests/test_health_monitor.py`)
-- CI에서 경량 성능 리포트 생성/PR base 비교/아티팩트 업로드 자동화 (`scripts/perf_report.py`, `scripts/compare_perf_reports.py`, `.github/workflows/ci.yml`)
-- 이벤트 정의-문서 정합성 자동 점검 추가 (`scripts/check_event_docs_sync.py`, `.github/workflows/ci.yml`)
-- perf 리포트 다건 중앙값 기준선 집계 추가 (`scripts/perf_baseline.py`, `.github/workflows/ci.yml`)
-- 이벤트 변경 시 운영 영향도 체크리스트 PR 템플릿 추가 (`.github/pull_request_template.md`)
-- 장애 감지→heartbeat→복구→backfill 통합 스모크 테스트 추가 (`tests/test_service_loop_integration.py`)
+- 상태 저장소 실패 분기(`read/backup/persist`) 테스트 및 구조화 로그 통일
+- `settings.from_env` 섹션 분해 + 정책별 테스트 강화
+- `weather_api` 결과코드/페이지네이션/파싱 경계 테스트 확장
+- redaction 통합 시나리오(`area.failed`, `notification.final_failure`) 테스트 추가
+- CI: perf report/compare/baseline + docs consistency check + PR 체크리스트 도입
 
-## 5. 다음 개선 우선순위
+## 5) 다음 우선순위
 
-1. perf 비교 결과를 추세 시각화(간단한 markdown chart)로 축적하는 운영안 정리
-2. 기준선 집계에 사용할 리포트 보존 기간/샘플 개수 정책 정의
-3. CI 아티팩트 장기 보관/삭제 정책에 맞춘 운영 가이드 보완
+1. perf 추세 시각화 포맷 정의 및 운영 반영 (`RB-506`)
+2. perf 리포트 보존 기간/샘플 정책 표준화 (`RB-507`)
+3. 배포 신뢰성 관점의 Python 버전 매트릭스 smoke 검증 도입 (`RB-601`)
