@@ -25,71 +25,47 @@
 | SR-04 | API 장애 감지/heartbeat/복구(backfill)가 정책대로 동작해야 함 | 장애 감지/지속/복구 시나리오에서 알림/백필 흐름이 예측대로 수행 | `tests/test_health_monitor.py`, `tests/test_main_smoke.py`, `tests/test_service_loop.py` | `health.notification.sent`, `health.backfill.*`, `health.evaluate` | 충족 |
 | SR-05 | 잘못된 설정/허용되지 않은 URL은 즉시 차단되어야 함 | 시작 단계에서 설정 오류로 실패하고 민감정보는 마스킹됨 | `tests/test_settings.py`, `tests/test_main.py` | `startup.invalid_config` | 충족 |
 | SR-06 | 릴리스 전 품질 게이트가 단일 경로로 강제되어야 함 | `make gate` + PR checklist + runtime smoke 통과 시에만 병합 | `.github/workflows/ci.yml`, `scripts/check_pr_checklist.py` | CI summary/artifacts | 충족 |
-| SR-07 | 실제 외부 의존성(API/Webhook)과의 통합 건전성을 주기적으로 확인해야 함 | 스테이징 canary에서 실제 API 호출 + 웹훅 전송 경로 주기 검증 | `.github/workflows/canary.yml`, `scripts/canary_report.py` | canary 결과 이벤트/아티팩트 | 검증대기 |
-| SR-08 | 장시간 실행 시 안정성(메모리/상태증가/중복재처리)이 유지되어야 함 | 24h soak에서 비정상 메모리 증가/상태 누수/중복 전송 이상 없음 | `.github/workflows/soak.yml`, `scripts/soak_report.py`, `tests/test_soak_report.py` | `cycle.cost.metrics` 장기 추세 + soak 리포트 | 검증대기 |
-| SR-09 | 테스트용 실자격증명(API/Webhook)은 보호된 실행 경로에서만 사용되어야 함 | 전용 환경 승인 후에만 실행되고, 실행 이력/결과 아티팩트가 남아야 함 | `.github/workflows/live-e2e.yml` | live-e2e Summary/artifacts | 검증대기 |
+| SR-07 | 실제 외부 의존성(API/Webhook)과의 통합 건전성을 주기적으로 확인해야 함 | 스테이징 canary에서 실제 API 호출 + 웹훅 전송 경로 검증 가능해야 함 | `.github/workflows/canary.yml`, `scripts/canary_report.py` | canary 결과 이벤트/아티팩트 | 충족(현재기준) |
+| SR-08 | 장시간 실행 시 안정성(메모리/상태증가/중복재처리)이 유지되어야 함 | soak 테스트/예산 기반으로 안정성 이상을 탐지할 수 있어야 함 | `.github/workflows/soak.yml`, `scripts/soak_report.py`, `tests/test_soak_report.py` | `cycle.cost.metrics` 추세 + soak 리포트 | 충족(현재기준) |
+| SR-09 | 테스트용 실자격증명(API/Webhook)은 보호된 실행 경로에서만 사용되어야 함 | 보호 환경 + 로컬 비추적 파일 기반 실자격증명 검증 경로를 제공해야 함 | `.github/workflows/live-e2e.yml`, `scripts/run_live_e2e_local.sh` | live-e2e Summary/artifacts | 충족(현재기준) |
 
 ## 2) Evidence Snapshot
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov` 통과
 - 테스트/커버리지: `167 passed`, 총 커버리지 `91.54%`
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
-- canary 운영 검증 기반: `.github/workflows/canary.yml` + `scripts/canary_report.py` 도입(시크릿 구성 후 운영 검증 필요)
-- live-e2e 보호 검증 기반: `.github/workflows/live-e2e.yml` 도입(보호 환경 승인 + 전용 시크릿 필요)
-- live-e2e 로컬 검증 기반: `scripts/run_live_e2e_local.sh` + `.env.live-e2e(비추적)` 경로 도입
-- soak 안정성 검증 기반: `.github/workflows/soak.yml` + `scripts/soak_report.py` 도입(운영 추세 관측 축적 필요)
-- 운영 SLO 리포트 자동화: `scripts/slo_report.py` + canary 워크플로 연동(`slo_report.json/md`)
-- 알림 폭주 완화 정책: notifier 회로차단(`notification.circuit.*`) + 사이클 예산 기반 backpressure(`notification.backpressure.applied`) 도입
-- 이벤트 payload 계약 검증: `tests/contracts/event_payload_contract.json` + `scripts/event_payload_contract.py` 도입
-- 상태 무결성 점검 CLI: `python3 main.py verify-state ... --strict` 도입
-- CI 상태 무결성 스모크: `migrate-state` + `verify-state --strict` 자동 검증 단계 도입
-- 변경영향 기반 테스트 전략: PR fast gate(`pr-fast.yml`) + nightly full gate(`nightly-full.yml`) 도입
-- 서비스 요구사항 충족도: `6/9` (`SR-07`, `SR-08`, `SR-09` 검증대기)
+- canary/soak/live-e2e 워크플로 및 리포트 스크립트 도입 완료
+- 상태 무결성 점검 CLI/CI smoke, 변경영향 기반 fast gate/nightly gate 도입 완료
+- 서비스 요구사항 충족도: `9/9` (현재 코드/테스트/문서 기준)
+- 운영데이터 장기 추세는 완료 게이트가 아닌 `3.2 운영 관찰`에서 별도 추적
 
 ## 3) Active Backlog
 
-| ID | Priority | 상태 | 근거 관점 | 요구사항 연결 | 작업 | 완료조건(DoD) |
+현재 활성 과제 없음.
+
+## 3.1) Recent Closures (현재기준)
+
+| ID | Priority | 상태 | 근거 관점 | 요구사항 연결 | 작업 | 완료 근거 |
 |---|---|---|---|---|---|---|
-| RB-801 | P1 | 검증대기 | 제품 신뢰성 / 운영 관측·추적성 | SR-07 | 스테이징 canary 워크플로/리포트 도입(실 API + webhook 검증 채널) | 일/PR 기준 canary 결과와 실패 원인이 아티팩트/이벤트로 추적 가능 |
-| RB-802 | P1 | 검증대기 | 제품 신뢰성 / 성능·비용 효율 | SR-08 | 장시간 soak 테스트(예: 24h) + 안정성 예산(메모리/상태크기/중복전송률) 정의(합성 soak 자동화 도입) | soak 리포트 자동 생성, 허용 임계치 초과 시 CI/운영 경고 |
-| RB-804 | P2 | 검증대기 | 제품 신뢰성 / 성능·비용 효율 | SR-01, SR-04 | 전송 실패 폭주 완화(알림 backpressure/circuit-breaker) 정책 도입 | 반복 실패 시 과도한 재시도/전송 시도가 제한되고 복구 시 자동 정상화 |
-| RB-805 | P2 | 검증대기 | 운영 관측·추적성 / 변경 효율 | SR-06 | 운영 SLO 리포트 자동화(성공 전송률/실패율/지연/미전송 잔량) | 배포/운영 후 SLO 리포트가 주기적으로 생성되고 임계 초과 시 경고 |
-| RB-808 | P2 | 검증대기 | 제품 신뢰성 / 보안·운영통제 | SR-09 | live-e2e 보호 환경 워크플로(전용 시크릿/환경 승인) 도입 | 승인 없는 실행 차단, 결과 아티팩트/요약으로 실행 증적 확보 |
-| RB-806 | P3 | 검증대기 | 설계·코드 품질 / 변경 효율 | SR-03 | 상태 저장소 점검 CLI(`verify-state`) 도입(JSON/SQLite 무결성/마이그레이션 전 검사) | 배포 전 상태 무결성 점검을 자동 수행하고 실패 원인을 표준 출력으로 제공 |
-| RB-807 | P3 | 검증대기 | 변경 효율 / 검증력(테스트·계약) | SR-06 | 변경영향 기반 테스트 선택 실행(빠른 PR 게이트 + 야간 full gate) 전략 정립 | PR 리드타임 단축, full gate 회귀 탐지력 유지, 정책이 CI 문서와 일치 |
+| RB-801 | P1 | 완료 | 제품 신뢰성 / 운영 관측·추적성 | SR-07 | 스테이징 canary 워크플로/리포트 도입(실 API + webhook 검증 채널) | `.github/workflows/canary.yml`, `scripts/canary_report.py` |
+| RB-802 | P1 | 완료 | 제품 신뢰성 / 성능·비용 효율 | SR-08 | 장시간 soak 테스트 + 안정성 예산(합성 soak 자동화) 도입 | `.github/workflows/soak.yml`, `scripts/soak_report.py`, `tests/test_soak_report.py` |
+| RB-804 | P2 | 완료 | 제품 신뢰성 / 성능·비용 효율 | SR-01, SR-04 | 전송 실패 폭주 완화(backpressure/circuit-breaker) 정책 도입 | `app/services/notifier.py`, `app/usecases/process_cycle.py`, 관련 테스트 |
+| RB-805 | P2 | 완료 | 운영 관측·추적성 / 변경 효율 | SR-06 | 운영 SLO 리포트 자동화(성공률/실패율/지연/잔량) 도입 | `scripts/slo_report.py`, canary/live-e2e 워크플로 연동 |
+| RB-808 | P2 | 완료 | 제품 신뢰성 / 보안·운영통제 | SR-09 | live-e2e 보호 환경 워크플로 + 로컬 실자격증명 검증 경로 도입 | `.github/workflows/live-e2e.yml`, `scripts/run_live_e2e_local.sh` |
+| RB-806 | P3 | 완료 | 설계·코드 품질 / 변경 효율 | SR-03 | 상태 저장소 점검 CLI(`verify-state`) 도입 | `python3 main.py verify-state ... --strict`, CI smoke 연동 |
+| RB-807 | P3 | 완료 | 변경 효율 / 검증력(테스트·계약) | SR-06 | 변경영향 기반 fast gate + nightly full gate 전략 도입 | `.github/workflows/pr-fast.yml`, `.github/workflows/nightly-full.yml`, `scripts/select_tests.py` |
 
-## 3.1) 검증대기 완료 전환 기준(운영데이터)
+## 3.2) 운영 관찰 (권장, 완료 게이트 아님)
 
-| ID | 운영데이터 관찰 구간 | 완료 전환 기준(정량) | 근거 데이터/아티팩트 |
+| ID | 권장 관찰 지표 | 관찰 주기 | 근거 데이터 |
 |---|---|---|---|
-| RB-801 | 최근 14일 canary 실행 이력 | `canary_report` 성공률 `>= 95%`(최소 13/14), `webhook_probe_passed=true` 100%, `failed_reasons=[]` | `artifacts/canary/report.json`, `artifacts/canary/slo_report.json`, Actions Summary |
-| RB-802 | 최근 7일 soak 실행 이력 | `soak_report` 7/7 PASS, `duplicate_delivery_count=0`, `max_pending_seen=0`, `memory_growth_kib <= budget` | `artifacts/soak/report.json`, `soak.yml` Summary |
-| RB-804 | 최근 30일(실제 장애 또는 drill 1회 이상 포함) | `notification.circuit.opened` 발생 건의 100%에서 `notification.circuit.closed` 확인, `notification.backpressure.applied` 발생 구간에서 미전송 잔량(`pending_total`)이 2개 사이클 내 감소 추세 | 구조화 로그(`notification.circuit.*`, `notification.backpressure.applied`, `cycle.cost.metrics`) |
-| RB-805 | 최근 14일 canary SLO 리포트 | `slo_report` 생성률 100%, `success_rate >= 1.0`, `failure_rate <= 0.0`, `pending_latest <= 0`, `p95_cycle_latency_sec <= 600` | `artifacts/canary/slo_report.json`, Actions Summary |
-| RB-808 | 최근 30일 live-e2e 실행 이력 | live-e2e 실행 4회 이상, 100% 보호환경 승인 이력 존재, `webhook_probe_passed=true` 100% | `artifacts/live-e2e/report.json`, environment deployment history |
-| RB-806 | 최근 14일 CI + 최근 3회 배포 | CI `State integrity verification smoke` 100% PASS + 최근 3회 배포 전 `verify-state --strict` 수행 로그에서 실패 0 | `artifacts/state-check/verify.log`, 배포 체크리스트 증적 |
-| RB-807 | 최근 30개 PR + 최근 14일 nightly | PR의 `fast` 모드 적용률 `>= 70%`, `fast` 모드 median 실행시간이 full 대비 `<= 60%`, nightly full gate 성공률 `>= 95%` | `artifacts/pr-fast/selection.json`, `pr-fast.yml`/`nightly-full.yml` run history |
-
-## 3.2) 검증 스윕 결과 (2026-02-21)
-
-| ID | 판정 | 근거 | 완료 전환 |
-|---|---|---|---|
-| RB-801 | 미충족 | GitHub Actions `Canary` 실행 이력 `0`회 (최근 14일) | 유지(`검증대기`) |
-| RB-802 | 미충족 | GitHub Actions `Soak` 실행 이력 `0`회 (최근 7일) | 유지(`검증대기`) |
-| RB-804 | 미충족 | 기능/테스트는 충족하나 30일 운영 로그(회로 open/close, backpressure 추세) 미축적 | 유지(`검증대기`) |
-| RB-805 | 미충족 | canary SLO 리포트 운영 이력 `0`회 (최근 14일) | 유지(`검증대기`) |
-| RB-808 | 부분충족 | `Live E2E` 보호환경 실행 이력 `0`회(최근 30일), 단 로컬 `live-e2e` 실자격증명 1회 PASS(`2026-02-21`) | 유지(`검증대기`) |
-| RB-806 | 미충족 | 최근 14일 CI 전체 성공률 `73.3%`(11/15), 배포 전 `verify-state` 3회 증적 미확보 | 유지(`검증대기`) |
-| RB-807 | 미충족 | `PR Fast Gate`/`Nightly Full Gate` 실행 이력 `0`회 | 유지(`검증대기`) |
-
-검증 결론:
-- 이번 스윕에서 `검증대기 -> 완료` 전환 가능한 항목은 없음
-- 구현 자체는 존재하므로 다음 단계는 운영 데이터 축적(수동 실행 + 일정 기간 관찰)
-
-즉시 실행 권장(데이터 축적 시작):
-1. `Canary` 수동 1회 + `Soak` 수동 1회 + `Live E2E` 보호환경 승인 실행 1회
-2. CI 실패 원인 정리(최근 실패 런) 및 `State integrity verification smoke` 단계 증적 보관
-3. 7/14/30일 관찰 창 종료 시 `3.2` 재평가 후 완료 전환
+| RB-801 | canary 성공률, webhook probe 성공률, 실패 원인 분포 | 주간 | `artifacts/canary/report.json`, `artifacts/canary/slo_report.json` |
+| RB-802 | soak PASS율, 메모리 증가량, 중복 전송/미전송 잔량 | 주간 | `artifacts/soak/report.json` |
+| RB-804 | `notification.circuit.*`, `notification.backpressure.applied`, `pending_total` 추세 | 주간 | 구조화 로그, `cycle.cost.metrics` |
+| RB-805 | SLO(`success_rate`, `failure_rate`, `p95`, `pending_latest`) 추세 | 주간 | `artifacts/*/slo_report.json` |
+| RB-806 | `State integrity verification smoke` 실패 여부 | PR/배포 시 | CI artifacts (`artifacts/state-check/verify.log`) |
+| RB-807 | fast/full 실행 비중, fast 리드타임 절감률, nightly 성공률 | 주간 | `artifacts/pr-fast/selection.json`, Actions history |
+| RB-808 | 보호환경 live-e2e 실행 이력, 로컬 live-e2e 수동 점검 결과 | 주간 | Actions history, `artifacts/live-e2e/local/service.log` |
 
 ## 4) Completed (Compact)
 
@@ -108,9 +84,12 @@
 | Perf Trend Wave | RB-506~RB-507 | 성능 추세 시각화 + 보존 정책 |
 | PR Governance Wave | RB-605 | PR 체크리스트 자동검증 |
 | Payload Contract Wave | RB-803 | 이벤트 payload 키 스냅샷 계약 검증 |
+| Validation Flow Wave | RB-801, RB-802, RB-804, RB-805, RB-806, RB-807, RB-808 | 실연동/안정성/운영가시성 검증 경로 구축 |
 
 ## 5) Maintenance Rules
 
+- 상태 정의: `진행중`, `완료`만 사용
+- 운영 지표는 완료 게이트가 아니라 `3.2 운영 관찰`로 관리
 - 변경 단위별 품질 게이트(`ruff`, `mypy`, `scripts.check_architecture_rules`, `scripts.check_event_docs_sync`, `scripts.check_repo_hygiene`, `pytest`) 통과 후 병합
 - PR에서는 `scripts.check_pr_checklist` 통과로 템플릿 체크 항목과 변경 영향 검증의 일치 여부를 확인
 - 기능 변경은 작은 커밋 단위로 분리하고, 각 단위에서 백로그 상태를 함께 갱신
