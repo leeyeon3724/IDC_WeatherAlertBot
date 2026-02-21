@@ -331,39 +331,27 @@ def test_fetch_alerts_raises_unknown_when_retry_loop_is_skipped(tmp_path) -> Non
     assert session.calls == []
 
 
-def test_parse_alerts_raises_for_error_result_code(tmp_path) -> None:
-    root = ET.fromstring("<response><header><resultCode>10</resultCode></header></response>")
-    client = WeatherAlertClient(
-        settings=_settings(tmp_path),
-        session=FakeSession([]),
-        logger=logging.getLogger("test.weather.api.parse.error"),
-    )
-
+def test_raise_for_result_code_raises_for_error_result_code(tmp_path) -> None:
     with pytest.raises(WeatherApiError, match="API response error 10") as exc_info:
-        client._parse_alerts(root=root, area_code="L1070100", area_name="대구")
+        WeatherAlertClient._raise_for_result_code("10")
     assert exc_info.value.code == API_ERROR_RESULT
 
 
-def test_parse_alerts_handles_no_data_result(tmp_path) -> None:
-    root = ET.fromstring("<response><header><resultCode>03</resultCode></header></response>")
-    client = WeatherAlertClient(
-        settings=_settings(tmp_path),
-        session=FakeSession([]),
-        logger=logging.getLogger("test.weather.api.parse.empty"),
-    )
-
-    assert client._parse_alerts(root=root, area_code="L1070100", area_name="대구") == []
+def test_raise_for_result_code_returns_for_no_data(tmp_path) -> None:
+    # 결과 코드 03(NODATA)은 예외 없이 통과해야 함
+    WeatherAlertClient._raise_for_result_code("03")
 
 
-def test_parse_alerts_success_returns_items(tmp_path) -> None:
+def test_parse_items_returns_alert_events(tmp_path) -> None:
     root = ET.fromstring(_xml_with_item(result_code="00"))
+    items = root.findall(".//item")
     client = WeatherAlertClient(
         settings=_settings(tmp_path),
         session=FakeSession([]),
-        logger=logging.getLogger("test.weather.api.parse.success"),
+        logger=logging.getLogger("test.weather.api.parse.items"),
     )
 
-    alerts = client._parse_alerts(root=root, area_code="L1070100", area_name="대구")
+    alerts = client._parse_items(items=items, area_code="L1070100", area_name="대구")
     assert len(alerts) == 1
     assert alerts[0].tm_seq == "46"
 

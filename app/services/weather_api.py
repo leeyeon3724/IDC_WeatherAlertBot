@@ -214,18 +214,6 @@ class WeatherAlertClient:
             code=API_ERROR_UNKNOWN,
         )
 
-    def _parse_alerts(
-        self,
-        root: ET.Element,
-        area_code: str,
-        area_name: str,
-    ) -> list[AlertEvent]:
-        result_code = self._extract_result_code(root)
-        if result_code == "03":
-            return []
-        self._raise_for_result_code(result_code)
-        return self._parse_items(root.findall(".//item"), area_code=area_code, area_name=area_name)
-
     def _parse_items(
         self,
         items: list[ET.Element],
