@@ -56,3 +56,29 @@ def test_render_markdown_includes_regression_gate_summary() -> None:
 
     assert "regression_gate" in markdown
     assert "Performance Comparison" in markdown
+
+
+def test_regression_gate_fails_when_base_value_is_zero_and_metric_regresses() -> None:
+    result = compare_reports(base_report=_report(0.0), head_report=_report(10.0))
+    gate = evaluate_regression_gate(compare_result=result, max_regression_pct=20.0)
+
+    assert gate["passed"] is False
+    assert gate["violations"] == [
+        {
+            "metric": "sqlite.upsert.duration_ms",
+            "delta_pct": None,
+            "reason": "delta_pct_unavailable_base_zero",
+        }
+    ]
+
+
+def test_compare_reports_treats_higher_better_metric_as_improved() -> None:
+    result = compare_reports(
+        base_report=_report(100.0, better="higher"),
+        head_report=_report(130.0, better="higher"),
+    )
+    row = result["rows"][0]
+
+    assert row["status"] == "improved"
+    assert row["delta"] == 30.0
+    assert row["delta_pct"] == 30.0

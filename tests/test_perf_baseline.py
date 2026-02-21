@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.perf_baseline import build_baseline, render_markdown
 
 
@@ -50,3 +52,16 @@ def test_render_markdown_includes_trend_column(tmp_path: Path) -> None:
 
     assert "| metric | baseline | unit | better | trend | samples |" in markdown
     assert "`.#`" in markdown
+
+
+def test_build_baseline_rejects_invalid_max_samples(tmp_path: Path) -> None:
+    report = tmp_path / "a.json"
+    _write_report(report, created_at="2026-02-21T00:00:01+00:00", metric_value=10.0)
+
+    with pytest.raises(ValueError, match="max_samples must be > 0"):
+        build_baseline([report], max_samples=0)
+
+
+def test_build_baseline_requires_at_least_one_report_path() -> None:
+    with pytest.raises(ValueError, match="at least one report path is required"):
+        build_baseline([], max_samples=20)

@@ -96,3 +96,81 @@ def test_build_report_fails_for_missing_required_events(tmp_path: Path) -> None:
     assert report["passed"] is False
     assert "cycle.complete" in report["missing_required_events"]
     assert "shutdown.run_once_complete" in report["missing_required_events"]
+
+
+def test_build_report_fails_when_webhook_probe_file_is_missing(tmp_path: Path) -> None:
+    log_file = tmp_path / "canary.log"
+    _write(
+        log_file,
+        """
+        [2026-02-21 10:00:00] [INFO] weather_alert_bot {"event":"startup.ready"}
+        [2026-02-21 10:00:01] [INFO] weather_alert_bot {"event":"cycle.start"}
+        [2026-02-21 10:00:02] [INFO] weather_alert_bot {"event":"cycle.complete"}
+        [2026-02-21 10:00:03] [INFO] weather_alert_bot {"event":"shutdown.run_once_complete"}
+        """,
+    )
+
+    report = build_report(
+        log_file=log_file,
+        service_exit_code=0,
+        webhook_probe_file=tmp_path / "missing.json",
+    )
+
+    assert report["passed"] is False
+    assert report["webhook_probe_passed"] is False
+    assert "missing file" in report["webhook_probe_error"]
+
+
+def test_build_report_fails_when_webhook_probe_payload_type_invalid(tmp_path: Path) -> None:
+    log_file = tmp_path / "canary.log"
+    webhook_probe_file = tmp_path / "webhook_probe.json"
+    _write(
+        log_file,
+        """
+        [2026-02-21 10:00:00] [INFO] weather_alert_bot {"event":"startup.ready"}
+        [2026-02-21 10:00:01] [INFO] weather_alert_bot {"event":"cycle.start"}
+        [2026-02-21 10:00:02] [INFO] weather_alert_bot {"event":"cycle.complete"}
+        [2026-02-21 10:00:03] [INFO] weather_alert_bot {"event":"shutdown.run_once_complete"}
+        """,
+    )
+    webhook_probe_file.write_text(json.dumps(["bad-payload"]), encoding="utf-8")
+
+    report = build_report(
+        log_file=log_file,
+        service_exit_code=0,
+        webhook_probe_file=webhook_probe_file,
+    )
+
+    assert report["passed"] is False
+    assert report["webhook_probe_passed"] is False
+    assert report["webhook_probe_error"] == "invalid payload type: list"
+
+
+def test_build_report_fails_when_service_exit_code_non_zero_even_if_events_are_ok(
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "canary.log"
+    webhook_probe_file = tmp_path / "webhook_probe.json"
+    _write(
+        log_file,
+        """
+        [2026-02-21 10:00:00] [INFO] weather_alert_bot {"event":"startup.ready"}
+        [2026-02-21 10:00:01] [INFO] weather_alert_bot {"event":"cycle.start"}
+        [2026-02-21 10:00:02] [INFO] weather_alert_bot {"event":"cycle.complete"}
+        [2026-02-21 10:00:03] [INFO] weather_alert_bot {"event":"shutdown.run_once_complete"}
+        """,
+    )
+    webhook_probe_file.write_text(
+        json.dumps({"passed": True, "error": ""}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    report = build_report(
+        log_file=log_file,
+        service_exit_code=2,
+        webhook_probe_file=webhook_probe_file,
+    )
+
+    assert report["passed"] is False
+    assert report["service_exit_code"] == 2
+    assert report["missing_required_events"] == []

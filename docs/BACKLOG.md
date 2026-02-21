@@ -78,7 +78,7 @@
     - update_testing_snapshot 예외(`parse 실패`, `섹션 없음`) 테스트 추가
     - repo_hygiene JSON 타입 불일치(`expected_list`, `expected_dict`) 단정 추가
 
-- 상태: `진행중`
+- 상태: `완료`
   - 항목: 성능/운영 리포트 테스트의 SLO 게이트 경계·입력 검증 분기 보강
   - 근거: `tests/test_perf_baseline.py`, `tests/test_compare_perf_reports.py`, `tests/test_canary_report.py`, `tests/test_soak_report.py`, `tests/test_slo_report.py`에서 base=0 회귀 판정, better=higher 해석, canary webhook probe 파일 오류, soak 입력 검증(`cycles/area_count<=0`) 및 budget 분기, SLO p95/attempts fallback 미해결 분기 검증이 누락됨
   - 완료 기준:
