@@ -61,6 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -75,5 +77,54 @@ jobs:
         run: mypy
       - name: Run tests with coverage gate
         run: pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+      - name: Generate lightweight perf report
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/perf
+          python -m scripts.perf_report \
+            --items 300 \
+            --repeats 3 \
+            --output artifacts/perf/head.json \
+            --markdown-output artifacts/perf/head.md
+          cat artifacts/perf/head.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare perf report with PR base
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/perf
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          worktree_dir="$(mktemp -d)"
+          cleanup() {
+            git worktree remove "$worktree_dir" --force || true
+            rm -rf "$worktree_dir"
+          }
+          trap cleanup EXIT
+          git worktree add "$worktree_dir" "$base_sha"
+          if [[ -f "$worktree_dir/scripts/perf_report.py" ]]; then
+            (
+              cd "$worktree_dir"
+              python -m scripts.perf_report \
+                --items 300 \
+                --repeats 3 \
+                --output "$GITHUB_WORKSPACE/artifacts/perf/base.json"
+            )
+            python -m scripts.compare_perf_reports \
+              --base artifacts/perf/base.json \
+              --head artifacts/perf/head.json \
+              --output artifacts/perf/compare.json \
+              --markdown-output artifacts/perf/compare.md
+          else
+            printf '## Performance Comparison (base -> head)\n\n- base commit has no perf script\n' > artifacts/perf/compare.md
+          fi
+          cat artifacts/perf/compare.md >> "$GITHUB_STEP_SUMMARY"
+          trap - EXIT
+          cleanup
+      - name: Upload perf artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-report-${{ github.run_id }}
+          path: artifacts/perf
+          if-no-files-found: warn
       - name: Docker build smoke test
         run: docker build -t weather-alert-bot-ci .

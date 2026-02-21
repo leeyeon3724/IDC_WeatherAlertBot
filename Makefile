@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: install install-dev run dry-run test test-cov lint typecheck quality clean setup-hooks compose-up compose-down compose-logs cleanup-state
+.PHONY: install install-dev run dry-run test test-cov lint typecheck quality clean setup-hooks compose-up compose-down compose-logs cleanup-state perf-report
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -43,6 +43,9 @@ compose-logs:
 
 cleanup-state:
 	$(PYTHON) main.py cleanup-state --days $${DAYS:-30}
+
+perf-report:
+	$(PYTHON) -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +

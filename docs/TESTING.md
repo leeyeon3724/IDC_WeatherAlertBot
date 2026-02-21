@@ -8,6 +8,7 @@
 python3 -m ruff check .
 python3 -m mypy
 python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
+python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 ```
 
 ## 2. 현재 스냅샷
@@ -46,10 +47,11 @@ python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coverager
 - `process_cycle` 에러 이벤트의 민감정보 redaction 통합 시나리오 테스트 추가 (`tests/test_process_cycle.py`)
 - `sqlite_state_repo` 대량 경로 배치 실행(`executemany`) 회귀 가드 테스트 추가 (`tests/test_sqlite_state_repo.py`)
 - `health_monitor` 정책 조합(짧은 heartbeat/긴 recovery window) 시뮬레이션 테스트 추가 (`tests/test_health_monitor.py`)
+- CI에서 경량 성능 리포트 생성/PR base 비교/아티팩트 업로드 자동화 (`scripts/perf_report.py`, `scripts/compare_perf_reports.py`, `.github/workflows/ci.yml`)
 - 장애 감지→heartbeat→복구→backfill 통합 스모크 테스트 추가 (`tests/test_service_loop_integration.py`)
 
 ## 5. 다음 개선 우선순위
 
 1. 이벤트 기반 알람 룰과 운영 대응(runbook) 간 매핑 자동 점검 보강
-2. CI에서 Python 버전/실행 환경 차이에도 안정적인 성능 회귀 신호를 남길 수 있는 경량 벤치 리포트 추가
-3. 운영 이벤트 스키마 변경 시(`events.py`) 문서 누락을 감지하는 문서 정합성 검사 추가
+2. 운영 이벤트 스키마 변경 시(`events.py`) 문서 누락을 감지하는 문서 정합성 검사 추가
+3. 성능 리포트의 장기 기준선(최근 N회 중앙값 등) 집계 정책 설계

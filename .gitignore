@@ -27,6 +27,7 @@ data/api_health_state*.json
 data/sent_messages*.db
 data/sent_messages*.db-*
 *.log
+artifacts/
 
 # OS / editor
 .DS_Store
