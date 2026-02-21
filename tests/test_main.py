@@ -135,6 +135,35 @@ def test_cleanup_state_rejects_negative_days() -> None:
     assert exc.value.code == 2
 
 
+def test_cleanup_state_uses_repository_type_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_cleanup_state(**kwargs: object) -> int:
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setenv("STATE_REPOSITORY_TYPE", "sqlite")
+    monkeypatch.setenv("SQLITE_STATE_FILE", "tmp/clean.db")
+    monkeypatch.setattr(entrypoint.commands, "cleanup_state", _fake_cleanup_state)
+
+    result = entrypoint._cleanup_state(
+        state_file="tmp/state.json",
+        days=7,
+        include_unsent=True,
+        dry_run=True,
+    )
+
+    assert result == 0
+    assert captured["state_repository_type"] == "sqlite"
+    assert captured["sqlite_state_file"] == "tmp/clean.db"
+    assert captured["state_file"] == "tmp/state.json"
+    assert captured["days"] == 7
+    assert captured["include_unsent"] is True
+    assert captured["dry_run"] is True
+
+
 def test_default_command_routes_to_run_service(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(entrypoint, "_run_service", lambda: 7)
     assert entrypoint.main([]) == 7

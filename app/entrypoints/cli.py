@@ -76,6 +76,9 @@ def _cleanup_state(state_file: str, days: int, include_unsent: bool, dry_run: bo
         timezone=os.getenv("TIMEZONE", "Asia/Seoul"),
         setup_logging_fn=setup_logging,
         json_repo_factory=JsonStateRepository,
+        sqlite_repo_factory=SqliteStateRepository,
+        state_repository_type=os.getenv("STATE_REPOSITORY_TYPE", "sqlite").strip().lower(),
+        sqlite_state_file=os.getenv("SQLITE_STATE_FILE", "./data/sent_messages.db"),
     )
 
 

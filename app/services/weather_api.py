@@ -274,7 +274,10 @@ class WeatherAlertClient:
         result_code_elem = root.find(".//resultCode")
         if result_code_elem is None or not result_code_elem.text:
             return "N/A"
-        return result_code_elem.text.strip()
+        result_code = result_code_elem.text.strip()
+        if result_code.isdigit() and len(result_code) <= 2:
+            return result_code.zfill(2)
+        return result_code
 
     @staticmethod
     def _extract_total_count(root: ET.Element) -> int | None:

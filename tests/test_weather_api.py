@@ -257,6 +257,25 @@ def test_fetch_alerts_returns_empty_when_first_page_is_nodata(tmp_path) -> None:
     assert len(session.calls) == 1
 
 
+def test_fetch_alerts_accepts_single_digit_zero_result_code(tmp_path) -> None:
+    session = FakeSession([DummyResponse(200, _xml_with_item(result_code="0"))])
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=session,
+        logger=logging.getLogger("test.weather.api.single_digit_result_code"),
+    )
+
+    alerts = client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    assert len(alerts) == 1
+    assert alerts[0].warn_var == "건조"
+
+
 def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:
     session = FakeSession([requests.Timeout("t1"), requests.Timeout("t2")])
     client = WeatherAlertClient(
@@ -432,6 +451,11 @@ def test_extract_total_count_negative_clamps_to_zero() -> None:
 def test_extract_result_code_missing_returns_na() -> None:
     root = ET.fromstring("<response><header></header></response>")
     assert WeatherAlertClient._extract_result_code(root) == "N/A"
+
+
+def test_extract_result_code_normalizes_single_digit_numeric() -> None:
+    root = ET.fromstring("<response><header><resultCode>3</resultCode></header></response>")
+    assert WeatherAlertClient._extract_result_code(root) == "03"
 
 
 @pytest.mark.parametrize(

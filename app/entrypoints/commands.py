@@ -9,7 +9,9 @@ from app.entrypoints.runtime_builder import ServiceRuntime
 from app.logging_utils import log_event, redact_sensitive_text, setup_logging
 from app.observability import events
 from app.repositories.json_state_repo import JsonStateRepository
+from app.repositories.sqlite_state_repo import SqliteStateRepository
 from app.repositories.state_migration import JsonToSqliteMigrationResult, migrate_json_to_sqlite
+from app.repositories.state_repository import StateRepository
 from app.repositories.state_verifier import verify_state_files
 from app.settings import Settings, SettingsError
 
@@ -46,16 +48,25 @@ def cleanup_state(
     timezone: str = "Asia/Seoul",
     setup_logging_fn: Callable[..., logging.Logger] = setup_logging,
     json_repo_factory: Callable[..., JsonStateRepository] = JsonStateRepository,
+    sqlite_repo_factory: Callable[..., SqliteStateRepository] = SqliteStateRepository,
+    state_repository_type: str = "json",
+    sqlite_state_file: str = "./data/sent_messages.db",
 ) -> int:
     logger = setup_logging_fn(log_level=log_level, timezone=timezone)
+    target_state_file = state_file
     try:
-        repo = json_repo_factory(Path(state_file), logger=logger.getChild("state"))
+        repo: StateRepository
+        if state_repository_type == "sqlite":
+            target_state_file = sqlite_state_file
+            repo = sqlite_repo_factory(Path(sqlite_state_file), logger=logger.getChild("state"))
+        else:
+            repo = json_repo_factory(Path(state_file), logger=logger.getChild("state"))
         removed = repo.cleanup_stale(days=days, include_unsent=include_unsent, dry_run=dry_run)
     except Exception as exc:
         logger.error(
             log_event(
                 events.STATE_CLEANUP_FAILED,
-                state_file=state_file,
+                state_file=target_state_file,
                 days=days,
                 include_unsent=include_unsent,
                 dry_run=dry_run,
@@ -67,7 +78,7 @@ def cleanup_state(
     logger.info(
         log_event(
             events.STATE_CLEANUP_COMPLETE,
-            state_file=state_file,
+            state_file=target_state_file,
             days=days,
             include_unsent=include_unsent,
             dry_run=dry_run,

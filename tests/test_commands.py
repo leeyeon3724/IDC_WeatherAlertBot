@@ -54,6 +54,58 @@ def test_cleanup_state_returns_1_and_logs_failed_event() -> None:
     assert "disk unavailable" in payload["error"]
 
 
+def test_cleanup_state_uses_sqlite_repo_when_configured(tmp_path: Path) -> None:
+    logger, handler = _captured_logger("test.commands.cleanup.sqlite")
+    sqlite_file = tmp_path / "state.db"
+    captured: dict[str, object] = {}
+
+    class _FakeSqliteRepo:
+        def __init__(self) -> None:
+            self.total_count = 12
+            self.pending_count = 3
+
+        def cleanup_stale(
+            self,
+            *,
+            days: int,
+            include_unsent: bool,
+            dry_run: bool,
+            now=None,
+        ) -> int:
+            captured["days"] = days
+            captured["include_unsent"] = include_unsent
+            captured["dry_run"] = dry_run
+            return 4
+
+    def _fake_sqlite_factory(file_path: Path, logger: logging.Logger | None = None):
+        captured["file_path"] = file_path
+        return _FakeSqliteRepo()
+
+    result = commands.cleanup_state(
+        state_file="./data/state.json",
+        sqlite_state_file=str(sqlite_file),
+        state_repository_type="sqlite",
+        days=30,
+        include_unsent=False,
+        dry_run=False,
+        setup_logging_fn=lambda **kwargs: logger,
+        sqlite_repo_factory=_fake_sqlite_factory,
+    )
+
+    assert result == 0
+    assert captured["file_path"] == sqlite_file
+    assert captured["days"] == 30
+    assert captured["include_unsent"] is False
+    assert captured["dry_run"] is False
+
+    payload = json.loads(handler.messages[-1])
+    assert payload["event"] == events.STATE_CLEANUP_COMPLETE
+    assert payload["state_file"] == str(sqlite_file)
+    assert payload["removed"] == 4
+    assert payload["total"] == 12
+    assert payload["pending"] == 3
+
+
 def test_migrate_state_returns_1_and_logs_failed_event() -> None:
     logger, handler = _captured_logger("test.commands.migrate.failed")
 
