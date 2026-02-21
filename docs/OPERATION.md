@@ -147,3 +147,4 @@ python3 main.py migrate-state \
 - 알람 설명에는 반드시 해당 이벤트명과 핵심 필드(`error_code`, `attempts`, `state_file`)를 포함
 - 런북 링크는 각 알람에 `8.x` 절차 번호를 명시
 - 임계값은 고정값으로 두지 말고 최근 2주 평균 대비 비율로 주기 재조정
+- 문서 정합성은 CI의 `python -m scripts.check_event_docs_sync` 결과를 기준으로 유지

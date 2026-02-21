@@ -7,6 +7,7 @@
 ```bash
 python3 -m ruff check .
 python3 -m mypy
+python3 -m scripts.check_event_docs_sync
 python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
 python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 ```
@@ -27,7 +28,8 @@ python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-out
 
 리스크/보완 포인트:
 
-- 운영 문서의 알람 룰과 실제 이벤트 필드 변경 간 정합성을 자동 점검하는 장치가 부족함
+- 문서 정합성 점검은 이벤트명/매핑 존재 여부 중심이라 필드 의미 변화까지는 완전 탐지하지 못함
+- 성능 리포트는 참고 지표이며 아직 장기 기준선 정책/자동 회귀 판정은 미도입 상태
 
 ## 4. 최근 보완 사항
 
@@ -48,10 +50,11 @@ python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-out
 - `sqlite_state_repo` 대량 경로 배치 실행(`executemany`) 회귀 가드 테스트 추가 (`tests/test_sqlite_state_repo.py`)
 - `health_monitor` 정책 조합(짧은 heartbeat/긴 recovery window) 시뮬레이션 테스트 추가 (`tests/test_health_monitor.py`)
 - CI에서 경량 성능 리포트 생성/PR base 비교/아티팩트 업로드 자동화 (`scripts/perf_report.py`, `scripts/compare_perf_reports.py`, `.github/workflows/ci.yml`)
+- 이벤트 정의-문서 정합성 자동 점검 추가 (`scripts/check_event_docs_sync.py`, `.github/workflows/ci.yml`)
 - 장애 감지→heartbeat→복구→backfill 통합 스모크 테스트 추가 (`tests/test_service_loop_integration.py`)
 
 ## 5. 다음 개선 우선순위
 
-1. 이벤트 기반 알람 룰과 운영 대응(runbook) 간 매핑 자동 점검 보강
-2. 운영 이벤트 스키마 변경 시(`events.py`) 문서 누락을 감지하는 문서 정합성 검사 추가
-3. 성능 리포트의 장기 기준선(최근 N회 중앙값 등) 집계 정책 설계
+1. 성능 리포트의 장기 기준선(최근 N회 중앙값 등) 집계 정책 설계
+2. 이벤트 스키마 변경 시 대시보드/알람 룰 영향도를 PR 단계에서 점검하는 체크리스트 도입
+3. perf 비교 결과를 추세 시각화(간단한 markdown chart)로 축적하는 운영안 정리

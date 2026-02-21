@@ -33,6 +33,7 @@ make install-dev
 make test
 make quality
 make perf-report
+make check-docs
 python3 main.py cleanup-state --days 30
 python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db
 ```

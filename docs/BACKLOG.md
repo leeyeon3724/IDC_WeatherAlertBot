@@ -17,14 +17,15 @@
 | 성능 | 4.6 | SQLite 배치 회귀 가드 + CI 경량 성능 리포트로 추세 관측 기반 확보 |
 | 안정성 | 4.5 | CLI 실패 경로 이벤트/종료코드 표준화와 상태 저장소 실패 가드로 운영 복원력 향상 |
 | 보안 | 4.4 | redaction 단위+통합 테스트로 민감정보 로그 비노출을 회귀 검증 |
-| 일관성 | 4.5 | health/state 오류 로그가 구조화 이벤트로 통일되고 운영 매핑 문서가 정렬됨 |
-| 기술부채 | 4.6 | RB-201~RB-502 완료, 다음 부채는 문서 정합성 자동화 중심 |
+| 일관성 | 4.7 | 이벤트 정의-운영 문서 매핑 정합성 검사 자동화로 누락 리스크를 낮춤 |
+| 기술부채 | 4.7 | RB-201~RB-503 완료, 다음 부채는 성능 기준선 정책 고도화 중심 |
 
 ## 2) Evidence Snapshot
 
 - 품질 게이트
 - `python3 -m ruff check .` 통과
 - `python3 -m mypy` 통과
+- `python3 -m scripts.check_event_docs_sync` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
 - `131 passed`
@@ -55,8 +56,8 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-503 | P3 | 예정 | 문서품질/운영 | `EVENTS.md`와 `OPERATION.md` 알람-대응 매핑 정합성 점검 체크리스트 자동화 | 이벤트 추가/변경 시 문서 누락 탐지 규칙 정립 |
 | RB-504 | P3 | 예정 | 성능/운영 | 경량 성능 리포트의 장기 기준선(예: 최근 N회 중앙값) 자동 집계 방식 설계 | 노이즈 완화 기준선 정책 문서화 |
+| RB-505 | P3 | 예정 | 운영성/관측성 | 이벤트 스키마 변경 시 대시보드/알람 룰 영향도를 체크리스트로 표준화 | 이벤트 변경 PR 템플릿에 운영 영향 항목 반영 |
 
 ## 5) Completed History
 
@@ -95,9 +96,11 @@
 | RB-407 | P3 | 완료 | 운영성 | `docs/OPERATION.md`에 이벤트-알람-즉시조치 매핑 표 추가 |
 | RB-501 | P2 | 완료 | 테스트가능성 | `health_monitor` 정책 조합(짧은 heartbeat/긴 recovery window) 시뮬레이션 테스트 보강 |
 | RB-502 | P2 | 완료 | 성능/운영 | CI에서 경량 성능 리포트 생성/비교 및 아티팩트 저장 자동화 |
+| RB-503 | P3 | 완료 | 문서품질/운영 | `events.py`/`EVENTS.md`/`OPERATION.md` 정합성 자동 점검 스크립트 + CI 게이트 추가 |
 
 ## 6) Maintenance Rules
 
 - 변경 단위별 품질 게이트(`ruff`, `mypy`, `pytest`) 통과 후 병합
 - 기능 변경은 작은 PR/커밋 단위로 진행
+- 이벤트 정의 변경 시 `scripts.check_event_docs_sync` 결과를 함께 확인
 - 문서 경계는 `README/SETUP/OPERATION/TESTING/EVENTS/BACKLOG`로 유지

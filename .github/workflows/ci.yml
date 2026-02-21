@@ -75,6 +75,14 @@ jobs:
         run: ruff check .
       - name: Type check
         run: mypy
+      - name: Check event/docs consistency
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/docs-check
+          python -m scripts.check_event_docs_sync \
+            --json-output artifacts/docs-check/events-sync.json \
+            --markdown-output artifacts/docs-check/events-sync.md
+          cat artifacts/docs-check/events-sync.md >> "$GITHUB_STEP_SUMMARY"
       - name: Run tests with coverage gate
         run: pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc
       - name: Generate lightweight perf report
@@ -123,8 +131,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: perf-report-${{ github.run_id }}
-          path: artifacts/perf
+          name: quality-artifacts-${{ github.run_id }}
+          path: |
+            artifacts/perf
+            artifacts/docs-check
           if-no-files-found: warn
       - name: Docker build smoke test
         run: docker build -t weather-alert-bot-ci .
