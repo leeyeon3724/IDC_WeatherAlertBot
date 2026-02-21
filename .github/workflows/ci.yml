@@ -225,11 +225,24 @@ jobs:
                 --repeats 3 \
                 --output "$GITHUB_WORKSPACE/artifacts/perf/base.json"
             )
+            allow_args=()
+            if [[ -n "${PERF_ALLOW_REGRESSION_METRICS:-}" ]]; then
+              IFS=',' read -r -a allow_metrics <<< "${PERF_ALLOW_REGRESSION_METRICS}"
+              for metric in "${allow_metrics[@]}"; do
+                trimmed_metric="$(echo "$metric" | xargs)"
+                if [[ -n "$trimmed_metric" ]]; then
+                  allow_args+=(--allow-regression-metric "$trimmed_metric")
+                fi
+              done
+            fi
             python -m scripts.compare_perf_reports \
               --base artifacts/perf/base.json \
               --head artifacts/perf/head.json \
               --output artifacts/perf/compare.json \
-              --markdown-output artifacts/perf/compare.md
+              --markdown-output artifacts/perf/compare.md \
+              --max-regression-pct 20 \
+              --fail-on-regression \
+              "${allow_args[@]}"
           else
             printf '## Performance Comparison (base -> head)\n\n- base commit has no perf script\n' > artifacts/perf/compare.md
           fi

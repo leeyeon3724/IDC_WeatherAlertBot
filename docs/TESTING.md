@@ -10,6 +10,7 @@ make testing-snapshot
 python3 -m scripts.check_env_defaults_sync
 python3 -m scripts.perf_report --output artifacts/perf/local.json --markdown-output artifacts/perf/local.md
 python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --max-samples 20 --output artifacts/perf/baseline.local.json --markdown-output artifacts/perf/baseline.local.md
+python3 -m scripts.compare_perf_reports --base artifacts/perf/base.json --head artifacts/perf/head.json --output artifacts/perf/compare.local.json --markdown-output artifacts/perf/compare.local.md --max-regression-pct 20 --fail-on-regression
 python3 -m scripts.soak_report --cycles 3000 --area-count 3 --max-memory-growth-kib 8192 --json-output artifacts/soak/local.json --markdown-output artifacts/soak/local.md
 python3 -m scripts.slo_report --log-file artifacts/canary/service.log --json-output artifacts/slo/local.json --markdown-output artifacts/slo/local.md
 python3 -m scripts.select_tests --changed-files-file artifacts/pr-fast/changed_files.txt --selected-output artifacts/pr-fast/selected_tests.txt --json-output artifacts/pr-fast/selection.json --markdown-output artifacts/pr-fast/selection.md
@@ -37,6 +38,8 @@ make live-e2e-local
 - 로컬 live-e2e: `scripts/run_live_e2e_local.sh` + `.env.live-e2e` 조합으로 실자격증명 1회 검증 수행(가드: `ENABLE_LIVE_E2E=true`, 산출물: `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/slo_report.json`)
 - 장시간 안정성 soak: `.github/workflows/soak.yml`에서 합성 장기부하 리포트(`artifacts/soak/report.json`)를 생성하고 예산 초과 시 실패 처리
 - 운영 SLO 리포트: `scripts/slo_report.py`로 성공률/실패율/지연/미전송 잔량을 계산하고, 필드 누락 시 원인(`log_format`/`collection_gap`/`code_omission`) 분류 및 fallback 정보를 함께 기록
+- PR 성능 회귀 게이트: `scripts.compare_perf_reports`에서 핵심 지표 회귀율 `> 20%`면 실패(`--fail-on-regression`)
+- 성능 예외 규칙: 일시적 예외는 `PERF_ALLOW_REGRESSION_METRICS`(comma-separated metric names)로 명시하고, 해제 계획을 PR에 기록
 - 폭주 완화 검증: `tests/test_notifier.py`, `tests/test_process_cycle.py`에서 circuit-breaker/backpressure 동작 회귀 검증
 - 계약 안정성: 이벤트 이름 + 이벤트 payload 키 + 설정 + CLI snapshot 테스트 유지
 

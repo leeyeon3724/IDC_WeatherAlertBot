@@ -60,6 +60,9 @@ PREFIX_TEST_MAP: dict[str, list[str]] = {
         "tests/test_contract_snapshots.py",
         "tests/test_env_defaults_sync.py",
         "tests/test_update_testing_snapshot.py",
+        "tests/test_perf_baseline.py",
+        "tests/test_compare_perf_reports.py",
+        "tests/test_slo_report.py",
     ],
 }
 

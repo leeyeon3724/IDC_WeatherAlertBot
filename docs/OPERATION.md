@@ -84,6 +84,8 @@ python3 main.py migrate-state \
 - 기준 스크립트: `python3 -m scripts.perf_baseline --max-samples 20`
 - 샘플 정책: baseline 계산 시 입력 리포트 중 최근 `20`개만 유지/집계
 - 추세 확인: baseline markdown의 `trend` 컬럼으로 지표 변화 방향을 우선 확인
+- PR 회귀 게이트: `scripts.compare_perf_reports --max-regression-pct 20 --fail-on-regression`
+- 예외 처리: 임시 허용 지표는 `PERF_ALLOW_REGRESSION_METRICS`(comma-separated)로 제한하고, 안정화 후 즉시 제거
 
 ## 7. Canary 운영 검증
 

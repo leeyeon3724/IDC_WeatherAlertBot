@@ -26,3 +26,12 @@ def test_build_report_uses_docs_subset_for_docs_only_change() -> None:
     selected = set(report["selected_tests"])
     assert "tests/test_repo_hygiene.py" in selected
     assert "tests/test_event_docs_sync.py" in selected
+
+
+def test_build_report_includes_perf_script_tests_for_scripts_change() -> None:
+    report = build_report(["scripts/compare_perf_reports.py"])
+
+    assert report["mode"] == "fast"
+    selected = set(report["selected_tests"])
+    assert "tests/test_compare_perf_reports.py" in selected
+    assert "tests/test_perf_baseline.py" in selected
