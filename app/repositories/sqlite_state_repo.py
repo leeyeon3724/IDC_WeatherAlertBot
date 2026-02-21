@@ -172,15 +172,21 @@ class SqliteStateRepository:
     def mark_sent(self, event_id: str) -> bool:
         if not event_id:
             return False
-        if self.mark_many_sent([event_id]) > 0:
-            return True
-
+        now = utc_now_iso()
         with self._connect() as conn:
-            exists = conn.execute(
+            conn.execute(
+                """
+                UPDATE notifications
+                SET sent = 1, updated_at = ?, last_sent_at = ?
+                WHERE sent = 0 AND event_id = ?
+                """,
+                (now, now, event_id),
+            )
+            row = conn.execute(
                 "SELECT 1 FROM notifications WHERE event_id = ?",
                 (event_id,),
             ).fetchone()
-        return exists is not None
+        return row is not None
 
     def mark_many_sent(self, event_ids: Iterable[str]) -> int:
         ids = list(dict.fromkeys(event_id for event_id in event_ids if event_id))
