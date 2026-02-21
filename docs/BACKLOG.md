@@ -10,7 +10,7 @@
 |---|---:|---|
 | 정확성 | 4.5 | 핵심 알림/중복 방지/헬스 흐름 안정적이며 도메인/저장소 경계 테스트가 강화됨 |
 | 가독성 | 4.3 | 엔트리포인트/명령/루프 책임 분리와 이벤트 문서화가 정착됨 |
-| 복잡성 | 4.2 | 고복잡 경로(`service_loop`)는 안정화됐지만 `settings.from_env` 응집도 개선 여지 존재 |
+| 복잡성 | 4.4 | `settings.from_env`를 섹션 파서로 분해해 설정 변경 시 영향 범위를 축소함 |
 | 응집도/결합도 | 4.3 | 프로토콜 기반 의존으로 저장소 결합도 완화, 경계가 명확함 |
 | 테스트 가능성 | 4.6 | `service_loop/commands/health/json_state_repo` 분기 테스트 보강으로 회귀 탐지력 향상 |
 | 확장성 | 4.3 | JSON/SQLite 이중 저장소 + 마이그레이션 커맨드 + runbook 확보 |
@@ -18,7 +18,7 @@
 | 안정성 | 4.4 | CLI 실패 경로 이벤트/종료코드 표준화로 운영 복원력 향상 |
 | 보안 | 4.2 | 로그 민감정보 redaction 가드 및 운영 체크리스트 반영 |
 | 일관성 | 4.4 | health_state 포함 주요 오류 로그가 구조화 이벤트로 통일 |
-| 기술부채 | 4.2 | RB-201~RB-304 완료, 다음 부채는 설정 파서 복잡도/로그 일관성/운영 자동화 중심 |
+| 기술부채 | 4.3 | RB-201~RB-403 완료, 다음 부채는 API 경계 테스트/운영 자동화 중심 |
 
 ## 2) Evidence Snapshot
 
@@ -27,8 +27,8 @@
 - `python3 -m mypy` 통과
 - `python3 -m pytest -q --cov=app --cov-report=term --cov-config=.coveragerc` 통과
 - 테스트/커버리지
-- `112 passed`
-- 총 커버리지 `91.26%`
+- `115 passed`
+- 총 커버리지 `91.73%`
 - 주요 커버리지 지표
 - `app/entrypoints/service_loop.py` 98%
 - `app/entrypoints/commands.py` 94%
@@ -36,7 +36,7 @@
 - `app/logging_utils.py` 88%
 - `app/repositories/json_state_repo.py` 88%
 - `app/services/weather_api.py` 89%
-- `app/settings.py` 86%
+- `app/settings.py` 90%
 
 ## 3) Refactoring Backlog (Current Wave)
 
@@ -55,7 +55,6 @@
 
 | ID | Priority | 상태 | 영역 | 작업 | 완료조건(DoD) |
 |---|---|---|---|---|---|
-| RB-403 | P1 | 예정 | 복잡성/유지보수성 | `settings.from_env`를 섹션별 파서(네트워크/저장소/헬스)로 분해하고 구성 검증 책임을 분리 | `settings.py` 단일 메서드 복잡도 축소 + 섹션 단위 테스트 추가 |
 | RB-404 | P1 | 예정 | 정확성/안정성 | `weather_api` 결과코드/페이지네이션/파싱 경계(`N/A`, totalCount 비정상값) 테스트 확대 | 경계 분기 회귀 테스트 추가 및 실패 코드 분류 안정화 |
 | RB-405 | P2 | 예정 | 보안/운영 | redaction 정책을 이벤트 통합 시나리오에서 검증(서비스키/토큰/쿼리스트링) | 통합 테스트에서 민감정보 미노출 보장 |
 | RB-406 | P2 | 예정 | 성능 | SQLite bulk upsert/cleanup 경로의 성능 회귀 체크(간이 벤치/기준선) 추가 | 기준선 대비 회귀 감지 규칙 문서화 |
@@ -91,6 +90,7 @@
 | RB-304 | P2 | 완료 | 관측성 | 이벤트 기반 알람 룰/대시보드 템플릿 문서화 |
 | RB-401 | P1 | 완료 | 일관성/관측성 | `json_state_repo` 에러 로그를 `log_event()`로 통일 + 이벤트 문서 반영 |
 | RB-402 | P1 | 완료 | 안정성 | JSON/Health 상태 저장소 persist/backup 실패 경로 테스트 확대 + 실패 로그 이벤트 보강 |
+| RB-403 | P1 | 완료 | 복잡성/유지보수성 | `settings.from_env`를 섹션 파서로 분해하고 정책별 테스트를 보강 |
 
 ## 6) Maintenance Rules
 

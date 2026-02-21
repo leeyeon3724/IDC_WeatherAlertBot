@@ -163,6 +163,242 @@ def _validate_weather_api_url(
 
 
 @dataclass(frozen=True)
+class _CoreConfig:
+    service_api_key: str
+    service_hook_url: str
+    weather_alert_data_api_url: str
+    area_codes: list[str]
+    area_code_mapping: dict[str, str]
+
+
+@dataclass(frozen=True)
+class _RepositoryConfig:
+    sent_messages_file: Path
+    state_repository_type: str
+    sqlite_state_file: Path
+    health_state_file: Path
+
+
+@dataclass(frozen=True)
+class _TimeoutConfig:
+    request_timeout_sec: int
+    request_connect_timeout_sec: int
+    request_read_timeout_sec: int
+    notifier_timeout_sec: int
+    notifier_connect_timeout_sec: int
+    notifier_read_timeout_sec: int
+
+
+@dataclass(frozen=True)
+class _RuntimeConfig:
+    max_retries: int
+    retry_delay_sec: int
+    notifier_max_retries: int
+    notifier_retry_delay_sec: int
+    area_max_workers: int
+    lookback_days: int
+    cycle_interval_sec: int
+    area_interval_sec: int
+    cleanup_enabled: bool
+    cleanup_retention_days: int
+    cleanup_include_unsent: bool
+    bot_name: str
+    timezone: str
+    log_level: str
+    dry_run: bool
+    run_once: bool
+
+
+@dataclass(frozen=True)
+class _HealthConfig:
+    health_alert_enabled: bool
+    health_outage_window_sec: int
+    health_outage_fail_ratio_threshold: float
+    health_outage_min_failed_cycles: int
+    health_outage_consecutive_failures: int
+    health_recovery_window_sec: int
+    health_recovery_max_fail_ratio: float
+    health_recovery_consecutive_successes: int
+    health_heartbeat_interval_sec: int
+    health_backoff_max_sec: int
+    health_recovery_backfill_max_days: int
+
+
+def _parse_core_config() -> _CoreConfig:
+    service_api_key = os.getenv("SERVICE_API_KEY", "").strip()
+    service_hook_url = os.getenv("SERVICE_HOOK_URL", "").strip()
+    weather_alert_data_api_url = os.getenv(
+        "WEATHER_ALERT_DATA_API_URL",
+        DEFAULT_ALERT_API_URL,
+    ).strip()
+
+    if not service_api_key:
+        raise SettingsError("SERVICE_API_KEY is required.")
+    if not service_hook_url:
+        raise SettingsError("SERVICE_HOOK_URL is required.")
+    _validate_service_hook_url(service_hook_url)
+
+    weather_api_allowed_hosts = _parse_non_empty_json_list_env(
+        "WEATHER_API_ALLOWED_HOSTS",
+        DEFAULT_WEATHER_API_ALLOWED_HOSTS,
+    )
+    weather_api_allowed_path_prefixes = _parse_non_empty_json_list_env(
+        "WEATHER_API_ALLOWED_PATH_PREFIXES",
+        DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES,
+    )
+    _validate_weather_api_url(
+        url=weather_alert_data_api_url,
+        allowed_hosts=weather_api_allowed_hosts,
+        allowed_path_prefixes=weather_api_allowed_path_prefixes,
+    )
+
+    area_codes_raw = _parse_json_env("AREA_CODES", "[]", list)
+    area_codes = [str(code).strip() for code in area_codes_raw if str(code).strip()]
+    if not area_codes:
+        raise SettingsError("AREA_CODES must include at least one area code.")
+
+    area_code_mapping_raw = _parse_json_env("AREA_CODE_MAPPING", "{}", dict)
+    area_code_mapping = {str(k): str(v) for k, v in area_code_mapping_raw.items()}
+    return _CoreConfig(
+        service_api_key=service_api_key,
+        service_hook_url=service_hook_url,
+        weather_alert_data_api_url=weather_alert_data_api_url,
+        area_codes=area_codes,
+        area_code_mapping=area_code_mapping,
+    )
+
+
+def _parse_repository_config() -> _RepositoryConfig:
+    sent_messages_file = Path(
+        os.getenv("SENT_MESSAGES_FILE", DEFAULT_SENT_MESSAGES_FILE).strip()
+        or DEFAULT_SENT_MESSAGES_FILE
+    )
+    state_repository_type = _parse_choice_env(
+        "STATE_REPOSITORY_TYPE",
+        "json",
+        {"json", "sqlite"},
+    )
+    sqlite_state_file = Path(
+        os.getenv("SQLITE_STATE_FILE", "./data/sent_messages.db").strip()
+        or "./data/sent_messages.db"
+    )
+    health_state_file = Path(
+        os.getenv("HEALTH_STATE_FILE", "./data/api_health_state.json").strip()
+        or "./data/api_health_state.json"
+    )
+    return _RepositoryConfig(
+        sent_messages_file=sent_messages_file,
+        state_repository_type=state_repository_type,
+        sqlite_state_file=sqlite_state_file,
+        health_state_file=health_state_file,
+    )
+
+
+def _parse_timeout_config() -> _TimeoutConfig:
+    request_timeout_sec = _parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1)
+    request_connect_timeout_sec = _parse_int_env(
+        "REQUEST_CONNECT_TIMEOUT_SEC",
+        request_timeout_sec,
+        minimum=1,
+    )
+    request_read_timeout_sec = _parse_int_env(
+        "REQUEST_READ_TIMEOUT_SEC",
+        request_timeout_sec,
+        minimum=1,
+    )
+    notifier_timeout_sec = _parse_int_env(
+        "NOTIFIER_TIMEOUT_SEC",
+        request_timeout_sec,
+        minimum=1,
+    )
+    notifier_connect_timeout_sec = _parse_int_env(
+        "NOTIFIER_CONNECT_TIMEOUT_SEC",
+        notifier_timeout_sec,
+        minimum=1,
+    )
+    notifier_read_timeout_sec = _parse_int_env(
+        "NOTIFIER_READ_TIMEOUT_SEC",
+        notifier_timeout_sec,
+        minimum=1,
+    )
+    return _TimeoutConfig(
+        request_timeout_sec=request_timeout_sec,
+        request_connect_timeout_sec=request_connect_timeout_sec,
+        request_read_timeout_sec=request_read_timeout_sec,
+        notifier_timeout_sec=notifier_timeout_sec,
+        notifier_connect_timeout_sec=notifier_connect_timeout_sec,
+        notifier_read_timeout_sec=notifier_read_timeout_sec,
+    )
+
+
+def _parse_runtime_config() -> _RuntimeConfig:
+    return _RuntimeConfig(
+        max_retries=_parse_int_env("MAX_RETRIES", 3, minimum=1),
+        retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
+        notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
+        notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
+        area_max_workers=_parse_int_env("AREA_MAX_WORKERS", 1, minimum=1),
+        lookback_days=_parse_int_env("LOOKBACK_DAYS", 0, minimum=0),
+        cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
+        area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
+        cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),
+        cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
+        cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=True),
+        bot_name=os.getenv("BOT_NAME", "기상특보알림").strip() or "기상특보알림",
+        timezone=os.getenv("TIMEZONE", "Asia/Seoul").strip() or "Asia/Seoul",
+        log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
+        dry_run=_parse_bool_env("DRY_RUN", default=False),
+        run_once=_parse_bool_env("RUN_ONCE", default=False),
+    )
+
+
+def _parse_health_config() -> _HealthConfig:
+    return _HealthConfig(
+        health_alert_enabled=_parse_bool_env("HEALTH_ALERT_ENABLED", default=True),
+        health_outage_window_sec=_parse_int_env("HEALTH_OUTAGE_WINDOW_SEC", 600, minimum=1),
+        health_outage_fail_ratio_threshold=_parse_float_env(
+            "HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD",
+            0.7,
+            minimum=0.0,
+            maximum=1.0,
+        ),
+        health_outage_min_failed_cycles=_parse_int_env(
+            "HEALTH_OUTAGE_MIN_FAILED_CYCLES",
+            6,
+            minimum=1,
+        ),
+        health_outage_consecutive_failures=_parse_int_env(
+            "HEALTH_OUTAGE_CONSECUTIVE_FAILURES",
+            4,
+            minimum=1,
+        ),
+        health_recovery_window_sec=_parse_int_env("HEALTH_RECOVERY_WINDOW_SEC", 900, minimum=1),
+        health_recovery_max_fail_ratio=_parse_float_env(
+            "HEALTH_RECOVERY_MAX_FAIL_RATIO",
+            0.1,
+            minimum=0.0,
+            maximum=1.0,
+        ),
+        health_recovery_consecutive_successes=_parse_int_env(
+            "HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES",
+            8,
+            minimum=1,
+        ),
+        health_heartbeat_interval_sec=_parse_int_env(
+            "HEALTH_HEARTBEAT_INTERVAL_SEC",
+            3600,
+            minimum=1,
+        ),
+        health_backoff_max_sec=_parse_int_env("HEALTH_BACKOFF_MAX_SEC", 900, minimum=1),
+        health_recovery_backfill_max_days=_parse_int_env(
+            "HEALTH_RECOVERY_BACKFILL_MAX_DAYS",
+            3,
+            minimum=0,
+        ),
+    )
+
+
+@dataclass(frozen=True)
 class Settings:
     service_api_key: str
     service_hook_url: str
@@ -212,156 +448,53 @@ class Settings:
         if env_file:
             _load_dotenv_if_exists(Path(env_file))
 
-        service_api_key = os.getenv("SERVICE_API_KEY", "").strip()
-        service_hook_url = os.getenv("SERVICE_HOOK_URL", "").strip()
-        weather_alert_data_api_url = os.getenv(
-            "WEATHER_ALERT_DATA_API_URL",
-            DEFAULT_ALERT_API_URL,
-        ).strip()
-
-        if not service_api_key:
-            raise SettingsError("SERVICE_API_KEY is required.")
-        if not service_hook_url:
-            raise SettingsError("SERVICE_HOOK_URL is required.")
-        _validate_service_hook_url(service_hook_url)
-
-        weather_api_allowed_hosts = _parse_non_empty_json_list_env(
-            "WEATHER_API_ALLOWED_HOSTS",
-            DEFAULT_WEATHER_API_ALLOWED_HOSTS,
-        )
-        weather_api_allowed_path_prefixes = _parse_non_empty_json_list_env(
-            "WEATHER_API_ALLOWED_PATH_PREFIXES",
-            DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES,
-        )
-        _validate_weather_api_url(
-            url=weather_alert_data_api_url,
-            allowed_hosts=weather_api_allowed_hosts,
-            allowed_path_prefixes=weather_api_allowed_path_prefixes,
-        )
-
-        area_codes_raw = _parse_json_env("AREA_CODES", "[]", list)
-        area_codes = [str(code).strip() for code in area_codes_raw if str(code).strip()]
-        if not area_codes:
-            raise SettingsError("AREA_CODES must include at least one area code.")
-
-        area_code_mapping_raw = _parse_json_env("AREA_CODE_MAPPING", "{}", dict)
-        area_code_mapping = {str(k): str(v) for k, v in area_code_mapping_raw.items()}
-
-        sent_messages_file = Path(
-            os.getenv("SENT_MESSAGES_FILE", DEFAULT_SENT_MESSAGES_FILE).strip()
-            or DEFAULT_SENT_MESSAGES_FILE
-        )
-        state_repository_type = _parse_choice_env(
-            "STATE_REPOSITORY_TYPE",
-            "json",
-            {"json", "sqlite"},
-        )
-        sqlite_state_file = Path(
-            os.getenv("SQLITE_STATE_FILE", "./data/sent_messages.db").strip()
-            or "./data/sent_messages.db"
-        )
-
-        request_timeout_sec = _parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1)
-        request_connect_timeout_sec = _parse_int_env(
-            "REQUEST_CONNECT_TIMEOUT_SEC",
-            request_timeout_sec,
-            minimum=1,
-        )
-        request_read_timeout_sec = _parse_int_env(
-            "REQUEST_READ_TIMEOUT_SEC",
-            request_timeout_sec,
-            minimum=1,
-        )
-        notifier_timeout_sec = _parse_int_env(
-            "NOTIFIER_TIMEOUT_SEC",
-            request_timeout_sec,
-            minimum=1,
-        )
-        notifier_connect_timeout_sec = _parse_int_env(
-            "NOTIFIER_CONNECT_TIMEOUT_SEC",
-            notifier_timeout_sec,
-            minimum=1,
-        )
-        notifier_read_timeout_sec = _parse_int_env(
-            "NOTIFIER_READ_TIMEOUT_SEC",
-            notifier_timeout_sec,
-            minimum=1,
-        )
+        core = _parse_core_config()
+        repositories = _parse_repository_config()
+        timeouts = _parse_timeout_config()
+        runtime = _parse_runtime_config()
+        health = _parse_health_config()
 
         return cls(
-            service_api_key=service_api_key,
-            service_hook_url=service_hook_url,
-            weather_alert_data_api_url=weather_alert_data_api_url,
-            sent_messages_file=sent_messages_file,
-            state_repository_type=state_repository_type,
-            sqlite_state_file=sqlite_state_file,
-            area_codes=area_codes,
-            area_code_mapping=area_code_mapping,
-            request_timeout_sec=request_timeout_sec,
-            request_connect_timeout_sec=request_connect_timeout_sec,
-            request_read_timeout_sec=request_read_timeout_sec,
-            max_retries=_parse_int_env("MAX_RETRIES", 3, minimum=1),
-            retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
-            notifier_timeout_sec=notifier_timeout_sec,
-            notifier_connect_timeout_sec=notifier_connect_timeout_sec,
-            notifier_read_timeout_sec=notifier_read_timeout_sec,
-            notifier_max_retries=_parse_int_env("NOTIFIER_MAX_RETRIES", 3, minimum=1),
-            notifier_retry_delay_sec=_parse_int_env("NOTIFIER_RETRY_DELAY_SEC", 1, minimum=0),
-            area_max_workers=_parse_int_env("AREA_MAX_WORKERS", 1, minimum=1),
-            lookback_days=_parse_int_env("LOOKBACK_DAYS", 0, minimum=0),
-            cycle_interval_sec=_parse_int_env("CYCLE_INTERVAL_SEC", 10, minimum=0),
-            area_interval_sec=_parse_int_env("AREA_INTERVAL_SEC", 5, minimum=0),
-            cleanup_enabled=_parse_bool_env("CLEANUP_ENABLED", default=True),
-            cleanup_retention_days=_parse_int_env("CLEANUP_RETENTION_DAYS", 30, minimum=0),
-            cleanup_include_unsent=_parse_bool_env("CLEANUP_INCLUDE_UNSENT", default=True),
-            bot_name=os.getenv("BOT_NAME", "기상특보알림").strip() or "기상특보알림",
-            timezone=os.getenv("TIMEZONE", "Asia/Seoul").strip() or "Asia/Seoul",
-            log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
-            dry_run=_parse_bool_env("DRY_RUN", default=False),
-            run_once=_parse_bool_env("RUN_ONCE", default=False),
-            health_alert_enabled=_parse_bool_env("HEALTH_ALERT_ENABLED", default=True),
-            health_outage_window_sec=_parse_int_env("HEALTH_OUTAGE_WINDOW_SEC", 600, minimum=1),
-            health_outage_fail_ratio_threshold=_parse_float_env(
-                "HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD",
-                0.7,
-                minimum=0.0,
-                maximum=1.0,
-            ),
-            health_outage_min_failed_cycles=_parse_int_env(
-                "HEALTH_OUTAGE_MIN_FAILED_CYCLES",
-                6,
-                minimum=1,
-            ),
-            health_outage_consecutive_failures=_parse_int_env(
-                "HEALTH_OUTAGE_CONSECUTIVE_FAILURES",
-                4,
-                minimum=1,
-            ),
-            health_recovery_window_sec=_parse_int_env("HEALTH_RECOVERY_WINDOW_SEC", 900, minimum=1),
-            health_recovery_max_fail_ratio=_parse_float_env(
-                "HEALTH_RECOVERY_MAX_FAIL_RATIO",
-                0.1,
-                minimum=0.0,
-                maximum=1.0,
-            ),
-            health_recovery_consecutive_successes=_parse_int_env(
-                "HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES",
-                8,
-                minimum=1,
-            ),
-            health_heartbeat_interval_sec=_parse_int_env(
-                "HEALTH_HEARTBEAT_INTERVAL_SEC",
-                3600,
-                minimum=1,
-            ),
-            health_backoff_max_sec=_parse_int_env("HEALTH_BACKOFF_MAX_SEC", 900, minimum=1),
-            health_recovery_backfill_max_days=_parse_int_env(
-                "HEALTH_RECOVERY_BACKFILL_MAX_DAYS",
-                3,
-                minimum=0,
-            ),
-            health_state_file=Path(
-                os.getenv("HEALTH_STATE_FILE", "./data/api_health_state.json").strip()
-                or "./data/api_health_state.json"
-            ),
+            service_api_key=core.service_api_key,
+            service_hook_url=core.service_hook_url,
+            weather_alert_data_api_url=core.weather_alert_data_api_url,
+            sent_messages_file=repositories.sent_messages_file,
+            state_repository_type=repositories.state_repository_type,
+            sqlite_state_file=repositories.sqlite_state_file,
+            area_codes=core.area_codes,
+            area_code_mapping=core.area_code_mapping,
+            request_timeout_sec=timeouts.request_timeout_sec,
+            request_connect_timeout_sec=timeouts.request_connect_timeout_sec,
+            request_read_timeout_sec=timeouts.request_read_timeout_sec,
+            max_retries=runtime.max_retries,
+            retry_delay_sec=runtime.retry_delay_sec,
+            notifier_timeout_sec=timeouts.notifier_timeout_sec,
+            notifier_connect_timeout_sec=timeouts.notifier_connect_timeout_sec,
+            notifier_read_timeout_sec=timeouts.notifier_read_timeout_sec,
+            notifier_max_retries=runtime.notifier_max_retries,
+            notifier_retry_delay_sec=runtime.notifier_retry_delay_sec,
+            area_max_workers=runtime.area_max_workers,
+            lookback_days=runtime.lookback_days,
+            cycle_interval_sec=runtime.cycle_interval_sec,
+            area_interval_sec=runtime.area_interval_sec,
+            cleanup_enabled=runtime.cleanup_enabled,
+            cleanup_retention_days=runtime.cleanup_retention_days,
+            cleanup_include_unsent=runtime.cleanup_include_unsent,
+            bot_name=runtime.bot_name,
+            timezone=runtime.timezone,
+            log_level=runtime.log_level,
+            dry_run=runtime.dry_run,
+            run_once=runtime.run_once,
+            health_alert_enabled=health.health_alert_enabled,
+            health_outage_window_sec=health.health_outage_window_sec,
+            health_outage_fail_ratio_threshold=health.health_outage_fail_ratio_threshold,
+            health_outage_min_failed_cycles=health.health_outage_min_failed_cycles,
+            health_outage_consecutive_failures=health.health_outage_consecutive_failures,
+            health_recovery_window_sec=health.health_recovery_window_sec,
+            health_recovery_max_fail_ratio=health.health_recovery_max_fail_ratio,
+            health_recovery_consecutive_successes=health.health_recovery_consecutive_successes,
+            health_heartbeat_interval_sec=health.health_heartbeat_interval_sec,
+            health_backoff_max_sec=health.health_backoff_max_sec,
+            health_recovery_backfill_max_days=health.health_recovery_backfill_max_days,
+            health_state_file=repositories.health_state_file,
         )
