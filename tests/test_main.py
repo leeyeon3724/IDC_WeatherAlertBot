@@ -141,13 +141,13 @@ def test_default_command_routes_to_run_service(monkeypatch: pytest.MonkeyPatch) 
     assert entrypoint.main(["run"]) == 7
 
 
-def test_build_state_repository_defaults_to_json(tmp_path: Path) -> None:
+def test_build_state_repository_defaults_to_sqlite(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
-    logger = logging.getLogger("test.main.repo_factory.json")
+    logger = logging.getLogger("test.main.repo_factory.sqlite.default")
 
     repo = entrypoint._build_state_repository(settings=settings, logger=logger)
 
-    assert repo.__class__.__name__ == "JsonStateRepository"
+    assert repo.__class__.__name__ == "SqliteStateRepository"
 
 
 def test_build_state_repository_uses_sqlite_when_configured(tmp_path: Path) -> None:

@@ -279,7 +279,7 @@ def _parse_repository_config() -> _RepositoryConfig:
     )
     state_repository_type = _parse_choice_env(
         "STATE_REPOSITORY_TYPE",
-        "json",
+        "sqlite",
         {"json", "sqlite"},
     )
     sqlite_state_file = Path(
@@ -429,7 +429,7 @@ class Settings:
     sent_messages_file: Path
     area_codes: list[str]
     area_code_mapping: dict[str, str]
-    state_repository_type: str = "json"
+    state_repository_type: str = "sqlite"
     sqlite_state_file: Path = Path("./data/sent_messages.db")
     request_timeout_sec: int = 5
     request_connect_timeout_sec: int = 5

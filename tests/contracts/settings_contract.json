@@ -30,7 +30,7 @@
     "name": "area_code_mapping"
   },
   {
-    "default": "json",
+    "default": "sqlite",
     "has_default": true,
     "name": "state_repository_type"
   },

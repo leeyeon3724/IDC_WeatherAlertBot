@@ -28,6 +28,8 @@ def make_settings(tmp_path: Path, **overrides: object) -> Settings:
         "service_hook_url": "https://hook.example",
         "weather_alert_data_api_url": "http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
         "sent_messages_file": tmp_path / "state.json",
+        "state_repository_type": "sqlite",
+        "sqlite_state_file": tmp_path / "state.db",
         "area_codes": ["L1070100"],
         "area_code_mapping": {"L1070100": "대구"},
         "request_timeout_sec": 1,

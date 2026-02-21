@@ -125,11 +125,13 @@ export DRY_RUN=false
 export LOOKBACK_DAYS="${LOOKBACK_DAYS:-0}"
 export CYCLE_INTERVAL_SEC=0
 export AREA_INTERVAL_SEC=0
-export STATE_REPOSITORY_TYPE="${STATE_REPOSITORY_TYPE:-json}"
+export STATE_REPOSITORY_TYPE="${STATE_REPOSITORY_TYPE:-sqlite}"
 export SENT_MESSAGES_FILE="${SENT_MESSAGES_FILE:-$ROOT_DIR/artifacts/live-e2e/local/sent_messages.live-e2e.json}"
+export SQLITE_STATE_FILE="${SQLITE_STATE_FILE:-$ROOT_DIR/artifacts/live-e2e/local/sent_messages.live-e2e.db}"
 export HEALTH_STATE_FILE="${HEALTH_STATE_FILE:-$ROOT_DIR/artifacts/live-e2e/local/api_health_state.live-e2e.json}"
 
 mkdir -p "$(dirname "$SENT_MESSAGES_FILE")"
+mkdir -p "$(dirname "$SQLITE_STATE_FILE")"
 mkdir -p "$(dirname "$HEALTH_STATE_FILE")"
 mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$ARTIFACT_DIR"

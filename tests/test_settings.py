@@ -71,7 +71,7 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.area_codes == ["11B00000"]
     assert settings.area_code_mapping["11B00000"] == "서울"
     assert settings.sent_messages_file.as_posix().endswith("data/sent_messages.json")
-    assert settings.state_repository_type == "json"
+    assert settings.state_repository_type == "sqlite"
     assert settings.sqlite_state_file.as_posix().endswith("data/sent_messages.db")
     assert settings.notifier_max_retries == 3
     assert settings.notifier_retry_delay_sec == 1
