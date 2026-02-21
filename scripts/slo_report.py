@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 RE_TIMESTAMP = re.compile(r"^\[(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
+RE_EVENT_MARKER = re.compile(r'"event"\s*:\s*"([^"]+)"')
 
 
 def _percentile(values: list[float], pct: float) -> float:
@@ -33,22 +34,70 @@ def _parse_timestamp(line: str) -> datetime | None:
         return None
 
 
-def parse_log(log_file: Path) -> list[tuple[datetime | None, dict[str, Any]]]:
+def _safe_int(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_log(
+    log_file: Path,
+) -> tuple[list[tuple[datetime | None, dict[str, Any]]], dict[str, int]]:
     if not log_file.exists():
-        return []
+        return [], {
+            "lines_total": 0,
+            "json_decode_errors": 0,
+            "parsed_event_records": 0,
+            "cycle_cost_marker_lines": 0,
+            "cycle_cost_marker_parse_errors": 0,
+            "cycle_cost_parsed_records": 0,
+        }
 
     parsed: list[tuple[datetime | None, dict[str, Any]]] = []
+    diagnostics = {
+        "lines_total": 0,
+        "json_decode_errors": 0,
+        "parsed_event_records": 0,
+        "cycle_cost_marker_lines": 0,
+        "cycle_cost_marker_parse_errors": 0,
+        "cycle_cost_parsed_records": 0,
+    }
     for line in log_file.read_text(encoding="utf-8").splitlines():
+        diagnostics["lines_total"] += 1
+        marker_match = RE_EVENT_MARKER.search(line)
+        marker_event = marker_match.group(1) if marker_match else None
+        if marker_event == "cycle.cost.metrics":
+            diagnostics["cycle_cost_marker_lines"] += 1
+
         start = line.find("{")
         if start < 0:
             continue
         try:
             payload = json.loads(line[start:])
         except json.JSONDecodeError:
+            diagnostics["json_decode_errors"] += 1
+            if marker_event == "cycle.cost.metrics":
+                diagnostics["cycle_cost_marker_parse_errors"] += 1
             continue
         if isinstance(payload, dict) and isinstance(payload.get("event"), str):
             parsed.append((_parse_timestamp(line), payload))
-    return parsed
+            diagnostics["parsed_event_records"] += 1
+            if payload.get("event") == "cycle.cost.metrics":
+                diagnostics["cycle_cost_parsed_records"] += 1
+    return parsed, diagnostics
+
+
+def _classify_missing_field_cause(
+    *,
+    cycle_cost_records: int,
+    cycle_cost_marker_parse_errors: int,
+) -> str:
+    if cycle_cost_marker_parse_errors > 0:
+        return "log_format"
+    if cycle_cost_records <= 0:
+        return "collection_gap"
+    return "code_omission"
 
 
 def build_report(
@@ -59,14 +108,22 @@ def build_report(
     max_p95_cycle_latency_sec: float,
     max_pending_latest: int,
 ) -> dict[str, Any]:
-    records = parse_log(log_file)
+    records, diagnostics = parse_log(log_file)
     cycle_starts: list[datetime] = []
     cycle_latencies: list[float] = []
 
     sent_total = 0
     failure_total = 0
     attempts_total = 0
+    cycle_complete_pending_latest: int | None = None
     pending_latest: int | None = None
+    cycle_cost_records = 0
+    cycle_cost_records_with_pending = 0
+    cycle_cost_records_with_attempts = 0
+
+    missing_field_causes: list[dict[str, Any]] = []
+    fallbacks_applied: list[dict[str, Any]] = []
+    data_quality_warnings: list[str] = []
 
     for timestamp, payload in records:
         event = str(payload.get("event"))
@@ -75,14 +132,59 @@ def build_report(
         elif event == "cycle.complete" and timestamp is not None and cycle_starts:
             start = cycle_starts.pop(0)
             cycle_latencies.append(max((timestamp - start).total_seconds(), 0.0))
+            pending_from_complete = _safe_int(payload.get("pending_total"))
+            if pending_from_complete is not None:
+                cycle_complete_pending_latest = pending_from_complete
         elif event == "notification.sent":
             sent_total += 1
         elif event == "notification.final_failure":
             failure_total += 1
         elif event == "cycle.cost.metrics":
-            attempts_total += int(payload.get("notification_attempts", 0))
-            if "pending_total" in payload:
-                pending_latest = int(payload["pending_total"])
+            cycle_cost_records += 1
+            attempts_value = _safe_int(payload.get("notification_attempts"))
+            if attempts_value is not None:
+                attempts_total += attempts_value
+                cycle_cost_records_with_attempts += 1
+            pending_value = _safe_int(payload.get("pending_total"))
+            if pending_value is not None:
+                pending_latest = pending_value
+                cycle_cost_records_with_pending += 1
+
+    if attempts_total == 0:
+        attempts_cause = _classify_missing_field_cause(
+            cycle_cost_records=cycle_cost_records,
+            cycle_cost_marker_parse_errors=diagnostics["cycle_cost_marker_parse_errors"],
+        )
+        derived_attempts = sent_total + failure_total
+        if derived_attempts > 0:
+            attempts_total = derived_attempts
+            fallbacks_applied.append(
+                {
+                    "field": "notification_attempts",
+                    "source": "notification.sent + notification.final_failure",
+                    "value": derived_attempts,
+                    "cause": attempts_cause,
+                }
+            )
+            data_quality_warnings.append(
+                "notification_attempts missing from cycle.cost.metrics; "
+                f"fallback applied from event counts (cause={attempts_cause})"
+            )
+            missing_field_causes.append(
+                {
+                    "field": "notification_attempts",
+                    "cause": attempts_cause,
+                    "resolved": True,
+                }
+            )
+        elif cycle_cost_records_with_attempts == 0:
+            missing_field_causes.append(
+                {
+                    "field": "notification_attempts",
+                    "cause": attempts_cause,
+                    "resolved": False,
+                }
+            )
 
     success_denominator = sent_total + failure_total
     success_rate = sent_total / success_denominator if success_denominator else 1.0
@@ -109,7 +211,46 @@ def build_report(
             f"({p95_latency:.3f} > {max_p95_cycle_latency_sec:.3f})"
         )
     if pending_latest is None:
-        failed_reasons.append("pending_total missing from cycle.cost.metrics")
+        pending_cause = _classify_missing_field_cause(
+            cycle_cost_records=cycle_cost_records,
+            cycle_cost_marker_parse_errors=diagnostics["cycle_cost_marker_parse_errors"],
+        )
+        if cycle_complete_pending_latest is not None:
+            pending_latest = cycle_complete_pending_latest
+            fallbacks_applied.append(
+                {
+                    "field": "pending_total",
+                    "source": "cycle.complete.pending_total",
+                    "value": pending_latest,
+                    "cause": pending_cause,
+                }
+            )
+            data_quality_warnings.append(
+                "pending_total missing from cycle.cost.metrics; "
+                f"fallback applied from cycle.complete (cause={pending_cause})"
+            )
+            missing_field_causes.append(
+                {
+                    "field": "pending_total",
+                    "cause": pending_cause,
+                    "resolved": True,
+                }
+            )
+        else:
+            failed_reasons.append(
+                "pending_total missing from cycle.cost.metrics "
+                f"(cause={pending_cause})"
+            )
+            missing_field_causes.append(
+                {
+                    "field": "pending_total",
+                    "cause": pending_cause,
+                    "resolved": False,
+                }
+            )
+
+    if pending_latest is None:
+        pass
     elif pending_latest > max_pending_latest:
         failed_reasons.append(
             f"pending_latest above target ({pending_latest} > {max_pending_latest})"
@@ -129,6 +270,13 @@ def build_report(
         "cycle_latency_p50_sec": round(p50_latency, 3),
         "cycle_latency_p95_sec": round(p95_latency, 3),
         "cycle_latency_max_sec": round(max_latency, 3),
+        "diagnostics": diagnostics,
+        "cycle_cost_records": cycle_cost_records,
+        "cycle_cost_records_with_pending": cycle_cost_records_with_pending,
+        "cycle_cost_records_with_attempts": cycle_cost_records_with_attempts,
+        "missing_field_causes": missing_field_causes,
+        "fallbacks_applied": fallbacks_applied,
+        "data_quality_warnings": data_quality_warnings,
         "thresholds": {
             "min_success_rate": min_success_rate,
             "max_failure_rate": max_failure_rate,
@@ -152,9 +300,16 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- success_rate: `{report['success_rate']}`",
         f"- failure_rate: `{report['failure_rate']}`",
         f"- pending_latest: `{report['pending_latest']}`",
+        f"- cycle_cost_records: `{report['cycle_cost_records']}`",
+        f"- cycle_cost_records_with_pending: `{report['cycle_cost_records_with_pending']}`",
+        f"- cycle_cost_records_with_attempts: `{report['cycle_cost_records_with_attempts']}`",
         f"- cycle_latency_p50_sec: `{report['cycle_latency_p50_sec']}`",
         f"- cycle_latency_p95_sec: `{report['cycle_latency_p95_sec']}`",
         f"- cycle_latency_max_sec: `{report['cycle_latency_max_sec']}`",
+        f"- diagnostics: `{report['diagnostics']}`",
+        f"- missing_field_causes: `{report['missing_field_causes']}`",
+        f"- fallbacks_applied: `{report['fallbacks_applied']}`",
+        f"- data_quality_warnings: `{report['data_quality_warnings']}`",
         f"- failed_reasons: `{report['failed_reasons']}`",
     ]
     return "\n".join(lines)

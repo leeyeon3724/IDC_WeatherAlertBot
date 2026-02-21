@@ -140,6 +140,7 @@ python3 main.py migrate-state \
 - 자동 생성: `.github/workflows/canary.yml`, `.github/workflows/live-e2e.yml` 내 SLO 리포트 단계
 - 산출물: `artifacts/canary/slo_report.json`, `artifacts/canary/slo_report.md`, `artifacts/live-e2e/slo_report.json`, `artifacts/live-e2e/slo_report.md`
 - 로컬 실행: `make slo-report` 또는 `python3 -m scripts.slo_report --log-file <service.log>`
+- 필드 누락 진단: `missing_field_causes`로 원인(`log_format`/`collection_gap`/`code_omission`)을 분류하고, 보정 시 `fallbacks_applied`에 근거 필드를 기록
 
 기본 SLO 임계:
 - 성공률(`success_rate`) `>= 1.0` (canary/live-e2e 기준)

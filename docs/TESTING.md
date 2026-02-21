@@ -36,7 +36,7 @@ make live-e2e-local
 - 보호 환경 live-e2e: `.github/workflows/live-e2e.yml`에서 전용 시크릿 기반 실연동 검증을 수행하고 아티팩트(`artifacts/live-e2e`)를 남김
 - 로컬 live-e2e: `scripts/run_live_e2e_local.sh` + `.env.live-e2e` 조합으로 실자격증명 1회 검증 수행(가드: `ENABLE_LIVE_E2E=true`, 산출물: `artifacts/live-e2e/local/report.json`, `artifacts/live-e2e/local/slo_report.json`)
 - 장시간 안정성 soak: `.github/workflows/soak.yml`에서 합성 장기부하 리포트(`artifacts/soak/report.json`)를 생성하고 예산 초과 시 실패 처리
-- 운영 SLO 리포트: `scripts/slo_report.py`로 성공률/실패율/지연/미전송 잔량을 계산하고 canary에서 자동 생성
+- 운영 SLO 리포트: `scripts/slo_report.py`로 성공률/실패율/지연/미전송 잔량을 계산하고, 필드 누락 시 원인(`log_format`/`collection_gap`/`code_omission`) 분류 및 fallback 정보를 함께 기록
 - 폭주 완화 검증: `tests/test_notifier.py`, `tests/test_process_cycle.py`에서 circuit-breaker/backpressure 동작 회귀 검증
 - 계약 안정성: 이벤트 이름 + 이벤트 payload 키 + 설정 + CLI snapshot 테스트 유지
 
