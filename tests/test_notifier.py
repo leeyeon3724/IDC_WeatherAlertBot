@@ -29,6 +29,17 @@ class FakeSession:
         return outcome
 
 
+class CapturingSession:
+    """POST 요청 payload를 캡처하는 세션."""
+
+    def __init__(self) -> None:
+        self.captured: list[dict] = []
+
+    def post(self, url: str, **kwargs) -> DummyResponse:
+        self.captured.append(kwargs.get("json", {}))
+        return DummyResponse(should_raise=False)
+
+
 def test_notifier_retries_then_succeeds() -> None:
     session = FakeSession(
         [
@@ -66,13 +77,11 @@ def test_notifier_raises_after_max_retries() -> None:
         session=session,
     )
 
-    try:
+    with pytest.raises(NotificationError) as exc_info:
         notifier.send("hello")
-        assert False, "NotificationError expected"
-    except NotificationError as exc:
-        assert exc.attempts == 3
-        assert isinstance(exc.last_error, requests.RequestException)
-        assert session.calls == 3
+    assert exc_info.value.attempts == 3
+    assert isinstance(exc_info.value.last_error, requests.RequestException)
+    assert session.calls == 3
 
 
 def test_notifier_circuit_breaker_blocks_until_reset(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -143,3 +152,48 @@ def test_notifier_backoff_stays_zero_when_retry_delay_is_zero(
     notifier.send("hello")
     assert session.calls == 3
     assert slept == [], "retry_delay_sec=0 설정 시 sleep이 호출되어서는 안 됨"
+
+
+def test_notifier_payload_includes_bot_name_and_message() -> None:
+    """전송 payload에 botName과 text가 올바르게 포함되어야 한다."""
+    session = CapturingSession()
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="날씨봇",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        session=session,
+    )
+
+    notifier.send("강풍 특보 발효")
+
+    assert len(session.captured) == 1
+    payload = session.captured[0]
+    assert payload["botName"] == "날씨봇"
+    assert payload["text"] == "강풍 특보 발효"
+    assert "attachments" not in payload
+
+
+def test_notifier_payload_includes_attachment_when_report_url_given() -> None:
+    """report_url 제공 시 attachments가 올바른 구조로 포함되어야 한다."""
+    session = CapturingSession()
+    notifier = DoorayNotifier(
+        hook_url="https://hook.example",
+        bot_name="날씨봇",
+        timeout_sec=1,
+        max_retries=1,
+        retry_delay_sec=0,
+        session=session,
+    )
+
+    notifier.send("강풍 특보 발효", report_url="https://example.com/report/1")
+
+    assert len(session.captured) == 1
+    payload = session.captured[0]
+    assert payload["botName"] == "날씨봇"
+    assert payload["text"] == "강풍 특보 발효"
+    attachments = payload["attachments"]
+    assert isinstance(attachments, list) and len(attachments) == 1
+    assert attachments[0]["titleLink"] == "https://example.com/report/1"
+    assert attachments[0]["color"] == "blue"
