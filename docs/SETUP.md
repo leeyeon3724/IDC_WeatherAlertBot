@@ -143,6 +143,8 @@ docker compose logs -f weather-alert-bot
 docker inspect --format='{{json .State.Health}}' weather-alert-bot
 ```
 
+- `RUN_ONCE=true` 컨테이너는 헬스체크에서 stale 판정을 건너뜁니다(단발 실행 오탐 방지).
+
 컨테이너 단독 실행:
 
 ```bash

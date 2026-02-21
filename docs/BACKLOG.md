@@ -20,12 +20,6 @@
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
 상태: 진행중
-중요도: 중간
-항목: 컨테이너 헬스체크 정책 고도화(실행 모드 인지)
-근거: `scripts/container_healthcheck.py`는 최신성 기준 중심이라 `RUN_ONCE=true` 같은 모드에서 오탐 가능성이 있음.
-완료 기준: 실행 모드별 헬스 정책 분기를 추가하고 Docker/운영 문서 및 테스트 케이스를 함께 정비함.
-
-상태: 진행중
 중요도: 낮음
 항목: 설정/문서 동기화 자동 생성 도구화
 근거: `app/settings.py`, `.env.example`, `.env.live-e2e.example`, `docs/SETUP.md` 간 수동 동기화는 누락 리스크가 큼.

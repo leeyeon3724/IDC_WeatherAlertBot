@@ -10,6 +10,18 @@ MIN_MAX_AGE_SEC = 60
 DEFAULT_CYCLE_INTERVAL_SEC = 10
 
 
+def _parse_bool_env(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _parse_utc_iso(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -61,8 +73,11 @@ def evaluate_health_state(
     file_path: Path,
     now: datetime,
     max_age_sec: int,
+    run_once_mode: bool = False,
 ) -> tuple[bool, str]:
     if not file_path.exists():
+        if run_once_mode:
+            return True, f"health-state-run-once-skip:file-missing:{file_path}"
         return False, f"health-state-missing:{file_path}"
 
     try:
@@ -79,6 +94,8 @@ def evaluate_health_state(
         last_recorded_at = datetime.fromtimestamp(mtime, tz=UTC)
 
     age_sec = max(0.0, (now - last_recorded_at).total_seconds())
+    if run_once_mode:
+        return True, f"health-state-run-once-skip:age={int(age_sec)}s"
     if age_sec > max_age_sec:
         return False, f"health-state-stale:age={int(age_sec)}s,max={max_age_sec}s"
     return True, f"health-state-ok:age={int(age_sec)}s,max={max_age_sec}s"
@@ -90,10 +107,12 @@ def main() -> int:
         or DEFAULT_HEALTH_STATE_FILE
     )
     max_age_sec = _resolve_max_age_sec()
+    run_once_mode = _parse_bool_env("RUN_ONCE", default=False)
     ok, reason = evaluate_health_state(
         file_path=health_state_file,
         now=datetime.now(UTC),
         max_age_sec=max_age_sec,
+        run_once_mode=run_once_mode,
     )
     print(reason)
     return 0 if ok else 1

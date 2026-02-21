@@ -64,3 +64,31 @@ def test_evaluate_health_state_fails_when_recent_cycle_is_stale(tmp_path: Path) 
 
     assert ok is False
     assert reason.startswith("health-state-stale")
+
+
+def test_evaluate_health_state_run_once_mode_skips_missing_file(tmp_path: Path) -> None:
+    ok, reason = evaluate_health_state(
+        file_path=tmp_path / "missing.json",
+        now=datetime(2026, 2, 21, tzinfo=UTC),
+        max_age_sec=60,
+        run_once_mode=True,
+    )
+
+    assert ok is True
+    assert reason.startswith("health-state-run-once-skip:file-missing")
+
+
+def test_evaluate_health_state_run_once_mode_skips_stale_threshold(tmp_path: Path) -> None:
+    state_file = tmp_path / "health_state.json"
+    now = datetime(2026, 2, 21, 12, 0, tzinfo=UTC)
+    _write_health_state(state_file, now - timedelta(hours=6))
+
+    ok, reason = evaluate_health_state(
+        file_path=state_file,
+        now=now,
+        max_age_sec=60,
+        run_once_mode=True,
+    )
+
+    assert ok is True
+    assert reason.startswith("health-state-run-once-skip:age=")
