@@ -12,11 +12,15 @@ from app.services.weather_api import WeatherClient
 from app.settings import Settings
 from app.usecases.process_cycle_components import (
     AreaAlertFetcher,
+    AreaAlertFetcherProtocol,
     AreaFetchResult,
     CycleStats,
     CycleStatsRecorder,
+    CycleStatsRecorderProtocol,
     NotificationDispatcher,
+    NotificationDispatcherProtocol,
     NotificationTracker,
+    NotificationTrackerProtocol,
 )
 
 
@@ -29,10 +33,10 @@ class ProcessCycleUseCase:
         state_repo: StateRepository,
         logger: logging.Logger | None = None,
         *,
-        alert_fetcher: AreaAlertFetcher | None = None,
-        notification_tracker: NotificationTracker | None = None,
-        notification_dispatcher: NotificationDispatcher | None = None,
-        stats_recorder: CycleStatsRecorder | None = None,
+        alert_fetcher: AreaAlertFetcherProtocol | None = None,
+        notification_tracker: NotificationTrackerProtocol | None = None,
+        notification_dispatcher: NotificationDispatcherProtocol | None = None,
+        stats_recorder: CycleStatsRecorderProtocol | None = None,
     ) -> None:
         self.settings = settings
         self.weather_client = weather_client
@@ -41,23 +45,31 @@ class ProcessCycleUseCase:
         self.logger = logger or logging.getLogger("weather_alert_bot.processor")
         self._dispatch_start_index = 0
 
-        self.alert_fetcher = alert_fetcher or AreaAlertFetcher(
+        self.alert_fetcher: AreaAlertFetcherProtocol = alert_fetcher or AreaAlertFetcher(
             settings=settings,
             weather_client=weather_client,
             logger=self.logger,
         )
-        self.notification_tracker = notification_tracker or NotificationTracker(
-            settings=settings,
-            state_repo=state_repo,
-            logger=self.logger,
+        self.notification_tracker: NotificationTrackerProtocol = (
+            notification_tracker
+            or NotificationTracker(
+                settings=settings,
+                state_repo=state_repo,
+                logger=self.logger,
+            )
         )
-        self.notification_dispatcher = notification_dispatcher or NotificationDispatcher(
-            settings=settings,
-            notifier=notifier,
-            state_repo=state_repo,
-            logger=self.logger,
+        self.notification_dispatcher: NotificationDispatcherProtocol = (
+            notification_dispatcher
+            or NotificationDispatcher(
+                settings=settings,
+                notifier=notifier,
+                state_repo=state_repo,
+                logger=self.logger,
+            )
         )
-        self.stats_recorder = stats_recorder or CycleStatsRecorder(logger=self.logger)
+        self.stats_recorder: CycleStatsRecorderProtocol = stats_recorder or CycleStatsRecorder(
+            logger=self.logger
+        )
 
     def close(self) -> None:
         self.weather_client.close()

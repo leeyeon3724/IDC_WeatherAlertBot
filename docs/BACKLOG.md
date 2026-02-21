@@ -21,12 +21,6 @@
 
 상태: 진행중
 중요도: 중간
-항목: `ProcessCycle` 컴포넌트 계약(Protocol) 고정
-근거: `app/usecases/process_cycle_components.py` 인터페이스가 암묵적이라 교체/확장 시 회귀 가능성이 있음.
-완료 기준: fetch/track/dispatch/stats 컴포넌트 Protocol을 명시하고 생성자 계약 및 테스트 대역을 표준화함.
-
-상태: 진행중
-중요도: 중간
 항목: 종료 시그널 처리 이벤트 세분화 및 종료 타임아웃 정책 추가
 근거: SIGTERM/SIGINT 처리 경로가 추가되었으나 shutdown 단계별 관측(start/complete/forced)과 시간 예산 정책이 부족함.
 완료 기준: shutdown 단계 이벤트를 추가하고 종료 최대 대기시간 설정을 도입하며 관련 테스트를 보강함.

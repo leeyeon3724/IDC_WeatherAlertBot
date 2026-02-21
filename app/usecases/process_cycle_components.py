@@ -4,6 +4,7 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from app.domain.message_builder import build_notification
 from app.domain.models import AlertEvent
@@ -41,6 +42,45 @@ class AreaFetchResult:
     area_name: str
     alerts: list[AlertEvent] | None
     error: Exception | None = None
+
+
+class AreaAlertFetcherProtocol(Protocol):
+    def fetch_alerts_for_areas(
+        self,
+        *,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, AreaFetchResult]: ...
+
+    def resolve_area_result(
+        self,
+        area_code: str,
+        area_results: dict[str, AreaFetchResult],
+    ) -> AreaFetchResult: ...
+
+
+class CycleStatsRecorderProtocol(Protocol):
+    def record_area_failure(
+        self,
+        *,
+        area_code: str,
+        result: AreaFetchResult,
+        stats: CycleStats,
+    ) -> None: ...
+
+
+class NotificationTrackerProtocol(Protocol):
+    def track_area_notifications(
+        self,
+        *,
+        area_code: str,
+        result: AreaFetchResult,
+        stats: CycleStats,
+    ) -> None: ...
+
+
+class NotificationDispatcherProtocol(Protocol):
+    def dispatch_unsent_for_area(self, *, area_code: str, stats: CycleStats) -> None: ...
 
 
 class AreaAlertFetcher:
