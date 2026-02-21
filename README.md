@@ -31,6 +31,8 @@ make testing-snapshot
 - `docs/SETUP.md`: 설치, 환경변수, 로컬/도커 실행
 - `docs/OPERATION.md`: 런타임 동작, 로그 관측, 장애 대응
 - `docs/EVENTS.md`: 구조화 로그 이벤트/필드 사전
+- `docs/KMA_API_SPEC_REFERENCE.md`: 기상청 특보 OpenAPI 핵심 명세 참조
+- `docs/DOORAY_WEBHOOK_REFERENCE.md`: 두레이 인커밍 웹훅 연동/응답 명세 참조
 - `docs/TESTING.md`: 테스트 전략, 적절성 평가, 보완 항목
 - `docs/BACKLOG.md`: 활성 리팩토링 백로그
 

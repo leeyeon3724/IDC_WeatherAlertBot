@@ -14,6 +14,8 @@ RE_README_DOC_MAP = re.compile(r"^\s*-\s+`docs/([^`]+\.md)`")
 REQUIRED_DOC_FILES = {
     "BACKLOG.md",
     "EVENTS.md",
+    "DOORAY_WEBHOOK_REFERENCE.md",
+    "KMA_API_SPEC_REFERENCE.md",
     "OPERATION.md",
     "SETUP.md",
     "TESTING.md",

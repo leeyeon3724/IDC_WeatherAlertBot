@@ -3,6 +3,7 @@
 이 문서는 설치/설정/실행만 다룹니다.
 운영 정책과 장애 대응은 `docs/OPERATION.md`를 참고하세요.
 테스트 전략/품질 기준은 `docs/TESTING.md`를 참고하세요.
+기상청 API/두레이 웹훅 상세 명세는 `docs/KMA_API_SPEC_REFERENCE.md`, `docs/DOORAY_WEBHOOK_REFERENCE.md`를 참고하세요.
 
 ## 1. 요구사항
 

@@ -29,6 +29,8 @@
 - 전송 실패 항목은 `sent=false`로 유지되어 다음 사이클에서 재시도
 - `DRY_RUN=true`는 전송 없이 로그만 기록
 - 민감정보(`serviceKey`, `apiKey`, `SERVICE_API_KEY`)는 로그에서 마스킹
+- 두레이 웹훅 상세 명세는 `docs/DOORAY_WEBHOOK_REFERENCE.md`를 기준으로 참고
+- 현재 웹훅 성공 판정은 `app/services/notifier.py` 기준 HTTP 상태 코드(2xx) 중심이며, 응답 바디 `header.isSuccessful` 검증은 미적용
 
 ## 3. 일상 점검 체크리스트
 

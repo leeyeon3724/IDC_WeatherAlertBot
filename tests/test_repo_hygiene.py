@@ -47,11 +47,21 @@ def _build_repo_fixture(repo_root: Path) -> None:
         - `docs/SETUP.md`: setup
         - `docs/OPERATION.md`: operation
         - `docs/EVENTS.md`: events
+        - `docs/KMA_API_SPEC_REFERENCE.md`: kma
+        - `docs/DOORAY_WEBHOOK_REFERENCE.md`: dooray
         - `docs/TESTING.md`: testing
         - `docs/BACKLOG.md`: backlog
         """,
     )
-    for file_name in ["SETUP.md", "OPERATION.md", "EVENTS.md", "TESTING.md", "BACKLOG.md"]:
+    for file_name in [
+        "SETUP.md",
+        "OPERATION.md",
+        "EVENTS.md",
+        "KMA_API_SPEC_REFERENCE.md",
+        "DOORAY_WEBHOOK_REFERENCE.md",
+        "TESTING.md",
+        "BACKLOG.md",
+    ]:
         _write(repo_root / "docs" / file_name, "# doc")
 
 
@@ -117,7 +127,11 @@ def test_build_report_detects_hygiene_violations(tmp_path: Path) -> None:
     assert report["missing_in_live_e2e_example"] == ["SERVICE_HOOK_URL"]
     assert report["unknown_in_live_e2e_example"] == ["UNKNOWN_LIVE_E2E_KEY"]
     assert report["invalid_live_e2e_json"] == ["AREA_CODES:invalid_json"]
-    assert report["missing_in_readme_doc_map"] == ["BACKLOG.md"]
+    assert report["missing_in_readme_doc_map"] == [
+        "BACKLOG.md",
+        "DOORAY_WEBHOOK_REFERENCE.md",
+        "KMA_API_SPEC_REFERENCE.md",
+    ]
 
 
 def test_build_report_detects_live_e2e_json_type_mismatch(tmp_path: Path) -> None:
