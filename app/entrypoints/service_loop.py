@@ -15,6 +15,8 @@ from app.observability import events
 from app.services.notifier import NotificationError
 from app.usecases.process_cycle import CycleStats
 
+MIN_EXCEPTION_BACKOFF_SEC = 1
+
 
 def _is_fatal_cycle_exception(exc: Exception) -> bool:
     return isinstance(exc, MemoryError)
@@ -322,8 +324,8 @@ def run_loop(
                     ),
                     exc_info=True,
                 )
-                if runtime.settings.cycle_interval_sec > 0:
-                    sleep_fn(float(runtime.settings.cycle_interval_sec))
+                backoff_sec = max(runtime.settings.cycle_interval_sec, MIN_EXCEPTION_BACKOFF_SEC)
+                sleep_fn(float(backoff_sec))
     except KeyboardInterrupt:
         runtime.logger.info(log_event(events.SHUTDOWN_INTERRUPT))
         return 0

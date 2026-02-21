@@ -325,6 +325,35 @@ def test_run_loop_non_fatal_exception_continues_next_iteration(tmp_path: Path) -
     assert sum(p.get("event") == events.CYCLE_COMPLETE for p in payloads) == 1
 
 
+def test_run_loop_non_fatal_exception_uses_min_backoff_when_interval_zero(tmp_path: Path) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": False, "cycle_interval_sec": 0},
+        suggested_sec=0,
+    )
+
+    class _AlwaysFailingProcessor:
+        def run_once(self, lookback_days_override: int | None = None) -> CycleStats:
+            raise RuntimeError("temporary failure")
+
+    object.__setattr__(runtime, "processor", _AlwaysFailingProcessor())
+    sleep_calls: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+        raise KeyboardInterrupt
+
+    result = service_loop.run_loop(
+        runtime,
+        now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+        now_local_date_fn=lambda tz: "2026-02-21",
+        sleep_fn=_sleep,
+    )
+
+    assert result == 0
+    assert sleep_calls == [1.0]
+
+
 def test_run_loop_exits_on_fatal_cycle_exception(tmp_path: Path) -> None:
     runtime = _runtime(
         tmp_path,

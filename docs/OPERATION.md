@@ -11,6 +11,9 @@
 4. 헬스 평가/알림, 필요 시 복구 backfill
 5. 주기 대기 후 반복
 
+예외 재시도 안전장치:
+- 비치명 반복 예외 발생 시 재시도 대기는 최소 `1초`를 보장 (`CYCLE_INTERVAL_SEC=0`이어도 무지연 루프 방지)
+
 복구 backfill 예산(기본):
 - `HEALTH_RECOVERY_BACKFILL_WINDOW_DAYS=1` (백필 조회 윈도우 일수)
 - `HEALTH_RECOVERY_BACKFILL_MAX_WINDOWS_PER_CYCLE=3` (사이클당 최대 백필 윈도우 수)
