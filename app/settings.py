@@ -289,6 +289,12 @@ def _parse_core_config() -> _CoreConfig:
 
     area_code_mapping_raw = _parse_json_env("AREA_CODE_MAPPING", "{}", dict)
     area_code_mapping = {str(k): str(v) for k, v in area_code_mapping_raw.items()}
+    missing_mappings = sorted(set(area_codes) - set(area_code_mapping.keys()))
+    if missing_mappings:
+        raise SettingsError(
+            f"AREA_CODE_MAPPING is missing entries for: {missing_mappings}. "
+            "All codes in AREA_CODES must have a display name in AREA_CODE_MAPPING."
+        )
     return _CoreConfig(
         service_api_key=service_api_key,
         service_hook_url=service_hook_url,

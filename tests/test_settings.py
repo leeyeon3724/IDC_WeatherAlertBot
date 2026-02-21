@@ -386,6 +386,34 @@ def test_settings_rejects_invalid_notifier_circuit_failure_threshold(
         Settings.from_env(env_file=None)
 
 
+def test_settings_rejects_incomplete_area_code_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AREA_CODES에 코드가 있어도 AREA_CODE_MAPPING에 누락 시 SettingsError가 발생해야 한다."""
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000", "11C00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')  # 11C00000 누락
+
+    with pytest.raises(SettingsError, match="AREA_CODE_MAPPING"):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_rejects_empty_area_code_mapping_when_codes_exist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AREA_CODES가 있는데 AREA_CODE_MAPPING이 빈 dict이면 SettingsError가 발생해야 한다."""
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", "{}")
+
+    with pytest.raises(SettingsError, match="AREA_CODE_MAPPING"):
+        Settings.from_env(env_file=None)
+
+
 def test_settings_rejects_invalid_timezone(monkeypatch: pytest.MonkeyPatch) -> None:
     """잘못된 TIMEZONE 값은 Settings.from_env() 시점에 SettingsError를 발생시켜야 한다."""
     _clear_known_env(monkeypatch)
