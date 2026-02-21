@@ -3,12 +3,12 @@
 이 문서는 **앞으로 진행할 리팩토링 작업만** 관리합니다.
 완료 이력은 커밋 로그로 추적하고, 이 문서에는 남기지 않습니다.
 기준 브랜치: `main`
-마지막 갱신: `2026-02-21`
+마지막 갱신: `2026-02-21` (아키텍처 리뷰 반영)
 
 ## 1) 현재 기준선 (참고)
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
-- 테스트: `181 passed`
+- 테스트: `200 passed`
 - 커버리지: `93.63%` (최저 기준 `80%`)
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
 - 로컬 실자격증명 검증: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`(비추적)
@@ -34,6 +34,15 @@
 | RB-910 | P2 | 완료 | SLO 리포트 강건성 개선 | `docs/TESTING.md` 리스크와 운영 SLO 자동화 기준 대비, 로그 필드 누락 시 판정 신뢰성 저하 | `slo_report`에 필드 누락 원인 분류(로그 포맷/수집 공백/코드 누락) 및 보정 로직 추가 | canary/live-e2e SLO 리포트에서 실패 원인 분류가 명확하고 재현 테스트 제공 |
 | RB-911 | P2 | 완료 | 성능 회귀 게이트 구체화 | 문서상 perf baseline은 추세 지표라 절대 기준 부재, 회귀 탐지 자동화가 약함 | 핵심 지표별 허용 회귀율(예: +20%)을 정의하고 PR 비교 리포트에 fail 조건 추가 | 회귀율 초과 PR 자동 실패 + 허용치/예외 처리 규칙 문서화 |
 | RB-912 | P3 | 완료 | 운영 알람 규칙 테스트화 | 운영 문서 알람 매핑은 정의돼 있으나 규칙 변경 시 회귀를 자동 검증하기 어려움 | 주요 이벤트/임계값 매핑을 스키마화하고 검증 스크립트+테스트 추가 | 알람 규칙 변경 시 문서/코드 불일치 CI 실패 + 샘플 로그 기반 테스트 PASS |
+| RB-913 | P1 | 진행중 | WeatherClient Protocol 추상화 | `ProcessCycleUseCase._fetch_alerts_with_worker_client`가 `isinstance(WeatherAlertClient)` 구체 타입 검사로 Protocol 추상화를 깨뜨림. 모의 클라이언트 주입 시 병렬 경로가 의도치 않게 직렬 경로로 폴백됨 | `WeatherClient` Protocol에 `new_worker_client()` · `close()` 추가, `ProcessCycleUseCase`에서 `isinstance` 제거, 테스트용 `FakeWeatherClient`에 메서드 구현 | `isinstance` 제거 + mypy 통과 + 병렬 경로 회귀 테스트 PASS |
+| RB-914 | P1 | 진행중 | SQLite upsert 원자성 통일 | `upsert_notifications`은 read-then-write 패턴으로 구현되어 있으나 `upsert_stored_notifications`는 `ON CONFLICT DO UPDATE`로 원자적 처리. 두 경로의 일관성이 없어 혼동 유발 | `upsert_notifications`을 `ON CONFLICT(event_id) DO UPDATE SET ... WHERE 필드가 변경된 경우`로 통일 | 단일 SQL 실행 + 기존 행위 동등성 테스트 PASS |
+| RB-915 | P2 | 진행중 | 웹훅 URL 로그 마스킹 누락 | `redact_sensitive_text()`가 `SERVICE_API_KEY`는 마스킹하나 `SERVICE_HOOK_URL`(Dooray 토큰 포함)은 제외. 요청 예외 발생 시 로그에 웹훅 토큰이 노출될 수 있음 | `hook.dooray.com` URL 패턴을 redact 정규식에 추가 + 관련 테스트 추가 | 웹훅 URL이 로그에서 `***` 처리됨 + 테스트 PASS |
+| RB-916 | P2 | 진행중 | mark_sent 이중 커넥션 제거 | `SqliteStateRepository.mark_sent()`가 `mark_many_sent()` 호출(커넥션 1) 후 행 존재 확인(커넥션 2)으로 불필요한 커넥션 오픈/클로즈 반복 | 단일 커넥션 내 UPDATE + SELECT로 통합 | 커넥션 1회만 사용 + 기존 행위 동등성 테스트 PASS |
+| RB-917 | P2 | 진행중 | retry_delay_sec=0 백오프 버그 | `max(backoff_seconds * 2, 1)` 로직으로 `retry_delay_sec=0` 설정 시 첫 재시도 후 지연이 1초로 고정되어 "즉시 재시도" 설정이 무시됨 | `max(backoff_seconds * 2, self.retry_delay_sec)` 방식으로 수정. notifier/weather_api 두 곳 모두 적용 | `retry_delay_sec=0`에서 모든 재시도 지연 0 + 관련 테스트 PASS |
+| RB-918 | P3 | 진행중 | _parse_str_env 헬퍼 추가 | `bot_name`, `timezone`, `log_level` 파싱에서 `os.getenv("K", "d").strip() or "d"` 이중 폴백 패턴이 반복되어 의도가 불명확하고 누락 시 버그 유발 가능 | `_parse_str_env(name, default)` 헬퍼 추출, 문자열 설정 파싱 일관화 | 헬퍼 함수 추가 + 관련 파싱 위임 + 기존 테스트 PASS |
+| RB-919 | P3 | 진행중 | 죽은 코드 _parse_alerts 제거 | `WeatherAlertClient._parse_alerts()`가 어디서도 호출되지 않는 미사용 메서드로 유지보수 혼란 유발 | 메서드 제거 + 관련 참조 확인 | 메서드 제거 + mypy/테스트 PASS |
+| RB-920 | P3 | 진행중 | 테스트 assert 스타일 개선 | `test_notifier.py`에서 `assert False, "NotificationError expected"` 패턴 사용으로 다른 예외 발생 시 오해를 유발하는 실패 메시지 출력 | `pytest.raises()` 컨텍스트 매니저로 교체 | `pytest.raises` 사용 + 테스트 PASS |
+| RB-921 | P3 | 진행중 | 웹훅 페이로드 검증 테스트 추가 | `test_notifier.py`가 호출 횟수만 검증하고 실제 전송 payload(`botName`, `text`, `attachments`)를 검증하지 않아 필드 오기입 회귀를 탐지 못함 | payload 구조 검증 테스트 추가(`botName`, `text`, 첨부 포함/미포함 두 케이스) | 페이로드 내용 검증 테스트 PASS |
 
 ## 3) 운영 관찰 (참고, 완료 게이트 아님)
 
