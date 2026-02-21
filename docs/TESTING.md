@@ -53,10 +53,11 @@ python3 -m scripts.perf_baseline --reports artifacts/perf/local.json --output ar
 - CI에서 경량 성능 리포트 생성/PR base 비교/아티팩트 업로드 자동화 (`scripts/perf_report.py`, `scripts/compare_perf_reports.py`, `.github/workflows/ci.yml`)
 - 이벤트 정의-문서 정합성 자동 점검 추가 (`scripts/check_event_docs_sync.py`, `.github/workflows/ci.yml`)
 - perf 리포트 다건 중앙값 기준선 집계 추가 (`scripts/perf_baseline.py`, `.github/workflows/ci.yml`)
+- 이벤트 변경 시 운영 영향도 체크리스트 PR 템플릿 추가 (`.github/pull_request_template.md`)
 - 장애 감지→heartbeat→복구→backfill 통합 스모크 테스트 추가 (`tests/test_service_loop_integration.py`)
 
 ## 5. 다음 개선 우선순위
 
-1. 이벤트 스키마 변경 시 대시보드/알람 룰 영향도를 PR 단계에서 점검하는 체크리스트 도입
-2. perf 비교 결과를 추세 시각화(간단한 markdown chart)로 축적하는 운영안 정리
-3. 기준선 집계에 사용할 리포트 보존 기간/샘플 개수 정책 정의
+1. perf 비교 결과를 추세 시각화(간단한 markdown chart)로 축적하는 운영안 정리
+2. 기준선 집계에 사용할 리포트 보존 기간/샘플 개수 정책 정의
+3. CI 아티팩트 장기 보관/삭제 정책에 맞춘 운영 가이드 보완
