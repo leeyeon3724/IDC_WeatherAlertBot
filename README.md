@@ -2,14 +2,6 @@
 
 기상청 특보(Open API)를 주기적으로 조회해, 중복을 제거한 신규 특보만 Dooray Incoming Webhook으로 전송하는 봇입니다.
 
-## 핵심 기능
-
-- 이벤트 ID 기반 중복 전송 방지
-- API/Webhook 재시도 + 백오프
-- API 장애 감지/복구/heartbeat 알림
-- 상태 파일 자동 정리(cleanup)
-- `DRY_RUN`, `RUN_ONCE` 운영 모드 지원
-
 ## 빠른 시작
 
 ```bash
@@ -25,7 +17,7 @@ python3 main.py
 DRY_RUN=true RUN_ONCE=true python3 main.py
 ```
 
-## 자주 쓰는 명령어
+## 주요 명령어
 
 ```bash
 make install
@@ -41,19 +33,13 @@ python3 main.py cleanup-state --days 30
 python3 main.py migrate-state --json-state-file ./data/sent_messages.json --sqlite-state-file ./data/sent_messages.db
 ```
 
-## 문서 맵
+## 문서
 
 - `docs/SETUP.md`: 설치, 환경변수, 로컬/도커 실행
 - `docs/OPERATION.md`: 런타임 동작, 로그 관측, 장애 대응
 - `docs/EVENTS.md`: 구조화 로그 이벤트/필드 사전
 - `docs/TESTING.md`: 테스트 전략, 적절성 평가, 보완 항목
 - `docs/BACKLOG.md`: 코드베이스 평가 + 리팩토링 백로그 통합 문서
-
-## 품질 게이트
-
-```bash
-make gate
-```
 
 ## 디렉터리 구조
 

@@ -8,26 +8,26 @@
 
 | 관점 | 점수(5점) | 평가 |
 |---|---:|---|
-| 정확성 | 4.6 | 핵심 알림/중복 방지/헬스 흐름이 안정적이고 Weather API 경계 테스트가 강화됨 |
-| 가독성/복잡성 | 4.4 | 엔트리포인트 분리와 설정 파서 분해로 변경 영향 범위가 감소함 |
-| 테스트 가능성 | 4.7 | 핵심 경로(`service_loop`, `commands`, `weather_api`, 상태 저장소) 회귀 탐지력이 높음 |
-| 안정성 | 4.5 | 실패 이벤트 표준화와 상태 저장소 실패 분기 가드로 운영 복원력이 향상됨 |
-| 보안 | 4.4 | redaction 단위+통합 시나리오 검증으로 민감정보 로그 노출 리스크를 낮춤 |
-| 성능 | 4.9 | baseline `trend` 차트와 `max_samples=20` 보존 정책으로 추세 해석·노이즈 제어 기준을 표준화 |
-| 일관성 | 4.7 | `events.py`-`EVENTS.md`-`OPERATION.md` 정합성 점검 자동화로 문서 누락 리스크 감소 |
-| 기술부채 | 4.8 | 기존 핵심 부채(RB-101~RB-505)가 대부분 해소되고 운영 고도화 단계로 진입 |
-| 배포 신뢰성 (신규) | 4.8 | 런타임 매트릭스 + PR 체크리스트 CI 검증으로 배포 전 누락/괴리 리스크를 추가로 감소 |
-| 운영 비용 효율성 (신규) | 4.3 | `cycle.cost.metrics` 도입으로 사이클당 호출/전송 비용 지표를 이벤트 기반으로 추적 가능 |
-| 감사 가능성/추적성 (신규) | 4.4 | `EVENT_SCHEMA_VERSION` + 문서 Change Log 동기화 검증으로 변경 이력 추적성이 개선됨 |
-| 변경 리드타임 (신규) | 4.2 | 자동 점검은 늘었지만 “한 번에 검증/릴리스 판단” 흐름은 더 단순화 여지 존재 |
-| 아키텍처 규율 (추가) | 4.5 | 계층 의존성 규칙 자동검사로 구조 역참조를 CI에서 즉시 차단 가능 |
-| 릴리스 게이트 단일화 (추가) | 4.5 | `make gate` 도입으로 로컬/CI 품질 검증 진입점이 단순화됨 |
-| 계약 안정성 (추가) | 4.6 | 이벤트/설정/CLI 계약 스냅샷 테스트로 호환성 파손을 조기 탐지 가능 |
-| 코드 수명주기 위생 (추가) | 4.5 | 저장소 위생 점검(`check_repo_hygiene`) 도입으로 문서 경계/환경변수 정합성을 자동 강제 가능 |
+| 정확성 | 4.6 | 핵심 알림/중복방지/헬스 흐름 안정 |
+| 가독성/복잡성 | 4.4 | 엔트리포인트/설정 파서 분리로 변경 영향 축소 |
+| 테스트 가능성 | 4.7 | 핵심 경로 회귀 탐지력 높음 |
+| 안정성 | 4.5 | 실패 이벤트 표준화 + 저장소 실패 가드 보강 |
+| 보안 | 4.4 | redaction 검증으로 로그 민감정보 노출 위험 감소 |
+| 성능 | 4.9 | baseline 추세 차트 + `max_samples=20` 정책 정착 |
+| 일관성 | 4.7 | 이벤트/운영 문서 정합성 자동검사 정착 |
+| 기술부채 | 4.8 | 핵심 부채 정리 후 운영 고도화 단계 |
+| 배포 신뢰성 | 4.8 | 런타임 매트릭스 + PR 체크 검증으로 누락 위험 감소 |
+| 운영 비용 효율성 | 4.3 | `cycle.cost.metrics` 기반 호출/전송량 추적 가능 |
+| 감사 가능성/추적성 | 4.4 | 스키마 버전 + 변경로그 동기화 검증 도입 |
+| 변경 리드타임 | 4.2 | 자동화 기반 확보, 릴리스 판단 단순화 여지 잔존 |
+| 아키텍처 규율 | 4.5 | 계층 의존성 규칙 자동검사로 역참조 차단 |
+| 릴리스 게이트 단일화 | 4.5 | `make gate`로 로컬/CI 진입점 통일 |
+| 계약 안정성 | 4.6 | 이벤트/설정/CLI 계약 스냅샷 회귀 방지 |
+| 코드 수명주기 위생 | 4.5 | 저장소 위생 점검 자동 강제 |
 
 ## 2) Evidence Snapshot
 
-- 품질 게이트: `ruff`, `mypy`, `scripts.check_event_docs_sync`, `pytest --cov` 통과
+- 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_repo_hygiene`, `pytest --cov` 통과
 - 테스트/커버리지: `145 passed`, 총 커버리지 `92.67%`
 - 대표 커버리지: `service_loop 98%`, `commands 94%`, `weather_api 99%`, `settings 90%`
 
@@ -41,18 +41,18 @@
 
 | 구간 | 완료 범위 | 핵심 성과 |
 |---|---|---|
-| Foundation Wave | RB-101~RB-208 | URL 정책 분리, 저장소 안정화, CLI 실패 경로 표준화, 운영 문서 기반 확립 |
-| Reliability Wave | RB-301~RB-407 | 도메인/저장소/루프 테스트 강화, 구조화 이벤트/운영 매핑 정착 |
-| CI & Governance Wave | RB-501~RB-505 | 정책 시나리오 테스트, perf 리포트/기준선, 문서 정합성 검사, PR 체크리스트 도입 |
-| Release Gate Wave | RB-604 | `make gate` 단일 검증 진입점 도입 및 CI 게이트 정렬 |
-| Architecture Guard Wave | RB-701 | 계층 의존성 규칙 자동검사 및 회귀 테스트 도입 |
-| Contract Stability Wave | RB-702 | 이벤트/설정/CLI 계약 스냅샷 테스트 도입 |
-| Runtime Matrix Wave | RB-601 | Python 3.11/3.12 smoke + startup 체크 및 버전별 아티팩트 도입 |
-| Schema Governance Wave | RB-602 | 이벤트 스키마 버전/변경로그 정책 및 동기화 검증 강화 |
-| Cost Observability Wave | RB-603 | 사이클별 API/전송량 비용 지표 이벤트 및 운영 기준 수립 |
-| Hygiene Guard Wave | RB-703 | 저장소 위생 점검 자동화 및 gate 통합으로 문서/설정 중복·잔재 리스크 축소 |
-| Perf Trend Wave | RB-506~RB-507 | baseline trend 시각화 + 최근 20개 샘플 보존 정책 표준화 |
-| PR Governance Wave | RB-605 | PR 체크리스트 자동검증으로 템플릿 체크와 실제 변경 영향 간 괴리 축소 |
+| Foundation Wave | RB-101~RB-208 | URL/저장소/CLI 기반 정리 |
+| Reliability Wave | RB-301~RB-407 | 도메인/저장소/루프 회귀 보호 강화 |
+| CI & Governance Wave | RB-501~RB-505 | CI 품질/문서 정합/PR 템플릿 기반 구축 |
+| Release Gate Wave | RB-604 | `make gate` 단일 게이트 |
+| Architecture Guard Wave | RB-701 | 계층 의존성 자동검사 |
+| Contract Stability Wave | RB-702 | 이벤트/설정/CLI 계약 스냅샷 |
+| Runtime Matrix Wave | RB-601 | Python 3.11/3.12 smoke |
+| Schema Governance Wave | RB-602 | 이벤트 스키마 버전 거버넌스 |
+| Cost Observability Wave | RB-603 | 비용 관점 사이클 지표 |
+| Hygiene Guard Wave | RB-703 | 저장소 위생 자동검사 |
+| Perf Trend Wave | RB-506~RB-507 | 성능 추세 시각화 + 보존 정책 |
+| PR Governance Wave | RB-605 | PR 체크리스트 자동검증 |
 
 ## 5) Maintenance Rules
 

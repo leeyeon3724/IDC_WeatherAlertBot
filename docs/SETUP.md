@@ -38,58 +38,10 @@ cp .env.example .env
 - `AREA_CODES`: 조회 지역코드 목록(JSON 배열)
 - `AREA_CODE_MAPPING`: 지역코드-지역명 매핑(JSON 객체)
 
-예시:
+선택 환경변수는 `.env.example`을 기준으로 관리합니다.
+주의: `WEATHER_ALERT_DATA_API_URL` 기본 엔드포인트는 현재 `http`만 지원합니다.
 
-```bash
-SERVICE_API_KEY=YOUR_SERVICE_KEY
-SERVICE_HOOK_URL=https://hook.dooray.com/services/your/path
-AREA_CODES=["L1012000","L1070100"]
-AREA_CODE_MAPPING={"L1012000":"판교(성남)","L1070100":"대구"}
-```
-
-## 5. 주요 선택 환경변수
-
-### 조회/전송
-
-- `WEATHER_ALERT_DATA_API_URL` (기본: `http://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd`, 해당 API는 현재 `https` 미지원)
-- `WEATHER_API_ALLOWED_HOSTS` (기본: `["apis.data.go.kr"]`)
-- `WEATHER_API_ALLOWED_PATH_PREFIXES` (기본: `["/1360000/WthrWrnInfoService/"]`)
-- `MAX_RETRIES`, `RETRY_DELAY_SEC`
-- `NOTIFIER_MAX_RETRIES`, `NOTIFIER_RETRY_DELAY_SEC`
-- `REQUEST_CONNECT_TIMEOUT_SEC`, `REQUEST_READ_TIMEOUT_SEC`
-- `NOTIFIER_CONNECT_TIMEOUT_SEC`, `NOTIFIER_READ_TIMEOUT_SEC`
-
-### 실행 제어
-
-- `DRY_RUN` (기본: `false`)
-- `RUN_ONCE` (기본: `false`)
-- `CYCLE_INTERVAL_SEC` (기본: `10`)
-- `AREA_MAX_WORKERS` (기본: `1`)
-- `AREA_INTERVAL_SEC` (기본: `5`, 순차 모드에서만 사용)
-- `LOOKBACK_DAYS` (기본: `0`)
-
-### 상태 파일
-
-- `SENT_MESSAGES_FILE` (기본: `./data/sent_messages.json`)
-- `STATE_REPOSITORY_TYPE` (기본: `json`, 값: `json` 또는 `sqlite`)
-- `SQLITE_STATE_FILE` (기본: `./data/sent_messages.db`)
-- `HEALTH_STATE_FILE` (기본: `./data/api_health_state.json`)
-- `CLEANUP_ENABLED` (기본: `true`)
-- `CLEANUP_RETENTION_DAYS` (기본: `30`)
-- `CLEANUP_INCLUDE_UNSENT` (기본: `true`)
-
-### 헬스 알림 정책
-
-- `HEALTH_ALERT_ENABLED` (기본: `true`)
-- `HEALTH_OUTAGE_WINDOW_SEC` / `HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD`
-- `HEALTH_OUTAGE_MIN_FAILED_CYCLES` / `HEALTH_OUTAGE_CONSECUTIVE_FAILURES`
-- `HEALTH_RECOVERY_WINDOW_SEC` / `HEALTH_RECOVERY_MAX_FAIL_RATIO`
-- `HEALTH_RECOVERY_CONSECUTIVE_SUCCESSES`
-- `HEALTH_HEARTBEAT_INTERVAL_SEC`
-- `HEALTH_BACKOFF_MAX_SEC`
-- `HEALTH_RECOVERY_BACKFILL_MAX_DAYS`
-
-## 6. 로컬 실행
+## 5. 로컬 실행
 
 서비스 실행:
 
@@ -118,7 +70,7 @@ python3 main.py migrate-state \
   --sqlite-state-file ./data/sent_messages.db
 ```
 
-## 7. Docker 실행
+## 6. Docker 실행
 
 빌드:
 
