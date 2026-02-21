@@ -41,37 +41,45 @@ class FakeSession:
         return outcome
 
 
-def _settings(tmp_path, *, max_retries: int = 2, retry_delay_sec: int = 0) -> Settings:
-    return Settings(
-        service_api_key="test-key",
-        service_hook_url="https://hook.example",
-        weather_alert_data_api_url="https://api.example/weather",
-        sent_messages_file=tmp_path / "state.json",
-        area_codes=["L1070100"],
-        area_code_mapping={"L1070100": "대구"},
-        request_timeout_sec=1,
-        request_connect_timeout_sec=2,
-        request_read_timeout_sec=3,
-        max_retries=max_retries,
-        retry_delay_sec=retry_delay_sec,
-        notifier_timeout_sec=1,
-        notifier_connect_timeout_sec=1,
-        notifier_read_timeout_sec=1,
-        notifier_max_retries=1,
-        notifier_retry_delay_sec=0,
-        area_max_workers=1,
-        lookback_days=0,
-        cycle_interval_sec=0,
-        area_interval_sec=0,
-        cleanup_enabled=False,
-        cleanup_retention_days=30,
-        cleanup_include_unsent=True,
-        bot_name="테스트봇",
-        timezone="Asia/Seoul",
-        log_level="INFO",
-        dry_run=True,
-        run_once=True,
-    )
+def _settings(
+    tmp_path,
+    *,
+    max_retries: int = 2,
+    retry_delay_sec: int = 0,
+    **overrides: object,
+) -> Settings:
+    base: dict[str, object] = {
+        "service_api_key": "test-key",
+        "service_hook_url": "https://hook.example",
+        "weather_alert_data_api_url": "https://api.example/weather",
+        "sent_messages_file": tmp_path / "state.json",
+        "area_codes": ["L1070100"],
+        "area_code_mapping": {"L1070100": "대구"},
+        "request_timeout_sec": 1,
+        "request_connect_timeout_sec": 2,
+        "request_read_timeout_sec": 3,
+        "max_retries": max_retries,
+        "retry_delay_sec": retry_delay_sec,
+        "notifier_timeout_sec": 1,
+        "notifier_connect_timeout_sec": 1,
+        "notifier_read_timeout_sec": 1,
+        "notifier_max_retries": 1,
+        "notifier_retry_delay_sec": 0,
+        "area_max_workers": 1,
+        "lookback_days": 0,
+        "cycle_interval_sec": 0,
+        "area_interval_sec": 0,
+        "cleanup_enabled": False,
+        "cleanup_retention_days": 30,
+        "cleanup_include_unsent": True,
+        "bot_name": "테스트봇",
+        "timezone": "Asia/Seoul",
+        "log_level": "INFO",
+        "dry_run": True,
+        "run_once": True,
+    }
+    base.update(overrides)
+    return Settings(**base)
 
 
 def _xml_with_item(
@@ -134,6 +142,32 @@ def test_fetch_alerts_success(tmp_path) -> None:
     assert alerts[0].stn_id == "143"
     assert session.calls[0][0] == "https://api.example/weather"
     assert session.calls[0][2] == (2, 3)
+    assert session.calls[0][1]["dataType"] == "XML"
+
+
+def test_fetch_alerts_includes_optional_weather_filter_params(tmp_path) -> None:
+    session = FakeSession([DummyResponse(200, _xml_with_item())])
+    client = WeatherAlertClient(
+        settings=_settings(
+            tmp_path,
+            weather_api_warning_type="6",
+            weather_api_station_id="108",
+        ),
+        session=session,
+        logger=logging.getLogger("test.weather.api.filter_params"),
+    )
+
+    client.fetch_alerts(
+        area_code="L1070100",
+        start_date="20260218",
+        end_date="20260219",
+        area_name="대구",
+    )
+
+    params = session.calls[0][1]
+    assert params["warningType"] == "6"
+    assert params["stnId"] == "108"
+    assert params["dataType"] == "XML"
 
 
 def test_new_worker_client_creates_isolated_session(tmp_path) -> None:

@@ -10,6 +10,8 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SERVICE_API_KEY",
         "SERVICE_HOOK_URL",
         "WEATHER_ALERT_DATA_API_URL",
+        "WEATHER_API_WARNING_TYPE",
+        "WEATHER_API_STATION_ID",
         "WEATHER_API_ALLOWED_HOSTS",
         "WEATHER_API_ALLOWED_PATH_PREFIXES",
         "SENT_MESSAGES_FILE",
@@ -72,6 +74,8 @@ def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.service_hook_url == "https://hook.example"
     assert settings.area_codes == ["11B00000"]
     assert settings.area_code_mapping["11B00000"] == "서울"
+    assert settings.weather_api_warning_type is None
+    assert settings.weather_api_station_id is None
     assert settings.sent_messages_file.as_posix().endswith("data/sent_messages.json")
     assert settings.state_repository_type == "sqlite"
     assert settings.sqlite_state_file.as_posix().endswith("data/sent_messages.db")
@@ -128,6 +132,35 @@ def test_settings_invalid_area_codes_json(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
     monkeypatch.setenv("AREA_CODES", "not-a-json")
     monkeypatch.setenv("AREA_CODE_MAPPING", "{}")
+
+    with pytest.raises(SettingsError):
+        Settings.from_env(env_file=None)
+
+
+def test_settings_accepts_optional_weather_filters(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("WEATHER_API_WARNING_TYPE", "6")
+    monkeypatch.setenv("WEATHER_API_STATION_ID", "108")
+
+    settings = Settings.from_env(env_file=None)
+
+    assert settings.weather_api_warning_type == "6"
+    assert settings.weather_api_station_id == "108"
+
+
+def test_settings_rejects_non_digit_optional_weather_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_known_env(monkeypatch)
+    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
+    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
+    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
+    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    monkeypatch.setenv("WEATHER_API_WARNING_TYPE", "rain")
 
     with pytest.raises(SettingsError):
         Settings.from_env(env_file=None)

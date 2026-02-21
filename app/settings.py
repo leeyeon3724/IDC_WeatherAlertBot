@@ -191,6 +191,8 @@ class _CoreConfig:
     service_api_key: str
     service_hook_url: str
     weather_alert_data_api_url: str
+    weather_api_warning_type: str | None
+    weather_api_station_id: str | None
     area_codes: list[str]
     area_code_mapping: dict[str, str]
 
@@ -282,6 +284,20 @@ def _parse_core_config() -> _CoreConfig:
         allowed_path_prefixes=weather_api_allowed_path_prefixes,
     )
 
+    warning_type = _parse_str_env("WEATHER_API_WARNING_TYPE", "")
+    if warning_type and not warning_type.isdigit():
+        raise SettingsError(
+            "WEATHER_API_WARNING_TYPE must be digits only when provided. "
+            f"Received: {warning_type}"
+        )
+
+    station_id = _parse_str_env("WEATHER_API_STATION_ID", "")
+    if station_id and not station_id.isdigit():
+        raise SettingsError(
+            "WEATHER_API_STATION_ID must be digits only when provided. "
+            f"Received: {station_id}"
+        )
+
     area_codes_raw = _parse_json_env("AREA_CODES", "[]", list)
     area_codes = [str(code).strip() for code in area_codes_raw if str(code).strip()]
     if not area_codes:
@@ -299,6 +315,8 @@ def _parse_core_config() -> _CoreConfig:
         service_api_key=service_api_key,
         service_hook_url=service_hook_url,
         weather_alert_data_api_url=weather_alert_data_api_url,
+        weather_api_warning_type=warning_type or None,
+        weather_api_station_id=station_id or None,
         area_codes=area_codes,
         area_code_mapping=area_code_mapping,
     )
@@ -471,6 +489,8 @@ class Settings:
     sent_messages_file: Path
     area_codes: list[str]
     area_code_mapping: dict[str, str]
+    weather_api_warning_type: str | None = None
+    weather_api_station_id: str | None = None
     state_repository_type: str = "sqlite"
     sqlite_state_file: Path = Path("./data/sent_messages.db")
     request_timeout_sec: int = 5
@@ -529,6 +549,8 @@ class Settings:
             service_api_key=core.service_api_key,
             service_hook_url=core.service_hook_url,
             weather_alert_data_api_url=core.weather_alert_data_api_url,
+            weather_api_warning_type=core.weather_api_warning_type,
+            weather_api_station_id=core.weather_api_station_id,
             sent_messages_file=repositories.sent_messages_file,
             state_repository_type=repositories.state_repository_type,
             sqlite_state_file=repositories.sqlite_state_file,

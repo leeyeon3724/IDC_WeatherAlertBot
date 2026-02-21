@@ -8,8 +8,8 @@
 ## 1) 현재 기준선 (참고)
 
 - 품질 게이트: `ruff`, `mypy`, `check_architecture_rules`, `check_event_docs_sync`, `check_alarm_rules_sync`, `check_repo_hygiene`, `check_env_defaults_sync`, `pytest --cov`
-- 테스트: `265 passed`
-- 커버리지: `94.97%` (최저 기준 `80%`)
+- 테스트: `268 passed`
+- 커버리지: `94.96%` (최저 기준 `80%`)
 - 핵심 검증 경로: `ci.yml`, `pr-fast.yml`, `nightly-full.yml`, `canary.yml`, `soak.yml`, `live-e2e.yml`
 - 로컬 실자격증명 검증: `scripts/run_live_e2e_local.sh` + `.env.live-e2e`(비추적)
 
@@ -20,22 +20,7 @@
 
 ## 2) Active Refactoring Backlog (문서 근거 기반)
 
-### 2-1) API 요청 파라미터 모델링/확장성 개선
-
-```text
-상태: 진행중
-중요도: 중간
-항목: 특보 API 요청 파라미터 빌더 분리 및 필터 확장 포인트 확보
-근거: 요청 파라미터(serviceKey, from/to, areaCode)가 서비스 코드에 인라인되어 있고
-      warningType/stnId/dataType 같은 API 옵션을 기능 확장 시 안전하게 추가하기 어렵다.
-      (app/services/weather_api.py)
-완료 기준:
-- API 요청 파라미터를 전용 빌더/모델로 분리
-- warningType/stnId 같은 선택 필터를 설정 기반으로 확장 가능한 구조로 정리
-- 파라미터 스냅샷/회귀 테스트를 추가해 스키마 드리프트를 조기 탐지
-```
-
-### 2-2) 신규 지역 추가 경로 단순화(지역명 매핑 의존 완화)
+### 2-1) 신규 지역 추가 경로 단순화(지역명 매핑 의존 완화)
 
 ```text
 상태: 진행중
@@ -50,7 +35,7 @@
 - 신규 지역 추가/매핑 누락 시나리오 테스트 추가
 ```
 
-### 2-3) 테스트-실운영 설정 정합성 보강
+### 2-2) 테스트-실운영 설정 정합성 보강
 
 ```text
 상태: 진행중

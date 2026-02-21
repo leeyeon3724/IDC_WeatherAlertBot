@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Final, Protocol
 
@@ -71,6 +72,43 @@ API_ERROR_UNKNOWN: Final[str] = "unknown_error"
 DEFAULT_PAGE_SIZE: Final[int] = 100
 
 
+@dataclass(frozen=True)
+class WeatherApiQueryOptions:
+    data_type: str = "XML"
+    warning_type: str | None = None
+    station_id: str | None = None
+
+
+class WeatherApiRequestParamsBuilder:
+    def __init__(self, options: WeatherApiQueryOptions | None = None) -> None:
+        self.options = options or WeatherApiQueryOptions()
+
+    def build(
+        self,
+        *,
+        service_api_key: str,
+        page_size: int,
+        page_no: int,
+        start_date: str,
+        end_date: str,
+        area_code: str,
+    ) -> dict[str, str | int]:
+        params: dict[str, str | int] = {
+            "serviceKey": service_api_key,
+            "numOfRows": page_size,
+            "pageNo": page_no,
+            "dataType": self.options.data_type,
+            "fromTmFc": start_date,
+            "toTmFc": end_date,
+            "areaCode": area_code,
+        }
+        if self.options.warning_type:
+            params["warningType"] = self.options.warning_type
+        if self.options.station_id:
+            params["stnId"] = self.options.station_id
+        return params
+
+
 class WeatherAlertClient:
     def __init__(
         self,
@@ -81,6 +119,12 @@ class WeatherAlertClient:
         self.settings = settings
         self.session = session or requests.Session()
         self.logger = logger or logging.getLogger("weather_alert_bot.weather_api")
+        self._request_params_builder = WeatherApiRequestParamsBuilder(
+            WeatherApiQueryOptions(
+                warning_type=settings.weather_api_warning_type,
+                station_id=settings.weather_api_station_id,
+            )
+        )
 
     def fetch_alerts(
         self,
@@ -165,14 +209,14 @@ class WeatherAlertClient:
         page_no: int,
         page_size: int,
     ) -> ET.Element:
-        params: dict[str, str | int] = {
-            "serviceKey": self.settings.service_api_key,
-            "numOfRows": page_size,
-            "pageNo": page_no,
-            "fromTmFc": start_date,
-            "toTmFc": end_date,
-            "areaCode": area_code,
-        }
+        params = self._request_params_builder.build(
+            service_api_key=self.settings.service_api_key,
+            page_size=page_size,
+            page_no=page_no,
+            start_date=start_date,
+            end_date=end_date,
+            area_code=area_code,
+        )
 
         backoff_seconds = self.settings.retry_delay_sec
         last_error: WeatherApiError | None = None

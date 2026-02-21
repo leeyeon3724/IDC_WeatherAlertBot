@@ -48,6 +48,22 @@
     "default": null
   },
   {
+    "name": "weather_api_warning_type",
+    "annotation": "str | None",
+    "required": false,
+    "has_default": true,
+    "has_default_factory": false,
+    "default": null
+  },
+  {
+    "name": "weather_api_station_id",
+    "annotation": "str | None",
+    "required": false,
+    "has_default": true,
+    "has_default_factory": false,
+    "default": null
+  },
+  {
     "name": "state_repository_type",
     "annotation": "str",
     "required": false,
