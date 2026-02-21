@@ -11,6 +11,8 @@ from scripts.event_payload_contract import build_event_payload_contract
 
 RE_TIMESTAMP = re.compile(r"^\[(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
 RE_EVENT_TOKEN = re.compile(r"`([^`]+)`")
+ALARM_MARKER_START = "<!-- ALARM_RULES_TABLE:START -->"
+ALARM_MARKER_END = "<!-- ALARM_RULES_TABLE:END -->"
 
 
 def _normalize_text(value: str) -> str:
@@ -315,6 +317,42 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _render_alarm_table(schema_rules: list[dict[str, Any]]) -> str:
+    lines = [
+        "| 신호(Event) | 기본 임계값(예시) | 확인 필드 | 1차 대응 | 후속 조치 |",
+        "|---|---|---|---|---|",
+    ]
+    for rule in schema_rules:
+        event = rule["event"]
+        variant = rule.get("variant")
+        signal = f"`{event}` (`{variant}`)" if variant else f"`{event}`"
+        threshold = rule.get("threshold_display", "")
+        fields_cell = ", ".join(f"`{f}`" for f in rule.get("fields", []))
+        response = rule.get("response", "")
+        followup = rule.get("followup", "")
+        lines.append(f"| {signal} | {threshold} | {fields_cell} | {response} | {followup} |")
+    return "\n".join(lines)
+
+
+def upsert_alarm_table(*, doc_text: str, schema_path: Path) -> str:
+    raw_rules = _parse_schema_rules(schema_path)
+    payload = json.loads(schema_path.read_text(encoding="utf-8"))
+    rules_raw = payload.get("rules", []) if isinstance(payload, dict) else payload
+    for norm, raw in zip(raw_rules, rules_raw):
+        norm["response"] = raw.get("response", "")
+        norm["followup"] = raw.get("followup", "")
+
+    table = _render_alarm_table(raw_rules)
+    pattern = re.compile(
+        rf"{re.escape(ALARM_MARKER_START)}\n.*?\n{re.escape(ALARM_MARKER_END)}",
+        flags=re.DOTALL,
+    )
+    replacement = f"{ALARM_MARKER_START}\n{table}\n{ALARM_MARKER_END}"
+    if pattern.search(doc_text):
+        return pattern.sub(replacement, doc_text, count=1)
+    return doc_text
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate alarm rules schema/docs/code sync.")
     parser.add_argument(
@@ -348,7 +386,21 @@ def main() -> int:
         default=None,
         help="Optional markdown output path.",
     )
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Regenerate the alarm mapping table in the operation doc from schema.",
+    )
     args = parser.parse_args()
+
+    if args.write:
+        doc_text = args.operation_doc.read_text(encoding="utf-8")
+        updated = upsert_alarm_table(doc_text=doc_text, schema_path=args.schema)
+        if updated != doc_text:
+            args.operation_doc.write_text(updated, encoding="utf-8")
+            print(f"updated: {args.operation_doc}")
+        else:
+            print("alarm table is in sync")
 
     report = build_report(
         schema_path=args.schema,

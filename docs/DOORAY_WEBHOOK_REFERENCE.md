@@ -84,34 +84,6 @@ HTTP 200만으로 성공 처리하지 말고 `header.isSuccessful`를 반드시 
 6. 4xx는 재시도하지 않고 설정/요청 수정
 7. 5xx/타임아웃은 지수 백오프 재시도
 
-샘플(PHP/cURL):
-
-```php
-$payload = ['botName' => '서버 모니터링', 'text' => '상태 알림'];
-$data = json_encode($payload);
-
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, '두레이_웹훅_URL');
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-if ($httpCode === 200) {
-    $json = json_decode($response, true);
-    if (!empty($json['header']['isSuccessful'])) {
-        echo "성공";
-    } else {
-        error_log("실패: " . ($json['header']['resultMessage'] ?? 'unknown'));
-    }
-} else {
-    error_log("HTTP 오류: $httpCode");
-}
-```
-
 ## 4) 재시도 및 모니터링 전략
 
 | 시나리오 | 권장 동작 |

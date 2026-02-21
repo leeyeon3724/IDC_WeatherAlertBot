@@ -4,7 +4,6 @@ import argparse
 import difflib
 import json
 import os
-import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import fields
@@ -132,10 +131,6 @@ LIVE_E2E_OVERRIDES = {
     "SQLITE_STATE_FILE": "./artifacts/live-e2e/local/sent_messages.live-e2e.db",
 }
 
-SETUP_MARKER_START = "<!-- SETTINGS_DEFAULTS_TABLE:START -->"
-SETUP_MARKER_END = "<!-- SETTINGS_DEFAULTS_TABLE:END -->"
-SETUP_INSERT_BEFORE = "## 5. 로컬 실행"
-SETUP_SECTION_HEADING = "### 4.2 선택 환경변수 기본값(자동 생성)"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -277,46 +272,6 @@ def render_live_e2e_example(defaults: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _render_setup_defaults_section(defaults: dict[str, str]) -> str:
-    lines = [
-        SETUP_SECTION_HEADING,
-        "",
-        "- 생성 기준: `python3 -m scripts.sync_settings_artifacts --write`",
-        "",
-        SETUP_MARKER_START,
-        "| Key | Default (`.env.example`) |",
-        "|---|---|",
-    ]
-    for key in ENV_EXAMPLE_OPTIONAL_KEYS:
-        raw_value = defaults[key]
-        rendered_value = raw_value if raw_value else "(empty)"
-        lines.append(f"| `{key}` | `{rendered_value}` |")
-    lines.append(SETUP_MARKER_END)
-    lines.append("")
-    return "\n".join(lines)
-
-
-def upsert_setup_defaults_section(*, setup_text: str, defaults: dict[str, str]) -> str:
-    section = _render_setup_defaults_section(defaults)
-    pattern_with_heading = re.compile(
-        rf"{re.escape(SETUP_SECTION_HEADING)}.*?{re.escape(SETUP_MARKER_END)}\n*",
-        flags=re.DOTALL,
-    )
-    if pattern_with_heading.search(setup_text):
-        return pattern_with_heading.sub(section + "\n\n", setup_text, count=1)
-
-    pattern_markers_only = re.compile(
-        rf"{re.escape(SETUP_MARKER_START)}.*?{re.escape(SETUP_MARKER_END)}\n*",
-        flags=re.DOTALL,
-    )
-    if pattern_markers_only.search(setup_text):
-        return pattern_markers_only.sub(section + "\n\n", setup_text, count=1)
-
-    insert_at = setup_text.find(SETUP_INSERT_BEFORE)
-    if insert_at < 0:
-        return setup_text.rstrip() + "\n\n" + section + "\n"
-    return setup_text[:insert_at].rstrip() + "\n\n" + section + "\n\n" + setup_text[insert_at:]
-
 
 def _render_diff(*, path: Path, expected: str, current: str) -> str:
     return "\n".join(
@@ -336,10 +291,6 @@ def sync_settings_artifacts(*, repo_root: Path, write: bool) -> int:
         repo_root / ".env.example": render_env_example(defaults),
         repo_root / ".env.live-e2e.example": render_live_e2e_example(defaults),
     }
-
-    setup_path = repo_root / "docs" / "SETUP.md"
-    setup_current = setup_path.read_text(encoding="utf-8")
-    targets[setup_path] = upsert_setup_defaults_section(setup_text=setup_current, defaults=defaults)
 
     mismatches: list[tuple[Path, str, str]] = []
     for path, expected in targets.items():
@@ -364,7 +315,7 @@ def sync_settings_artifacts(*, repo_root: Path, write: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Sync settings-driven env/doc artifacts (.env*.example, docs/SETUP.md)."
+        description="Sync settings-driven env artifacts (.env*.example)."
     )
     parser.add_argument("--repo-root", type=Path, default=Path("."), help="Repository root path.")
     parser.add_argument(
