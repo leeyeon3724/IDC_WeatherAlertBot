@@ -20,14 +20,6 @@
 ```text
 상태: 진행중
 중요도: 중간
-항목: datetime 주입 일관성 확보
-근거: datetime.now() 직접 호출 다수 → 테스트 시 시간 제어 불가(service_loop, health_monitor 등)
-완료 기준: clock 함수(Callable[[], datetime])를 DI로 주입, 시간 의존 테스트에서 고정 시각 사용
-```
-
-```text
-상태: 진행중
-중요도: 중간
 항목: area_name 매핑 캐시 바운드 설정
 근거: weather_api.py의 _area_name_warning_cache가 무제한 → 장기 운영 시 메모리 누적
 완료 기준: LRU 또는 고정 크기 캐시로 전환, 캐시 히트율 로그 추가

@@ -52,6 +52,7 @@ def _run_loop(runtime: ServiceRuntime) -> int:
         runtime,
         now_utc_fn=lambda: datetime.now(UTC),
         now_local_date_fn=lambda timezone: datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d"),
+        now_local_today_fn=lambda timezone: datetime.now(ZoneInfo(timezone)).date(),
         sleep_fn=time.sleep,
     )
 

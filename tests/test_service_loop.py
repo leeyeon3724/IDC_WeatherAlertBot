@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import signal
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -227,7 +226,6 @@ def test_maybe_run_recovery_backfill_branches(tmp_path: Path) -> None:
 
 def test_maybe_run_recovery_backfill_splits_windows_with_budget(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recovered = ApiHealthDecision(
         incident_open=False,
@@ -265,16 +263,11 @@ def test_maybe_run_recovery_backfill_splits_windows_with_budget(
     processor = _RangeProcessor(runtime.processor.stats)
     object.__setattr__(runtime, "processor", processor)
 
-    class _FixedDateTime:
-        @classmethod
-        def now(cls, tz: ZoneInfo | None = None) -> datetime:
-            fixed = datetime(2026, 2, 21, 10, 0, tzinfo=UTC)
-            if tz is None:
-                return fixed
-            return fixed.astimezone(tz)
-
-    monkeypatch.setattr(backfill, "datetime", _FixedDateTime)
-    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
+    backfill.maybe_run_recovery_backfill(
+        runtime=runtime,
+        health_decision=recovered,
+        now_local_date_fn=lambda timezone: date(2026, 2, 21),
+    )
 
     assert processor.range_calls == [("20260216", "20260218"), ("20260218", "20260220")]
     payloads = [json.loads(message) for message in handler.messages]
@@ -289,7 +282,6 @@ def test_maybe_run_recovery_backfill_splits_windows_with_budget(
 
 def test_maybe_run_recovery_backfill_resumes_pending_window_next_calls(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recovered = ApiHealthDecision(
         incident_open=False,
@@ -328,25 +320,30 @@ def test_maybe_run_recovery_backfill_resumes_pending_window_next_calls(
     processor = _RangeProcessor(runtime.processor.stats)
     object.__setattr__(runtime, "processor", processor)
 
-    class _FixedDateTime:
-        @classmethod
-        def now(cls, tz: ZoneInfo | None = None) -> datetime:
-            fixed = datetime(2026, 2, 21, 10, 0, tzinfo=UTC)
-            if tz is None:
-                return fixed
-            return fixed.astimezone(tz)
+    def now_local_date(timezone: str) -> date:
+        return date(2026, 2, 21)
 
-    monkeypatch.setattr(backfill, "datetime", _FixedDateTime)
-
-    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=recovered)
+    backfill.maybe_run_recovery_backfill(
+        runtime=runtime,
+        health_decision=recovered,
+        now_local_date_fn=now_local_date,
+    )
     assert processor.range_calls == [("20260216", "20260218")]
     assert runtime.health_monitor.get_recovery_backfill_window() == ("20260218", "20260221")
 
-    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
+    backfill.maybe_run_recovery_backfill(
+        runtime=runtime,
+        health_decision=stable,
+        now_local_date_fn=now_local_date,
+    )
     assert processor.range_calls == [("20260216", "20260218"), ("20260218", "20260220")]
     assert runtime.health_monitor.get_recovery_backfill_window() == ("20260220", "20260221")
 
-    backfill.maybe_run_recovery_backfill(runtime=runtime, health_decision=stable)
+    backfill.maybe_run_recovery_backfill(
+        runtime=runtime,
+        health_decision=stable,
+        now_local_date_fn=now_local_date,
+    )
     assert processor.range_calls == [
         ("20260216", "20260218"),
         ("20260218", "20260220"),

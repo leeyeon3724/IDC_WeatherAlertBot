@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -14,9 +15,13 @@ def maybe_run_recovery_backfill(
     *,
     runtime: ServiceRuntime,
     health_decision: ApiHealthDecision,
+    now_local_date_fn: Callable[[str], date] | None = None,
 ) -> None:
     settings = runtime.settings
-    today = datetime.now(ZoneInfo(settings.timezone)).date()
+    local_date = now_local_date_fn or (
+        lambda timezone: datetime.now(ZoneInfo(timezone)).date()
+    )
+    today = local_date(settings.timezone)
     pending_window = _get_persisted_backfill_window(runtime=runtime)
     if health_decision.event == "recovered":
         planned_window = _build_recovery_backfill_window(

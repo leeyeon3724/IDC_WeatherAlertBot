@@ -4,7 +4,7 @@ import signal
 import time
 from collections.abc import Callable
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -281,12 +281,14 @@ def run_loop(
     *,
     now_utc_fn: Callable[[], datetime] | None = None,
     now_local_date_fn: Callable[[str], str] | None = None,
+    now_local_today_fn: Callable[[str], date] | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> int:
     utc_now = now_utc_fn or (lambda: datetime.now(UTC))
     local_date = now_local_date_fn or (
         lambda timezone: datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d")
     )
+    local_today = now_local_today_fn or (lambda timezone: datetime.now(ZoneInfo(timezone)).date())
     shutdown_state: dict[str, Any] = {
         "requested": False,
         "reason": None,
@@ -313,7 +315,11 @@ def run_loop(
                 stats = runtime.processor.run_once()
                 health_decision = evaluate_health(runtime=runtime, stats=stats, now=utc_now())
                 maybe_send_health_notification(runtime=runtime, health_decision=health_decision)
-                maybe_run_recovery_backfill(runtime=runtime, health_decision=health_decision)
+                maybe_run_recovery_backfill(
+                    runtime=runtime,
+                    health_decision=health_decision,
+                    now_local_date_fn=local_today,
+                )
 
                 runtime.logger.info(log_event(events.CYCLE_COMPLETE, **asdict(stats)))
                 runtime.logger.info(
