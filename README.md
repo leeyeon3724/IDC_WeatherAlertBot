@@ -1,50 +1,49 @@
 # NHN IDC Weather Alert Bot
 
-기상청 특보(Open API)를 주기적으로 조회해, 중복을 제거한 신규 특보만 Dooray Incoming Webhook으로 전송하는 봇입니다.
+기상청 특보 API를 주기적으로 조회하고, 규칙 기반으로 Dooray Webhook 알림을 보내는 서비스입니다.
 
-## 빠른 시작
+## 1) 핵심 기능
+- 지역(`AREA_CODES`)별 특보 조회
+- `config/alert_rules.v1.json` 기반 알림 필터링
+- 중복 발송 방지(JSON/SQLite 상태 저장소)
+- 헬스 상태 감지(장애/복구 이벤트)
+- `DRY_RUN`, `RUN_ONCE` 운영 모드 지원
 
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-# .env 값 수정
-python3 main.py
-```
-
-- `SERVICE_API_KEY`는 URL-encoded 값이 아닌 원문(raw/decoded) 값을 사용해야 합니다.
-- 기본 API 호출 보호는 `API_SOFT_RATE_LIMIT_PER_SEC=30`입니다(`0`이면 비활성).
-- 기본 웹훅 전송 보호는 `NOTIFIER_SEND_RATE_LIMIT_PER_SEC=1.0`입니다(`0`이면 비활성).
-
-1회 점검 실행:
-
-```bash
-DRY_RUN=true RUN_ONCE=true python3 main.py
-```
-
-## 주요 명령어
-
+## 2) 빠른 시작
+1. 의존성 설치
 ```bash
 make install-dev
-make gate
-make live-e2e-local
-make testing-snapshot
+```
+2. 환경 파일 준비
+```bash
+cp .env.example .env
+```
+3. 필수 환경값 설정
+- `SERVICE_API_KEY` (원본 키 그대로, 사전 URL 인코딩 금지)
+- `SERVICE_HOOK_URL`
+- `AREA_CODES`
+- `AREA_CODE_MAPPING`
+4. 실행
+```bash
+make run
 ```
 
-## 문서
+## 3) 자주 쓰는 명령
+- 실행: `make run`
+- 1회/드라이런: `make dry-run`
+- 테스트: `make test`
+- 커버리지: `make test-cov`
+- 린트/타입체크: `make lint`, `make typecheck`
+- 통합 품질 게이트: `make gate`
 
-- `docs/SETUP.md`: 설치, 환경변수, 로컬/도커 실행
-- `docs/OPERATION.md`: 런타임 동작, 로그 관측, 장애 대응
-- `docs/EVENTS.md`: 구조화 로그 이벤트/필드 사전
-- `docs/KMA_API_SPEC_REFERENCE.md`: 기상청 특보 OpenAPI 핵심 명세 참조
-- `docs/DOORAY_WEBHOOK_REFERENCE.md`: 두레이 인커밍 웹훅 연동/응답 명세 참조
-- `docs/TESTING.md`: 테스트 전략, 적절성 평가, 보완 항목
-- `docs/BACKLOG.md`: 활성 리팩토링 백로그
+## 4) 문서 맵
+- 설치/초기 설정: `docs/SETUP.md`
+- 운영 절차: `docs/OPERATION.md`
+- 이벤트 계약: `docs/EVENTS.md`
+- 테스트 정책: `docs/TESTING.md`
+- 작업 계획: `docs/BACKLOG.md`
 
-## 디렉터리 구조
-
-- `app/entrypoints/`: CLI 진입점
-- `app/usecases/`: 사이클/헬스 오케스트레이션
-- `app/services/`: 외부 API/Webhook 연동
-- `app/repositories/`: 상태 저장소(JSON/SQLite)
-- `app/domain/`: 도메인 모델/메시지 생성
-- `tests/`: 단위 테스트
+## 5) 문서 유지 원칙
+- 동일 내용을 여러 문서에 중복 작성하지 않습니다.
+- 운영 계약은 `docs/OPERATION.md`, `docs/EVENTS.md`를 단일 기준으로 유지합니다.
+- 완료된 작업 내역은 백로그가 아니라 Git 히스토리(PR/커밋)로 추적합니다.
