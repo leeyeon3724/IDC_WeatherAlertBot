@@ -12,8 +12,8 @@ make live-e2e-local    # 실자격증명 1회 검증(ENABLE_LIVE_E2E=true 필요
 
 ## 2) 현재 스냅샷
 
-- 테스트 수: `335`
-- 전체 커버리지: `92.89%`
+- 테스트 수: `340`
+- 전체 커버리지: `92.72%`
 - 최소 커버리지 기준: `80%`
 
 ## 3) 현재 기준
@@ -44,3 +44,20 @@ make live-e2e-local    # 실자격증명 1회 검증(ENABLE_LIVE_E2E=true 필요
 
 - 현재 활성 테스트 백로그 없음
 - 신규 리스크는 `docs/BACKLOG.md`에 등록 후 진행
+
+## 6) 테스트 그룹 분류(6개)
+
+| 그룹 | 대상 파일(패턴) | 충분성 | 실질적 유효성 | 적절성 | 평가 |
+|---|---|---|---|---|---|
+| G1 런타임/오케스트레이션 | `test_main*.py`, `test_commands.py`, `test_runtime_builder.py`, `test_service_loop*.py`, `test_process_cycle*.py` | 상 | 상 | 중 | 핵심 실행 흐름과 장애 분기 검증은 충분. 다만 비예상 예외의 관측 계약 검증이 약함 |
+| G2 도메인/규칙 | `test_alert_rules.py`, `test_domain.py`, `test_health_*.py`, `test_code_maps_deprecation.py` | 상 | 상 | 상 | 규칙 파싱/메시지/헬스 판단 기준이 명확히 검증됨 |
+| G3 상태저장소/마이그레이션 | `test_json_state_repo.py`, `test_sqlite_state_repo.py`, `test_state_*.py`, `test_health_state_repo.py` | 상 | 상 | 중 | CRUD·정리·마이그레이션은 충분. 중복/공통 시나리오 표현 개선 여지 존재 |
+| G4 외부연동/API | `test_weather_api.py`, `test_notifier.py`, `test_container_healthcheck.py`, `test_dockerfile_hardening.py` | 중 | 상 | 중 | 재시도/에러코드 중심 검증은 강함. 필수 XML 태그 누락 케이스는 매트릭스화 필요 |
+| G5 거버넌스/계약/동기화 | `test_*_sync.py`, `test_architecture_rules.py`, `test_repo_hygiene.py`, `test_pr_checklist.py`, `test_contract_snapshots.py`, `test_select_tests.py`, `test_update_testing_snapshot.py` | 상 | 상 | 상 | 운영 규약·계약 회귀를 안정적으로 방어 |
+| G6 운영/성능 리포트 | `test_perf_baseline.py`, `test_compare_perf_reports.py`, `test_slo_report.py`, `test_soak_report.py`, `test_canary_report.py` | 중 | 중 | 중 | 합성 시나리오 중심으로 실용적이나 경계값/가독성 리팩토링 여지 존재 |
+
+## 7) 그룹 평가 기반 개선 항목
+
+- G1: `service_loop`의 미예상 예외 경로에서 `shutdown.unexpected_error` 이벤트 계약을 명시 검증
+- G4: `weather_api` 필수 XML 태그 누락 케이스를 파라미터 매트릭스로 보강
+- G1/G3: `settings` 테스트의 필수 환경변수 준비 로직 중복 제거(공용 helper/fixture)

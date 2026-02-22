@@ -17,7 +17,31 @@
 
 ### 중간
 
+```text
+상태: 진행중
+중요도: 중간
+항목: service_loop 미예상 예외 관측 계약 테스트 강화
+근거: 예외 전파 정책 변경 시 shutdown.unexpected_error 이벤트 누락이 재발 가능
+완료 기준: 미예상 예외(TypeError 등) 발생 시 이벤트 로깅 + 예외 재전파를 테스트로 고정
+```
+
+```text
+상태: 진행중
+중요도: 중간
+항목: weather_api 필수 XML 태그 누락 테스트 매트릭스화
+근거: 단일 태그 누락 중심 테스트로는 경계조건 회귀 탐지 한계
+완료 기준: warnVar/warnStress/command/cancel/stnId/tmFc/tmSeq/resultCode 누락 케이스 파라미터화
+```
+
 ### 낮음
+
+```text
+상태: 진행중
+중요도: 낮음
+항목: settings 테스트 필수 환경값 셋업 중복 제거
+근거: test_settings.py 전반에 동일 monkeypatch 코드 반복으로 유지보수 비용 증가
+완료 기준: 공통 helper/fixture 도입, 기존 테스트 동작/가독성 유지
+```
 
 ## 3) 운영 규칙
 
