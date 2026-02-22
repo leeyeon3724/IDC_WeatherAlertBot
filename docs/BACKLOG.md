@@ -17,14 +17,6 @@
 
 ### 중간
 
-```text
-상태: 진행중
-중요도: 중간
-항목: alert_rules 스키마 버전 확장성 개선
-근거: alert_rules.py에서 v1/v2 각각 별도 함수(_parse_code_maps_v1/v2)로 분기 → 버전 추가 시 확장 곤란
-완료 기준: strategy 또는 registry 패턴으로 전환, v3 추가 시 함수 1개만 등록하면 되는 구조
-```
-
 ### 낮음
 
 ```text

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from string import Formatter
 from typing import Any
 
 ALERT_RULES_SCHEMA_VERSION = 1
-ALERT_RULES_SUPPORTED_SCHEMA_VERSIONS = (1, 2)
 ALLOWED_UNMAPPED_CODE_POLICIES = {"fallback", "fail"}
 DEFAULT_ALERT_RULES_FILE = Path(__file__).resolve().parents[2] / "config" / "alert_rules.v1.json"
 
@@ -40,6 +40,20 @@ class AlertRules:
     code_maps: AlertCodeMaps
     message_rules: AlertMessageRules
     unmapped_code_policy: str = "fallback"
+
+
+AlertRulesLoader = Callable[[dict[str, Any]], AlertRules]
+ALERT_RULES_LOADER_REGISTRY: dict[int, AlertRulesLoader] = {}
+
+
+def register_alert_rules_loader(
+    schema_version: int,
+) -> Callable[[AlertRulesLoader], AlertRulesLoader]:
+    def _decorator(loader: AlertRulesLoader) -> AlertRulesLoader:
+        ALERT_RULES_LOADER_REGISTRY[schema_version] = loader
+        return loader
+
+    return _decorator
 
 
 def _clone_mapping(mapping: dict[str, str]) -> dict[str, str]:
@@ -299,10 +313,15 @@ def _parse_unmapped_code_policy(value: str) -> str:
     return normalized
 
 
+def _supported_schema_versions() -> tuple[int, ...]:
+    return tuple(sorted(ALERT_RULES_LOADER_REGISTRY))
+
+
 def _supported_schema_versions_text() -> str:
-    return ", ".join(str(version) for version in ALERT_RULES_SUPPORTED_SCHEMA_VERSIONS)
+    return ", ".join(str(version) for version in _supported_schema_versions())
 
 
+@register_alert_rules_loader(1)
 def _load_v1_alert_rules(raw: dict[str, Any]) -> AlertRules:
     code_maps_raw = _expect_dict(raw, "code_maps")
     message_rules_raw = _expect_dict(raw, "message_rules")
@@ -315,6 +334,7 @@ def _load_v1_alert_rules(raw: dict[str, Any]) -> AlertRules:
     )
 
 
+@register_alert_rules_loader(2)
 def _load_v2_alert_rules(raw: dict[str, Any]) -> AlertRules:
     behavior_raw = _expect_dict(raw, "behavior")
     mappings_raw = _expect_dict(raw, "mappings")
@@ -346,12 +366,11 @@ def load_alert_rules(file_path: Path) -> AlertRules:
     schema_version = raw.get("schema_version")
     if not isinstance(schema_version, int):
         raise AlertRulesError("schema_version must be an integer.")
-    if schema_version not in ALERT_RULES_SUPPORTED_SCHEMA_VERSIONS:
+    loader = ALERT_RULES_LOADER_REGISTRY.get(schema_version)
+    if loader is None:
         raise AlertRulesError(
             "unsupported schema_version: "
             f"{schema_version} (supported: {_supported_schema_versions_text()})"
         )
 
-    if schema_version == 1:
-        return _load_v1_alert_rules(raw)
-    return _load_v2_alert_rules(raw)
+    return loader(raw)
