@@ -11,9 +11,9 @@ cp .env.example .env
 python3 main.py
 ```
 
-`SERVICE_API_KEY`는 URL-encoded 값이 아닌 원문(raw/decoded) 값을 사용해야 합니다.
-기본 API 호출 보호는 `API_SOFT_RATE_LIMIT_PER_SEC=30`입니다(`0`이면 비활성).
-기본 웹훅 전송 보호는 `NOTIFIER_SEND_RATE_LIMIT_PER_SEC=1.0`입니다(`0`이면 비활성).
+- `SERVICE_API_KEY`는 URL-encoded 값이 아닌 원문(raw/decoded) 값을 사용해야 합니다.
+- 기본 API 호출 보호는 `API_SOFT_RATE_LIMIT_PER_SEC=30`입니다(`0`이면 비활성).
+- 기본 웹훅 전송 보호는 `NOTIFIER_SEND_RATE_LIMIT_PER_SEC=1.0`입니다(`0`이면 비활성).
 
 1회 점검 실행:
 
