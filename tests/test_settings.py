@@ -68,12 +68,23 @@ def _clear_known_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(key, raising=False)
 
 
+def _set_required_env(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    service_api_key: str = "key-123",
+    service_hook_url: str = "https://hook.example",
+    area_codes: str = '["11B00000"]',
+    area_code_mapping: str = '{"11B00000":"서울"}',
+) -> None:
+    monkeypatch.setenv("SERVICE_API_KEY", service_api_key)
+    monkeypatch.setenv("SERVICE_HOOK_URL", service_hook_url)
+    monkeypatch.setenv("AREA_CODES", area_codes)
+    monkeypatch.setenv("AREA_CODE_MAPPING", area_code_mapping)
+
+
 def test_settings_from_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
 
     settings = Settings.from_env(env_file=None)
 
@@ -126,10 +137,7 @@ def test_settings_loads_alert_rules_from_custom_file(
     tmp_path,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
 
     rules_payload = json.loads(DEFAULT_ALERT_RULES_FILE.read_text(encoding="utf-8"))
     rules_payload["unmapped_code_policy"] = "fail"
@@ -151,10 +159,7 @@ def test_settings_loads_alert_rules_from_custom_file(
 
 def test_settings_accepts_alert_rules_v2_file(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("ALERT_RULES_FILE", "./config/alert_rules.v2.json")
 
     settings = Settings.from_env(env_file=None)
@@ -168,10 +173,7 @@ def test_settings_rejects_invalid_alert_rules_file(
     tmp_path,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
 
     rules_payload = json.loads(DEFAULT_ALERT_RULES_FILE.read_text(encoding="utf-8"))
     rules_payload["message_rules"]["publish_template"] = "{time}"
@@ -188,10 +190,7 @@ def test_settings_rejects_invalid_alert_rules_file(
 
 def test_settings_bool_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("DRY_RUN", "true")
     monkeypatch.setenv("RUN_ONCE", "1")
 
@@ -214,10 +213,7 @@ def test_settings_invalid_area_codes_json(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_settings_accepts_optional_weather_filters(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("WEATHER_API_WARNING_TYPE", "6")
     monkeypatch.setenv("WEATHER_API_STATION_ID", "108")
 
@@ -231,10 +227,7 @@ def test_settings_rejects_non_digit_optional_weather_filters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("WEATHER_API_WARNING_TYPE", "rain")
 
     with pytest.raises(SettingsError):
@@ -263,10 +256,7 @@ def test_settings_rejects_url_encoded_service_api_key(monkeypatch: pytest.Monkey
 
 def test_settings_invalid_bool(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("DRY_RUN", "maybe")
 
     with pytest.raises(SettingsError):
@@ -321,10 +311,7 @@ def test_settings_env_precedence_over_dotenv(monkeypatch: pytest.MonkeyPatch, tm
 
 def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("REQUEST_TIMEOUT_SEC", "7")
     monkeypatch.setenv("REQUEST_CONNECT_TIMEOUT_SEC", "2")
     monkeypatch.setenv("REQUEST_READ_TIMEOUT_SEC", "9")
@@ -359,10 +346,7 @@ def test_settings_timeout_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_settings_invalid_health_ratio(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("HEALTH_OUTAGE_FAIL_RATIO_THRESHOLD", "1.5")
 
     with pytest.raises(SettingsError):
@@ -371,10 +355,7 @@ def test_settings_invalid_health_ratio(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_settings_invalid_repository_type(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("STATE_REPOSITORY_TYPE", "postgres")
 
     with pytest.raises(SettingsError):
@@ -394,10 +375,7 @@ def test_settings_rejects_non_https_hook_url(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_settings_rejects_non_http_weather_api_url(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv(
         "WEATHER_ALERT_DATA_API_URL",
         "https://apis.data.go.kr/1360000/WthrWrnInfoService/getPwnCd",
@@ -409,10 +387,7 @@ def test_settings_rejects_non_http_weather_api_url(monkeypatch: pytest.MonkeyPat
 
 def test_settings_rejects_disallowed_weather_api_host(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv(
         "WEATHER_ALERT_DATA_API_URL",
         "http://evil.example/1360000/WthrWrnInfoService/getPwnCd",
@@ -424,10 +399,7 @@ def test_settings_rejects_disallowed_weather_api_host(monkeypatch: pytest.Monkey
 
 def test_settings_rejects_disallowed_weather_api_path(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("WEATHER_API_ALLOWED_HOSTS", '["apis.data.go.kr"]')
     monkeypatch.setenv(
         "WEATHER_ALERT_DATA_API_URL",
@@ -442,10 +414,7 @@ def test_settings_accepts_custom_allowed_weather_api_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("WEATHER_API_ALLOWED_HOSTS", '["api.internal.local"]')
     monkeypatch.setenv("WEATHER_API_ALLOWED_PATH_PREFIXES", '["/proxy/weather/"]')
     monkeypatch.setenv(
@@ -459,10 +428,7 @@ def test_settings_accepts_custom_allowed_weather_api_endpoint(
 
 def test_settings_rejects_empty_weather_api_allowed_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("WEATHER_API_ALLOWED_HOSTS", "[]")
 
     with pytest.raises(SettingsError):
@@ -473,10 +439,7 @@ def test_settings_rejects_empty_weather_api_allowed_path_prefixes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("WEATHER_API_ALLOWED_PATH_PREFIXES", "[]")
 
     with pytest.raises(SettingsError):
@@ -487,10 +450,7 @@ def test_settings_rejects_negative_cleanup_retention_days(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("CLEANUP_RETENTION_DAYS", "-1")
 
     with pytest.raises(SettingsError):
@@ -501,10 +461,7 @@ def test_settings_rejects_invalid_notifier_circuit_failure_threshold(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("NOTIFIER_CIRCUIT_FAILURE_THRESHOLD", "0")
 
     with pytest.raises(SettingsError):
@@ -515,10 +472,7 @@ def test_settings_rejects_negative_api_soft_rate_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("API_SOFT_RATE_LIMIT_PER_SEC", "-1")
 
     with pytest.raises(SettingsError):
@@ -529,10 +483,7 @@ def test_settings_rejects_negative_notifier_send_rate_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("NOTIFIER_SEND_RATE_LIMIT_PER_SEC", "-0.1")
 
     with pytest.raises(SettingsError):
@@ -573,10 +524,7 @@ def test_settings_allows_empty_area_code_mapping_when_codes_exist(
 def test_settings_rejects_invalid_timezone(monkeypatch: pytest.MonkeyPatch) -> None:
     """잘못된 TIMEZONE 값은 Settings.from_env() 시점에 SettingsError를 발생시켜야 한다."""
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("TIMEZONE", "Invalid/Zone")
 
     with pytest.raises(SettingsError, match="TIMEZONE"):
@@ -586,10 +534,7 @@ def test_settings_rejects_invalid_timezone(monkeypatch: pytest.MonkeyPatch) -> N
 def test_settings_accepts_valid_timezone(monkeypatch: pytest.MonkeyPatch) -> None:
     """유효한 TIMEZONE 값은 SettingsError 없이 로드되어야 한다."""
     _clear_known_env(monkeypatch)
-    monkeypatch.setenv("SERVICE_API_KEY", "key-123")
-    monkeypatch.setenv("SERVICE_HOOK_URL", "https://hook.example")
-    monkeypatch.setenv("AREA_CODES", '["11B00000"]')
-    monkeypatch.setenv("AREA_CODE_MAPPING", '{"11B00000":"서울"}')
+    _set_required_env(monkeypatch)
     monkeypatch.setenv("TIMEZONE", "America/New_York")
 
     settings = Settings.from_env(env_file=None)
