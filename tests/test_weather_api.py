@@ -133,6 +133,22 @@ def _xml_with_item(
     """.encode()
 
 
+def _xml_with_missing_required_tag(tag_name: str) -> bytes:
+    default_xml = _xml_with_item().decode()
+    tag_to_xml = {
+        "resultCode": "<resultCode>00</resultCode>",
+        "warnVar": "<warnVar>4</warnVar>",
+        "warnStress": "<warnStress>0</warnStress>",
+        "command": "<command>2</command>",
+        "cancel": "<cancel>0</cancel>",
+        "stnId": "<stnId>143</stnId>",
+        "tmFc": "<tmFc>202602181000</tmFc>",
+        "tmSeq": "<tmSeq>46</tmSeq>",
+    }
+    target = tag_to_xml[tag_name]
+    return default_xml.replace(target, "", 1).encode()
+
+
 def test_fetch_alerts_success(tmp_path) -> None:
     session = FakeSession([DummyResponse(200, _xml_with_item())])
     client = WeatherAlertClient(
@@ -726,69 +742,34 @@ def test_fetch_alerts_raises_parse_error_for_invalid_xml(tmp_path) -> None:
     assert exc_info.value.code == API_ERROR_PARSE
 
 
-def test_fetch_alerts_raises_parse_error_when_result_code_tag_is_missing(
+@pytest.mark.parametrize(
+    ("missing_tag", "error_pattern"),
+    [
+        ("resultCode", "resultCode"),
+        ("warnVar", "warnVar"),
+        ("warnStress", "warnStress"),
+        ("command", "command"),
+        ("cancel", "cancel"),
+        ("stnId", "stnId"),
+        ("tmFc", "tmFc"),
+        ("tmSeq", "tmSeq"),
+    ],
+)
+def test_fetch_alerts_raises_parse_error_when_required_xml_tag_missing(
     tmp_path,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    session = FakeSession([DummyResponse(200, b"<response><header></header></response>")])
-    logger = logging.getLogger("test.weather.api.parse.missing_result_code")
-    client = WeatherAlertClient(
-        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
-        session=session,
-        logger=logger,
-    )
-
-    with caplog.at_level(logging.ERROR, logger=logger.name):
-        with pytest.raises(WeatherApiError, match="resultCode") as exc_info:
-            client.fetch_alerts(
-                area_code="L1070100",
-                start_date="20260218",
-                end_date="20260219",
-                area_name="대구",
-            )
-
-    assert exc_info.value.code == API_ERROR_PARSE
-    payloads = [json.loads(record.message) for record in caplog.records]
-    assert any(
-        payload.get("event") == events.AREA_FAILED
-        and payload.get("area_code") == "L1070100"
-        and payload.get("error_code") == API_ERROR_PARSE
-        for payload in payloads
-    )
-
-
-def test_fetch_alerts_raises_parse_error_when_required_item_tag_missing(
-    tmp_path,
+    missing_tag: str,
+    error_pattern: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     session = FakeSession(
         [
             DummyResponse(
                 200,
-                """
-                <response>
-                  <header><resultCode>00</resultCode></header>
-                  <body>
-                    <items>
-                      <item>
-                        <areaName>예제구역</areaName>
-                        <warnStress>0</warnStress>
-                        <command>2</command>
-                        <cancel>0</cancel>
-                        <startTime>202602181000</startTime>
-                        <endTime>0</endTime>
-                        <stnId>143</stnId>
-                        <tmFc>202602181000</tmFc>
-                        <tmSeq>46</tmSeq>
-                      </item>
-                    </items>
-                  </body>
-                </response>
-                """.encode(),
+                _xml_with_missing_required_tag(missing_tag),
             )
         ]
     )
-    logger = logging.getLogger("test.weather.api.parse.missing_item_tag")
+    logger = logging.getLogger(f"test.weather.api.parse.missing_tag.{missing_tag}")
     client = WeatherAlertClient(
         settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
         session=session,
@@ -796,7 +777,7 @@ def test_fetch_alerts_raises_parse_error_when_required_item_tag_missing(
     )
 
     with caplog.at_level(logging.ERROR, logger=logger.name):
-        with pytest.raises(WeatherApiError, match="warnVar") as exc_info:
+        with pytest.raises(WeatherApiError, match=error_pattern) as exc_info:
             client.fetch_alerts(
                 area_code="L1070100",
                 start_date="20260218",

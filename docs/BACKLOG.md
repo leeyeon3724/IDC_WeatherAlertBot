@@ -17,14 +17,6 @@
 
 ### 중간
 
-```text
-상태: 진행중
-중요도: 중간
-항목: weather_api 필수 XML 태그 누락 테스트 매트릭스화
-근거: 단일 태그 누락 중심 테스트로는 경계조건 회귀 탐지 한계
-완료 기준: warnVar/warnStress/command/cancel/stnId/tmFc/tmSeq/resultCode 누락 케이스 파라미터화
-```
-
 ### 낮음
 
 ```text
