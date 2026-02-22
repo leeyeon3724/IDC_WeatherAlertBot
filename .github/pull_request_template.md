@@ -28,7 +28,7 @@
 `app/services/notifier.py` 또는 `docs/DOORAY_WEBHOOK_REFERENCE.md`를 변경한 경우 모두 체크:
 
 - [ ] `docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영
-- [ ] `tests/test_notifier.py` 정책 회귀 테스트/수정 반영
+- [ ] `tests/services/test_notifier.py` 정책 회귀 테스트/수정 반영
 
 ## Additional Notes
 

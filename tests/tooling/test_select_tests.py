@@ -8,8 +8,8 @@ def test_build_report_selects_fast_subset_for_service_change() -> None:
 
     assert report["mode"] == "fast"
     selected = set(report["selected_tests"])
-    assert "tests/test_notifier.py" in selected
-    assert "tests/test_process_cycle.py" in selected
+    assert "tests/services/test_notifier.py" in selected
+    assert "tests/usecases/test_process_cycle.py" in selected
 
 
 def test_build_report_returns_full_for_ci_workflow_change() -> None:
@@ -24,8 +24,8 @@ def test_build_report_uses_docs_subset_for_docs_only_change() -> None:
 
     assert report["mode"] == "fast"
     selected = set(report["selected_tests"])
-    assert "tests/test_repo_hygiene.py" in selected
-    assert "tests/test_event_docs_sync.py" in selected
+    assert "tests/tooling/test_repo_hygiene.py" in selected
+    assert "tests/tooling/test_event_docs_sync.py" in selected
 
 
 def test_build_report_includes_perf_script_tests_for_scripts_change() -> None:
@@ -33,9 +33,9 @@ def test_build_report_includes_perf_script_tests_for_scripts_change() -> None:
 
     assert report["mode"] == "fast"
     selected = set(report["selected_tests"])
-    assert "tests/test_compare_perf_reports.py" in selected
-    assert "tests/test_perf_baseline.py" in selected
-    assert "tests/test_alarm_rules_sync.py" in selected
+    assert "tests/tooling/test_compare_perf_reports.py" in selected
+    assert "tests/tooling/test_perf_baseline.py" in selected
+    assert "tests/tooling/test_alarm_rules_sync.py" in selected
 
 
 def test_build_report_returns_docs_subset_when_changed_files_empty() -> None:
@@ -43,9 +43,9 @@ def test_build_report_returns_docs_subset_when_changed_files_empty() -> None:
 
     assert report["mode"] == "fast"
     assert set(report["selected_tests"]) == {
-        "tests/test_repo_hygiene.py",
-        "tests/test_event_docs_sync.py",
-        "tests/test_contract_snapshots.py",
+        "tests/tooling/test_repo_hygiene.py",
+        "tests/tooling/test_event_docs_sync.py",
+        "tests/tooling/test_contract_snapshots.py",
     }
 
 
@@ -58,7 +58,7 @@ def test_build_report_falls_back_to_full_for_unknown_change_mapping() -> None:
 
 
 def test_build_report_includes_changed_test_file_directly() -> None:
-    report = build_report(["tests/test_domain.py"])
+    report = build_report(["tests/domain/test_domain.py"])
 
     assert report["mode"] == "fast"
-    assert "tests/test_domain.py" in set(report["selected_tests"])
+    assert "tests/domain/test_domain.py" in set(report["selected_tests"])

@@ -116,14 +116,14 @@ jobs:
           smoke_json="artifacts/smoke/smoke-${{ matrix.python-version }}.json"
 
           python -m pytest -q \
-            tests/test_main.py \
-            tests/test_main_smoke.py \
-            tests/test_commands.py | tee "$smoke_log"
+            tests/runtime/test_main.py \
+            tests/runtime/test_main_smoke.py \
+            tests/runtime/test_commands.py | tee "$smoke_log"
           python main.py --help >/dev/null
 
-          printf '## Runtime Smoke (Python %s)\n\n- status: PASS\n- checks:\n  - `pytest -q tests/test_main.py tests/test_main_smoke.py tests/test_commands.py`\n  - `python main.py --help`\n' \
+          printf '## Runtime Smoke (Python %s)\n\n- status: PASS\n- checks:\n  - `pytest -q tests/runtime/test_main.py tests/runtime/test_main_smoke.py tests/runtime/test_commands.py`\n  - `python main.py --help`\n' \
             "${{ matrix.python-version }}" > "$smoke_md"
-          printf '{"python_version":"%s","status":"pass","checks":["pytest -q tests/test_main.py tests/test_main_smoke.py tests/test_commands.py","python main.py --help"]}\n' \
+          printf '{"python_version":"%s","status":"pass","checks":["pytest -q tests/runtime/test_main.py tests/runtime/test_main_smoke.py tests/runtime/test_commands.py","python main.py --help"]}\n' \
             "${{ matrix.python-version }}" > "$smoke_json"
 
           cat "$smoke_md" >> "$GITHUB_STEP_SUMMARY"

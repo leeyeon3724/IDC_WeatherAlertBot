@@ -17,7 +17,7 @@ def _body_with_all_checks() -> str:
     - [x] 대시보드/알람 룰 영향도 검토(필드명, 이벤트명, 임계값)
     - [x] `scripts.check_event_docs_sync` 통과 확인
     - [x] `docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영
-    - [x] `tests/test_notifier.py` 정책 회귀 테스트/수정 반영
+    - [x] `tests/services/test_notifier.py` 정책 회귀 테스트/수정 반영
     """
 
 
@@ -101,7 +101,7 @@ def test_build_report_requires_dooray_checks_for_notifier_changes() -> None:
     - [x] `python3 -m scripts.check_repo_hygiene`
     - [x] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
     - [ ] `docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영
-    - [ ] `tests/test_notifier.py` 정책 회귀 테스트/수정 반영
+    - [ ] `tests/services/test_notifier.py` 정책 회귀 테스트/수정 반영
     """
     report = build_report(pr_body=body, changed_files=["app/services/notifier.py"])
 
@@ -109,7 +109,7 @@ def test_build_report_requires_dooray_checks_for_notifier_changes() -> None:
     assert report["dooray_impact_required"] is True
     assert report["missing_dooray_checks"] == [
         "`docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영",
-        "`tests/test_notifier.py` 정책 회귀 테스트/수정 반영",
+        "`tests/services/test_notifier.py` 정책 회귀 테스트/수정 반영",
     ]
 
 
@@ -123,7 +123,7 @@ def test_build_report_passes_dooray_checks_when_checked() -> None:
     - [x] `python3 -m scripts.check_repo_hygiene`
     - [x] `python3 -m pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc`
     - [x] `docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영
-    - [x] `tests/test_notifier.py` 정책 회귀 테스트/수정 반영
+    - [x] `tests/services/test_notifier.py` 정책 회귀 테스트/수정 반영
     """
     report = build_report(pr_body=body, changed_files=["app/services/notifier.py"])
 

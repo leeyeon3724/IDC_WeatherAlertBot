@@ -26,7 +26,7 @@ EVENT_IMPACT_LABELS = [
 
 DOORAY_IMPACT_LABELS = [
     "`docs/DOORAY_WEBHOOK_REFERENCE.md` 프로젝트 적용 상태 반영",
-    "`tests/test_notifier.py` 정책 회귀 테스트/수정 반영",
+    "`tests/services/test_notifier.py` 정책 회귀 테스트/수정 반영",
 ]
 
 

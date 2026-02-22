@@ -16,7 +16,7 @@ from app.observability import events
 from app.settings import Settings
 from scripts.event_payload_contract import build_event_payload_contract
 
-CONTRACTS_DIR = Path(__file__).resolve().parent / "contracts"
+CONTRACTS_DIR = Path(__file__).resolve().parents[1] / "contracts"
 PROJECT_ROOT = CONTRACTS_DIR.parent.parent
 
 
