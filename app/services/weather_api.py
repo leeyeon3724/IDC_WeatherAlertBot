@@ -161,14 +161,26 @@ class WeatherAlertClient:
         page_count = 0
 
         while True:
-            root = self._fetch_xml_root_with_result_retry(
-                area_code=area_code,
-                start_date=start_date,
-                end_date=end_date,
-                page_no=page_no,
-                page_size=page_size,
-            )
-            result_code = self._extract_result_code(root)
+            try:
+                root = self._fetch_xml_root_with_result_retry(
+                    area_code=area_code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    page_no=page_no,
+                    page_size=page_size,
+                )
+                result_code = self._extract_result_code(
+                    root,
+                    area_code=area_code,
+                    page_no=page_no,
+                )
+            except WeatherApiError as exc:
+                if exc.code == API_ERROR_PARSE:
+                    self._log_parse_failure(
+                        area_code=area_code,
+                        error=exc,
+                    )
+                raise
             if result_code == "03":
                 # NODATA can be returned for out-of-range pages.
                 if page_no == 1:
@@ -187,7 +199,15 @@ class WeatherAlertClient:
 
             self._raise_for_result_code(result_code)
             items = root.findall(".//item")
-            alerts = self._parse_items(items=items, area_code=area_code, area_name=area_name)
+            try:
+                alerts = self._parse_items(items=items, area_code=area_code, area_name=area_name)
+            except WeatherApiError as exc:
+                if exc.code == API_ERROR_PARSE:
+                    self._log_parse_failure(
+                        area_code=area_code,
+                        error=exc,
+                    )
+                raise
             all_alerts.extend(alerts)
             page_count += 1
 
@@ -235,7 +255,11 @@ class WeatherAlertClient:
                 page_no=page_no,
                 page_size=page_size,
             )
-            result_code = self._extract_result_code(root)
+            result_code = self._extract_result_code(
+                root,
+                area_code=area_code,
+                page_no=page_no,
+            )
             if result_code != "22":
                 return root
             if attempt == self.settings.max_retries:
@@ -316,7 +340,11 @@ class WeatherAlertClient:
                         code=API_ERROR_HTTP_STATUS,
                         status_code=response.status_code,
                     )
-                return ET.fromstring(response.content)
+                return self._parse_xml_response(
+                    response=response,
+                    area_code=area_code,
+                    page_no=page_no,
+                )
             except requests.RequestException as exc:
                 last_error = WeatherApiError(
                     f"Request failed: {exc}",
@@ -363,6 +391,45 @@ class WeatherAlertClient:
             code=API_ERROR_UNKNOWN,
         )
 
+    @staticmethod
+    def _decode_xml_content(response: requests.Response) -> str:
+        primary_encoding = response.encoding or "utf-8"
+        try:
+            return response.content.decode(primary_encoding)
+        except UnicodeDecodeError:
+            fallback_encoding = getattr(response, "apparent_encoding", None)
+            if fallback_encoding and fallback_encoding.lower() != primary_encoding.lower():
+                return response.content.decode(fallback_encoding)
+            raise
+
+    def _parse_xml_response(
+        self,
+        *,
+        response: requests.Response,
+        area_code: str,
+        page_no: int,
+    ) -> ET.Element:
+        try:
+            xml_text = self._decode_xml_content(response)
+        except UnicodeDecodeError as exc:
+            raise WeatherApiError(
+                (
+                    "Failed to decode XML response: "
+                    f"area_code={area_code}, page_no={page_no}, encoding={response.encoding!r}"
+                ),
+                code=API_ERROR_PARSE,
+                last_error=exc,
+            ) from exc
+
+        try:
+            return ET.fromstring(xml_text)
+        except ET.ParseError as exc:
+            raise WeatherApiError(
+                f"Failed to parse XML: {exc}",
+                code=API_ERROR_PARSE,
+                last_error=exc,
+            ) from exc
+
     def _parse_items(
         self,
         items: list[ET.Element],
@@ -371,17 +438,55 @@ class WeatherAlertClient:
         area_name: str,
     ) -> list[AlertEvent]:
         alerts: list[AlertEvent] = []
-        for item in items:
+        for index, item in enumerate(items):
             response_area_name = (item.findtext("areaName", "") or "").strip()
             resolved_area_name = self._resolve_area_name(
                 area_code=area_code,
                 configured_area_name=area_name,
                 response_area_name=response_area_name,
             )
-            warn_var_code = item.findtext("warnVar", "N/A")
-            warn_stress_code = item.findtext("warnStress", "N/A")
-            command_code = item.findtext("command", "N/A")
-            cancel_code = item.findtext("cancel", "N/A")
+            warn_var_code = self._required_item_text(
+                item,
+                "warnVar",
+                area_code=area_code,
+                item_index=index,
+            )
+            warn_stress_code = self._required_item_text(
+                item,
+                "warnStress",
+                area_code=area_code,
+                item_index=index,
+            )
+            command_code = self._required_item_text(
+                item,
+                "command",
+                area_code=area_code,
+                item_index=index,
+            )
+            cancel_code = self._required_item_text(
+                item,
+                "cancel",
+                area_code=area_code,
+                item_index=index,
+            )
+            stn_id = self._required_item_text(
+                item,
+                "stnId",
+                area_code=area_code,
+                item_index=index,
+            )
+            tm_fc = self._required_item_text(
+                item,
+                "tmFc",
+                area_code=area_code,
+                item_index=index,
+            )
+            tm_seq = self._required_item_text(
+                item,
+                "tmSeq",
+                area_code=area_code,
+                item_index=index,
+            )
             alerts.append(
                 AlertEvent(
                     area_code=area_code,
@@ -416,12 +521,31 @@ class WeatherAlertClient:
                     ),
                     start_time=self._format_datetime(item.findtext("startTime")),
                     end_time=self._format_datetime(item.findtext("endTime")),
-                    stn_id=item.findtext("stnId", ""),
-                    tm_fc=item.findtext("tmFc", ""),
-                    tm_seq=item.findtext("tmSeq", ""),
+                    stn_id=stn_id,
+                    tm_fc=tm_fc,
+                    tm_seq=tm_seq,
                 )
             )
         return alerts
+
+    @staticmethod
+    def _required_item_text(
+        item: ET.Element,
+        tag_name: str,
+        *,
+        area_code: str,
+        item_index: int,
+    ) -> str:
+        value = (item.findtext(tag_name) or "").strip()
+        if value:
+            return value
+        raise WeatherApiError(
+            (
+                f"Missing required XML tag '{tag_name}' "
+                f"(area_code={area_code}, item_index={item_index})"
+            ),
+            code=API_ERROR_PARSE,
+        )
 
     def _resolve_area_name(
         self,
@@ -535,11 +659,28 @@ class WeatherAlertClient:
         return fallback_value
 
     @staticmethod
-    def _extract_result_code(root: ET.Element) -> str:
+    def _extract_result_code(
+        root: ET.Element,
+        *,
+        area_code: str,
+        page_no: int,
+    ) -> str:
         result_code_elem = root.find(".//resultCode")
-        if result_code_elem is None or not result_code_elem.text:
-            return "N/A"
-        result_code = result_code_elem.text.strip()
+        if result_code_elem is None:
+            raise WeatherApiError(
+                f"Missing required XML tag 'resultCode' (area_code={area_code}, page_no={page_no})",
+                code=API_ERROR_PARSE,
+            )
+        result_text = (result_code_elem.text or "").strip()
+        if not result_text:
+            raise WeatherApiError(
+                (
+                    "Empty XML tag 'resultCode' "
+                    f"(area_code={area_code}, page_no={page_no})"
+                ),
+                code=API_ERROR_PARSE,
+            )
+        result_code = result_text
         if result_code.isdigit() and len(result_code) <= 2:
             return result_code.zfill(2)
         return result_code
@@ -604,3 +745,18 @@ class WeatherAlertClient:
         if isinstance(exc, requests.ConnectionError):
             return API_ERROR_CONNECTION
         return API_ERROR_REQUEST
+
+    def _log_parse_failure(
+        self,
+        *,
+        area_code: str,
+        error: WeatherApiError,
+    ) -> None:
+        self.logger.error(
+            log_event(
+                events.AREA_FAILED,
+                area_code=area_code,
+                error_code=error.code,
+                error=redact_sensitive_text(error),
+            )
+        )

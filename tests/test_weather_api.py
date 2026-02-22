@@ -26,9 +26,18 @@ from app.settings import Settings
 
 
 class DummyResponse:
-    def __init__(self, status_code: int, content: bytes) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        content: bytes,
+        *,
+        encoding: str | None = "utf-8",
+        apparent_encoding: str | None = None,
+    ) -> None:
         self.status_code = status_code
         self.content = content
+        self.encoding = encoding
+        self.apparent_encoding = apparent_encoding
 
 
 class FakeSession:
@@ -656,6 +665,94 @@ def test_fetch_alerts_raises_parse_error_for_invalid_xml(tmp_path) -> None:
     assert exc_info.value.code == API_ERROR_PARSE
 
 
+def test_fetch_alerts_raises_parse_error_when_result_code_tag_is_missing(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    session = FakeSession([DummyResponse(200, b"<response><header></header></response>")])
+    logger = logging.getLogger("test.weather.api.parse.missing_result_code")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
+        session=session,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.ERROR, logger=logger.name):
+        with pytest.raises(WeatherApiError, match="resultCode") as exc_info:
+            client.fetch_alerts(
+                area_code="L1070100",
+                start_date="20260218",
+                end_date="20260219",
+                area_name="대구",
+            )
+
+    assert exc_info.value.code == API_ERROR_PARSE
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(
+        payload.get("event") == events.AREA_FAILED
+        and payload.get("area_code") == "L1070100"
+        and payload.get("error_code") == API_ERROR_PARSE
+        for payload in payloads
+    )
+
+
+def test_fetch_alerts_raises_parse_error_when_required_item_tag_missing(
+    tmp_path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    session = FakeSession(
+        [
+            DummyResponse(
+                200,
+                """
+                <response>
+                  <header><resultCode>00</resultCode></header>
+                  <body>
+                    <items>
+                      <item>
+                        <areaName>예제구역</areaName>
+                        <warnStress>0</warnStress>
+                        <command>2</command>
+                        <cancel>0</cancel>
+                        <startTime>202602181000</startTime>
+                        <endTime>0</endTime>
+                        <stnId>143</stnId>
+                        <tmFc>202602181000</tmFc>
+                        <tmSeq>46</tmSeq>
+                      </item>
+                    </items>
+                  </body>
+                </response>
+                """.encode(),
+            )
+        ]
+    )
+    logger = logging.getLogger("test.weather.api.parse.missing_item_tag")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path, max_retries=1, retry_delay_sec=0),
+        session=session,
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.ERROR, logger=logger.name):
+        with pytest.raises(WeatherApiError, match="warnVar") as exc_info:
+            client.fetch_alerts(
+                area_code="L1070100",
+                start_date="20260218",
+                end_date="20260219",
+                area_name="대구",
+            )
+
+    assert exc_info.value.code == API_ERROR_PARSE
+    payloads = [json.loads(record.message) for record in caplog.records]
+    assert any(
+        payload.get("event") == events.AREA_FAILED
+        and payload.get("area_code") == "L1070100"
+        and payload.get("error_code") == API_ERROR_PARSE
+        for payload in payloads
+    )
+
+
 def test_fetch_alerts_raises_result_code_error_in_integration_path(tmp_path) -> None:
     session = FakeSession(
         [
@@ -784,12 +881,16 @@ def test_extract_total_count_negative_clamps_to_zero() -> None:
 
 def test_extract_result_code_missing_returns_na() -> None:
     root = ET.fromstring("<response><header></header></response>")
-    assert WeatherAlertClient._extract_result_code(root) == "N/A"
+    with pytest.raises(WeatherApiError, match="resultCode") as exc_info:
+        WeatherAlertClient._extract_result_code(root, area_code="L1070100", page_no=1)
+    assert exc_info.value.code == API_ERROR_PARSE
 
 
 def test_extract_result_code_normalizes_single_digit_numeric() -> None:
     root = ET.fromstring("<response><header><resultCode>3</resultCode></header></response>")
-    assert WeatherAlertClient._extract_result_code(root) == "03"
+    assert (
+        WeatherAlertClient._extract_result_code(root, area_code="L1070100", page_no=1) == "03"
+    )
 
 
 @pytest.mark.parametrize(

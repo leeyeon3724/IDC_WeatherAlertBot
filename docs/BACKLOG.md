@@ -20,14 +20,6 @@
 ```text
 상태: 진행중
 중요도: 중간
-항목: XML 파싱 방어 강화
-근거: weather_api.py의 XML 파싱이 하드코딩 태그명·스키마 검증 없음·인코딩 미처리로 silent fallback 위험
-완료 기준: 필수 태그 존재 검증 추가, 파싱 실패 시 명시적 에러 이벤트 기록, 엣지 케이스 테스트
-```
-
-```text
-상태: 진행중
-중요도: 중간
 항목: datetime 주입 일관성 확보
 근거: datetime.now() 직접 호출 다수 → 테스트 시 시간 제어 불가(service_loop, health_monitor 등)
 완료 기준: clock 함수(Callable[[], datetime])를 DI로 주입, 시간 의존 테스트에서 고정 시각 사용
