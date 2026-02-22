@@ -31,9 +31,13 @@ class _FakeStateRepo:
         self._removed = removed
         self.total_count = 10
         self.pending_count = 3
+        self.closed = False
 
     def cleanup_stale(self, days: int, include_unsent: bool) -> int:
         return self._removed
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class _FakeNotifier:
@@ -428,6 +432,7 @@ def test_run_loop_handles_keyboard_interrupt_from_processor(tmp_path: Path) -> N
     assert result == 0
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
+    assert runtime.state_repo.closed is True
 
 
 def test_run_loop_gracefully_stops_when_shutdown_state_is_requested(
@@ -468,6 +473,7 @@ def test_run_loop_gracefully_stops_when_shutdown_state_is_requested(
     assert runtime.processor.calls == 1
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
+    assert runtime.state_repo.closed is True
 
 
 def test_request_shutdown_logs_start_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -669,6 +675,7 @@ def test_run_loop_exits_on_fatal_cycle_exception(tmp_path: Path) -> None:
     assert result == 1
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
+    assert runtime.state_repo.closed is True
     assert sleep_calls == []
     payloads = [json.loads(message) for message in handler.messages]
     assert sum(p.get("event") == events.CYCLE_FATAL_ERROR for p in payloads) == 1
@@ -695,6 +702,7 @@ def test_run_loop_run_once_exception_exits_as_fatal(tmp_path: Path) -> None:
     assert result == 1
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
+    assert runtime.state_repo.closed is True
     payloads = [json.loads(message) for message in handler.messages]
     assert sum(p.get("event") == events.CYCLE_FATAL_ERROR for p in payloads) == 1
 
@@ -711,6 +719,7 @@ def test_run_loop_run_once_success_closes_resources(tmp_path: Path) -> None:
     assert result == 0
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
+    assert runtime.state_repo.closed is True
 
 
 def test_run_loop_emits_cycle_cost_metrics_event(tmp_path: Path) -> None:

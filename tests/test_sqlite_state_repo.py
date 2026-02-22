@@ -108,6 +108,19 @@ def test_sqlite_state_repo_configures_busy_timeout_and_wal(tmp_path) -> None:
     assert str(journal_mode).lower() == SQLITE_JOURNAL_MODE.lower()
 
 
+def test_sqlite_state_repo_reuses_connection_and_reopens_after_close(tmp_path) -> None:
+    repo = SqliteStateRepository(tmp_path / "state.db")
+
+    first = repo._connect()
+    second = repo._connect()
+    assert first is second
+
+    repo.close()
+
+    third = repo._connect()
+    assert third is not first
+
+
 def test_sqlite_state_repo_mark_many_sent_handles_duplicates(tmp_path) -> None:
     repo = SqliteStateRepository(tmp_path / "state.db")
     repo.upsert_notifications([_notification("event:1"), _notification("event:2")])

@@ -18,13 +18,16 @@ class SqliteStateRepository:
         self.file_path = Path(file_path)
         self.logger = logger or logging.getLogger("weather_alert_bot.state.sqlite")
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        self._connection: sqlite3.Connection | None = None
         self._init_schema()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.file_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
-        return conn
+        if self._connection is None:
+            conn = sqlite3.connect(self.file_path)
+            conn.row_factory = sqlite3.Row
+            conn.execute(f"PRAGMA busy_timeout = {SQLITE_BUSY_TIMEOUT_MS}")
+            self._connection = conn
+        return self._connection
 
     def _init_schema(self) -> None:
         with self._connect() as conn:
@@ -49,6 +52,12 @@ class SqliteStateRepository:
                   ON notifications(sent, area_code, first_seen_at)
                 """
             )
+
+    def close(self) -> None:
+        if self._connection is None:
+            return
+        self._connection.close()
+        self._connection = None
 
     def upsert_notifications(self, notifications: Iterable[AlertNotification]) -> int:
         by_event_id = {notification.event_id: notification for notification in notifications}

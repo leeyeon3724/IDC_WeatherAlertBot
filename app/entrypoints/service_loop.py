@@ -39,6 +39,7 @@ def _maybe_close_resource(runtime: ServiceRuntime, resource_name: str) -> None:
 def close_runtime_resources(runtime: ServiceRuntime) -> None:
     _maybe_close_resource(runtime, "processor")
     _maybe_close_resource(runtime, "notifier")
+    _maybe_close_resource(runtime, "state_repo")
 
 
 def _resolve_signal_reason(signum: int | signal.Signals) -> str:
