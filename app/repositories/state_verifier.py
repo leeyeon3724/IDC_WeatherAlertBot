@@ -66,6 +66,58 @@ def _issue(repository: str, severity: str, code: str, detail: str) -> Verificati
     )
 
 
+def _summary(
+    *,
+    repository: str,
+    file_path: Path,
+    exists: bool,
+    records: int = 0,
+    sent: int = 0,
+    pending: int = 0,
+) -> RepositoryVerificationSummary:
+    return RepositoryVerificationSummary(
+        repository=repository,
+        file_path=str(file_path),
+        exists=exists,
+        records=records,
+        sent=sent,
+        pending=pending,
+    )
+
+
+def _failure_result(
+    *,
+    repository: str,
+    file_path: Path,
+    issues: list[VerificationIssue],
+    severity: str,
+    code: str,
+    detail: str,
+    exists: bool,
+) -> tuple[RepositoryVerificationSummary, list[VerificationIssue]]:
+    issues.append(_issue(repository, severity, code, detail))
+    return _summary(repository=repository, file_path=file_path, exists=exists), issues
+
+
+def _missing_file_result(
+    *,
+    repository: str,
+    file_path: Path,
+    strict: bool,
+    issues: list[VerificationIssue],
+) -> tuple[RepositoryVerificationSummary, list[VerificationIssue]]:
+    severity = "error" if strict else "warning"
+    return _failure_result(
+        repository=repository,
+        file_path=file_path,
+        issues=issues,
+        severity=severity,
+        code="file_missing",
+        detail=str(file_path),
+        exists=False,
+    )
+
+
 def verify_json_state(file_path: Path, *, strict: bool = False) -> tuple[
     RepositoryVerificationSummary,
     list[VerificationIssue],
@@ -75,78 +127,57 @@ def verify_json_state(file_path: Path, *, strict: bool = False) -> tuple[
     path = Path(file_path)
 
     if not path.exists():
-        severity = "error" if strict else "warning"
-        issues.append(_issue(repository, severity, "file_missing", str(path)))
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=False,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _missing_file_result(
+            repository=repository,
+            file_path=path,
+            strict=strict,
+            issues=issues,
         )
 
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        issues.append(_issue(repository, "error", "invalid_json", str(exc)))
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=True,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _failure_result(
+            repository=repository,
+            file_path=path,
+            issues=issues,
+            severity="error",
+            code="invalid_json",
+            detail=str(exc),
+            exists=True,
         )
     except OSError as exc:
-        issues.append(_issue(repository, "error", "read_failed", str(exc)))
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=True,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _failure_result(
+            repository=repository,
+            file_path=path,
+            issues=issues,
+            severity="error",
+            code="read_failed",
+            detail=str(exc),
+            exists=True,
         )
 
     if not isinstance(raw, dict):
-        issues.append(_issue(repository, "error", "invalid_root_type", type(raw).__name__))
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=True,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _failure_result(
+            repository=repository,
+            file_path=path,
+            issues=issues,
+            severity="error",
+            code="invalid_root_type",
+            detail=type(raw).__name__,
+            exists=True,
         )
 
     records_obj: Any = raw.get("events", raw)
     if not isinstance(records_obj, dict):
-        issues.append(
-            _issue(repository, "error", "invalid_events_type", type(records_obj).__name__)
-        )
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=True,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _failure_result(
+            repository=repository,
+            file_path=path,
+            issues=issues,
+            severity="error",
+            code="invalid_events_type",
+            detail=type(records_obj).__name__,
+            exists=True,
         )
 
     if records_obj and all(isinstance(value, (bool, int)) for value in records_obj.values()):
@@ -154,9 +185,9 @@ def verify_json_state(file_path: Path, *, strict: bool = False) -> tuple[
         pending = len(records_obj) - sent
         issues.append(_issue(repository, "warning", "legacy_schema_detected", "boolean map"))
         return (
-            RepositoryVerificationSummary(
+            _summary(
                 repository=repository,
-                file_path=str(path),
+                file_path=path,
                 exists=True,
                 records=len(records_obj),
                 sent=sent,
@@ -210,9 +241,9 @@ def verify_json_state(file_path: Path, *, strict: bool = False) -> tuple[
             )
 
     return (
-        RepositoryVerificationSummary(
+        _summary(
             repository=repository,
-            file_path=str(path),
+            file_path=path,
             exists=True,
             records=len(records_obj),
             sent=sent,
@@ -231,35 +262,25 @@ def verify_sqlite_state(file_path: Path, *, strict: bool = False) -> tuple[
     path = Path(file_path)
 
     if not path.exists():
-        severity = "error" if strict else "warning"
-        issues.append(_issue(repository, severity, "file_missing", str(path)))
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=False,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _missing_file_result(
+            repository=repository,
+            file_path=path,
+            strict=strict,
+            issues=issues,
         )
 
     try:
         conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
     except sqlite3.Error as exc:
-        issues.append(_issue(repository, "error", "open_failed", str(exc)))
-        return (
-            RepositoryVerificationSummary(
-                repository=repository,
-                file_path=str(path),
-                exists=True,
-                records=0,
-                sent=0,
-                pending=0,
-            ),
-            issues,
+        return _failure_result(
+            repository=repository,
+            file_path=path,
+            issues=issues,
+            severity="error",
+            code="open_failed",
+            detail=str(exc),
+            exists=True,
         )
 
     with closing(conn):
@@ -268,41 +289,28 @@ def verify_sqlite_state(file_path: Path, *, strict: bool = False) -> tuple[
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'"
             ).fetchone()
             if table_row is None:
-                issues.append(_issue(repository, "error", "missing_table", "notifications"))
-                return (
-                    RepositoryVerificationSummary(
-                        repository=repository,
-                        file_path=str(path),
-                        exists=True,
-                        records=0,
-                        sent=0,
-                        pending=0,
-                    ),
-                    issues,
+                return _failure_result(
+                    repository=repository,
+                    file_path=path,
+                    issues=issues,
+                    severity="error",
+                    code="missing_table",
+                    detail="notifications",
+                    exists=True,
                 )
 
             column_rows = conn.execute("PRAGMA table_info(notifications)").fetchall()
             columns = {str(row["name"]) for row in column_rows}
             missing_columns = sorted(REQUIRED_SQLITE_COLUMNS - columns)
             if missing_columns:
-                issues.append(
-                    _issue(
-                        repository,
-                        "error",
-                        "missing_columns",
-                        ",".join(missing_columns),
-                    )
-                )
-                return (
-                    RepositoryVerificationSummary(
-                        repository=repository,
-                        file_path=str(path),
-                        exists=True,
-                        records=0,
-                        sent=0,
-                        pending=0,
-                    ),
-                    issues,
+                return _failure_result(
+                    repository=repository,
+                    file_path=path,
+                    issues=issues,
+                    severity="error",
+                    code="missing_columns",
+                    detail=",".join(missing_columns),
+                    exists=True,
                 )
 
             count_row = conn.execute("SELECT COUNT(*) AS count FROM notifications").fetchone()
@@ -365,9 +373,9 @@ def verify_sqlite_state(file_path: Path, *, strict: bool = False) -> tuple[
                 )
 
     return (
-        RepositoryVerificationSummary(
+        _summary(
             repository=repository,
-            file_path=str(path),
+            file_path=path,
             exists=True,
             records=records,
             sent=sent,

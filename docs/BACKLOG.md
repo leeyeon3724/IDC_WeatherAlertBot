@@ -22,14 +22,6 @@
 ```text
 상태: 진행중
 중요도: 낮음
-항목: state_verifier JSON/SQLite 중복 추출
-근거: repositories/state_verifier.py에서 JSON·SQLite 검증 로직 200줄+ 유사 패턴 반복
-완료 기준: 공통 검증 로직 추출, 구현별 차이만 분리
-```
-
-```text
-상태: 진행중
-중요도: 낮음
 항목: SQLite 연결 재사용
 근거: sqlite_state_repo.py가 연산마다 연결 생성·해제 → 단일 프로세스에서 비효율
 완료 기준: 연결 재사용 또는 풀링 도입, cleanup 시 명시적 close
