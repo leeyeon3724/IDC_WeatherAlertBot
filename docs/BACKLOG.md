@@ -22,14 +22,6 @@
 ```text
 상태: 진행중
 중요도: 낮음
-항목: env 파서 반복 코드 정리
-근거: settings.py의 _parse_*_env() 함수 패턴이 유사(int, float, bool, str, choice, JSON)
-완료 기준: 제네릭 파서 또는 팩토리로 통합, 기존 테스트 통과
-```
-
-```text
-상태: 진행중
-중요도: 낮음
 항목: state_verifier JSON/SQLite 중복 추출
 근거: repositories/state_verifier.py에서 JSON·SQLite 검증 로직 200줄+ 유사 패턴 반복
 완료 기준: 공통 검증 로직 추출, 구현별 차이만 분리

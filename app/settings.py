@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -22,6 +23,7 @@ DEFAULT_SENT_MESSAGES_FILE = "./data/sent_messages.json"
 DEFAULT_WEATHER_API_ALLOWED_HOSTS = ["apis.data.go.kr"]
 DEFAULT_WEATHER_API_ALLOWED_PATH_PREFIXES = ["/1360000/WthrWrnInfoService/"]
 RE_PERCENT_ENCODED_TRIPLET = re.compile(r"%[0-9A-Fa-f]{2}")
+T = TypeVar("T")
 
 
 class SettingsError(ValueError):
@@ -66,14 +68,29 @@ def _parse_json_env(name: str, default: str, expected_type: type) -> Any:
     return value
 
 
-def _parse_int_env(name: str, default: int, minimum: int = 0) -> int:
+def _parse_env_with_converter(
+    *,
+    name: str,
+    default: T,
+    converter: Callable[[str], T],
+    type_label: str,
+) -> T:
     raw = os.getenv(name)
     if raw is None:
         return default
     try:
-        value = int(raw)
+        return converter(raw)
     except ValueError as exc:
-        raise SettingsError(f"{name} must be an integer. Received: {raw}") from exc
+        raise SettingsError(f"{name} must be {type_label}. Received: {raw}") from exc
+
+
+def _parse_int_env(name: str, default: int, minimum: int = 0) -> int:
+    value = _parse_env_with_converter(
+        name=name,
+        default=default,
+        converter=int,
+        type_label="an integer",
+    )
     if value < minimum:
         raise SettingsError(f"{name} must be >= {minimum}. Received: {value}")
     return value
@@ -86,13 +103,12 @@ def _parse_float_env(
     minimum: float | None = None,
     maximum: float | None = None,
 ) -> float:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    try:
-        value = float(raw)
-    except ValueError as exc:
-        raise SettingsError(f"{name} must be a float. Received: {raw}") from exc
+    value = _parse_env_with_converter(
+        name=name,
+        default=default,
+        converter=float,
+        type_label="a float",
+    )
     if minimum is not None and value < minimum:
         raise SettingsError(f"{name} must be >= {minimum}. Received: {value}")
     if maximum is not None and value > maximum:
@@ -101,18 +117,26 @@ def _parse_float_env(
 
 
 def _parse_bool_env(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    normalized = raw.strip().lower()
-    if normalized in {"1", "true", "yes", "y", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "n", "off"}:
-        return False
-    raise SettingsError(
-        f"{name} must be a boolean value "
-        f"(true/false, 1/0, yes/no). Received: {raw}"
-    )
+    def _convert(raw: str) -> bool:
+        normalized = raw.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+        raise ValueError(raw)
+
+    try:
+        return _parse_env_with_converter(
+            name=name,
+            default=default,
+            converter=_convert,
+            type_label="a boolean value (true/false, 1/0, yes/no)",
+        )
+    except SettingsError as exc:
+        raise SettingsError(
+            f"{name} must be a boolean value "
+            f"(true/false, 1/0, yes/no). Received: {os.getenv(name)}"
+        ) from exc
 
 
 def _parse_str_env(name: str, default: str) -> str:
@@ -139,13 +163,18 @@ def _parse_timezone_env(name: str, default: str) -> str:
 
 
 def _parse_choice_env(name: str, default: str, allowed: set[str]) -> str:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    value = raw.strip().lower()
+    def _convert(raw: str) -> str:
+        return raw.strip().lower()
+
+    value = _parse_env_with_converter(
+        name=name,
+        default=default,
+        converter=_convert,
+        type_label="a string",
+    )
     if value not in allowed:
         allowed_text = ", ".join(sorted(allowed))
-        raise SettingsError(f"{name} must be one of: {allowed_text}. Received: {raw}")
+        raise SettingsError(f"{name} must be one of: {allowed_text}. Received: {os.getenv(name)}")
     return value
 
 
