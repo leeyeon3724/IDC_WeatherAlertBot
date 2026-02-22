@@ -131,10 +131,10 @@ class DoorayNotifier:
     def _validate_response_body(response: requests.Response) -> None:
         try:
             response_body = response.json()
-        except ValueError as exc:
-            raise DoorayResponseError(
-                f"Dooray response JSON parse failed: {exc}",
-            ) from exc
+        except ValueError:
+            # Dooray webhook may return an empty/non-JSON body even when delivery
+            # succeeded with HTTP 200. Treat parse failure as success.
+            return
 
         header = response_body.get("header") if isinstance(response_body, dict) else None
         if not isinstance(header, dict):

@@ -34,7 +34,7 @@
 - `DRY_RUN=true`는 전송 없이 로그만 기록
 - 민감정보(`serviceKey`, `apiKey`, `SERVICE_API_KEY`)는 로그에서 마스킹
 - 두레이 웹훅 상세 명세는 `docs/DOORAY_WEBHOOK_REFERENCE.md`를 기준으로 참고
-- 웹훅 성공 판정은 HTTP 상태 코드 + 응답 바디 `header.isSuccessful`를 함께 확인
+- 웹훅 성공 판정은 `HTTP 200` 우선 성공 처리, JSON 파싱 성공 시 `header.isSuccessful=false`만 실패로 판정
 - API 조회 보호는 `API_SOFT_RATE_LIMIT_PER_SEC`(기본 30 req/sec), 웹훅 전송 보호는 `NOTIFIER_SEND_RATE_LIMIT_PER_SEC`(기본 1 req/sec)로 전역 적용
 
 ## 3. 일상 점검 체크리스트

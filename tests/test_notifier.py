@@ -161,11 +161,10 @@ def test_notifier_does_not_retry_on_unsuccessful_dooray_body() -> None:
     assert session.calls == 1
 
 
-def test_notifier_does_not_retry_when_response_json_parse_fails() -> None:
+def test_notifier_treats_response_json_parse_failure_as_success() -> None:
     session = FakeSession(
         [
             DummyResponse(json_error=ValueError("invalid json")),
-            DummyResponse(),
         ]
     )
     notifier = DoorayNotifier(
@@ -178,10 +177,7 @@ def test_notifier_does_not_retry_when_response_json_parse_fails() -> None:
         session=session,
     )
 
-    with pytest.raises(NotificationError) as exc_info:
-        notifier.send("hello")
-    assert exc_info.value.attempts == 1
-    assert isinstance(exc_info.value.last_error, DoorayResponseError)
+    notifier.send("hello")
     assert session.calls == 1
 
 
