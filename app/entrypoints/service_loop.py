@@ -18,10 +18,7 @@ from app.services.notifier import NotificationError
 from app.usecases.process_cycle import CycleStats
 
 MIN_EXCEPTION_BACKOFF_SEC = 1
-
-
-def _is_fatal_cycle_exception(exc: Exception) -> bool:
-    return isinstance(exc, MemoryError)
+NON_FATAL_CYCLE_EXCEPTIONS = (RuntimeError, OSError, ValueError)
 
 
 def _maybe_close_resource(runtime: ServiceRuntime, resource_name: str) -> None:
@@ -348,8 +345,17 @@ def run_loop(
                     health_decision=health_decision,
                     sleep_fn=sleep_fn,
                 )
-            except Exception as exc:
-                if runtime.settings.run_once or _is_fatal_cycle_exception(exc):
+            except MemoryError as exc:
+                runtime.logger.critical(
+                    log_event(
+                        events.CYCLE_FATAL_ERROR,
+                        error=redact_sensitive_text(exc),
+                    ),
+                    exc_info=True,
+                )
+                return 1
+            except NON_FATAL_CYCLE_EXCEPTIONS as exc:
+                if runtime.settings.run_once:
                     runtime.logger.critical(
                         log_event(
                             events.CYCLE_FATAL_ERROR,
@@ -358,7 +364,6 @@ def run_loop(
                         exc_info=True,
                     )
                     return 1
-
                 if _maybe_force_shutdown(runtime=runtime, shutdown_state=shutdown_state):
                     return 0
                 if shutdown_state["requested"]:
@@ -384,7 +389,7 @@ def run_loop(
             log_event(events.SHUTDOWN_UNEXPECTED_ERROR, error=redact_sensitive_text(exc)),
             exc_info=True,
         )
-        return 1
+        raise
     finally:
         restore_signal_handlers()
         close_runtime_resources(runtime)

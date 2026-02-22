@@ -653,6 +653,25 @@ def test_run_loop_non_fatal_exception_uses_min_backoff_when_interval_zero(tmp_pa
     assert sleep_calls == [1.0]
 
 
+def test_run_loop_unexpected_exception_propagates(tmp_path: Path) -> None:
+    runtime = _runtime(
+        tmp_path,
+        settings_overrides={"run_once": False, "cycle_interval_sec": 5},
+        processor_raises=TypeError("unexpected"),
+    )
+
+    with pytest.raises(TypeError, match="unexpected"):
+        service_loop.run_loop(
+            runtime,
+            now_utc_fn=lambda: datetime(2026, 2, 21, tzinfo=UTC),
+            now_local_date_fn=lambda tz: "2026-02-21",
+        )
+
+    assert runtime.processor.closed is True
+    assert runtime.notifier.closed is True
+    assert runtime.state_repo.closed is True
+
+
 def test_run_loop_exits_on_fatal_cycle_exception(tmp_path: Path) -> None:
     runtime = _runtime(
         tmp_path,

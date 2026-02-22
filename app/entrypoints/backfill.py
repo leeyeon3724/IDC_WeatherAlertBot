@@ -126,7 +126,7 @@ def maybe_run_recovery_backfill(
                 max_windows=max_windows,
             )
         )
-    except Exception as exc:
+    except (RuntimeError, OSError, ValueError) as exc:
         remaining_days = max(0, (pending_end_date - cursor_date).days)
         if remaining_days > 0:
             _set_persisted_backfill_window(
