@@ -206,7 +206,7 @@ def _validate_service_api_key(value: str) -> None:
 
 
 @dataclass(frozen=True)
-class _CoreConfig:
+class ApiSettings:
     service_api_key: str
     service_hook_url: str
     weather_alert_data_api_url: str
@@ -218,7 +218,7 @@ class _CoreConfig:
 
 
 @dataclass(frozen=True)
-class _RepositoryConfig:
+class StorageSettings:
     sent_messages_file: Path
     state_repository_type: str
     sqlite_state_file: Path
@@ -226,7 +226,7 @@ class _RepositoryConfig:
 
 
 @dataclass(frozen=True)
-class _TimeoutConfig:
+class TimeoutSettings:
     request_timeout_sec: int
     request_connect_timeout_sec: int
     request_read_timeout_sec: int
@@ -236,7 +236,7 @@ class _TimeoutConfig:
 
 
 @dataclass(frozen=True)
-class _RuntimeConfig:
+class RuntimeSettings:
     max_retries: int
     retry_delay_sec: int
     api_soft_rate_limit_per_sec: int
@@ -263,7 +263,7 @@ class _RuntimeConfig:
 
 
 @dataclass(frozen=True)
-class _HealthConfig:
+class HealthSettings:
     health_alert_enabled: bool
     health_outage_window_sec: int
     health_outage_fail_ratio_threshold: float
@@ -279,7 +279,7 @@ class _HealthConfig:
     health_recovery_backfill_max_windows_per_cycle: int
 
 
-def _parse_core_config() -> _CoreConfig:
+def _parse_core_config() -> ApiSettings:
     service_api_key = os.getenv("SERVICE_API_KEY", "").strip()
     service_hook_url = os.getenv("SERVICE_HOOK_URL", "").strip()
     weather_alert_data_api_url = os.getenv(
@@ -337,7 +337,7 @@ def _parse_core_config() -> _CoreConfig:
         alert_rules = load_alert_rules(alert_rules_file)
     except AlertRulesError as exc:
         raise SettingsError(f"ALERT_RULES_FILE is invalid: {exc}") from exc
-    return _CoreConfig(
+    return ApiSettings(
         service_api_key=service_api_key,
         service_hook_url=service_hook_url,
         weather_alert_data_api_url=weather_alert_data_api_url,
@@ -349,7 +349,7 @@ def _parse_core_config() -> _CoreConfig:
     )
 
 
-def _parse_repository_config() -> _RepositoryConfig:
+def _parse_repository_config() -> StorageSettings:
     sent_messages_file = Path(
         os.getenv("SENT_MESSAGES_FILE", DEFAULT_SENT_MESSAGES_FILE).strip()
         or DEFAULT_SENT_MESSAGES_FILE
@@ -367,7 +367,7 @@ def _parse_repository_config() -> _RepositoryConfig:
         os.getenv("HEALTH_STATE_FILE", "./data/api_health_state.json").strip()
         or "./data/api_health_state.json"
     )
-    return _RepositoryConfig(
+    return StorageSettings(
         sent_messages_file=sent_messages_file,
         state_repository_type=state_repository_type,
         sqlite_state_file=sqlite_state_file,
@@ -375,7 +375,7 @@ def _parse_repository_config() -> _RepositoryConfig:
     )
 
 
-def _parse_timeout_config() -> _TimeoutConfig:
+def _parse_timeout_config() -> TimeoutSettings:
     request_timeout_sec = _parse_int_env("REQUEST_TIMEOUT_SEC", 5, minimum=1)
     request_connect_timeout_sec = _parse_int_env(
         "REQUEST_CONNECT_TIMEOUT_SEC",
@@ -402,7 +402,7 @@ def _parse_timeout_config() -> _TimeoutConfig:
         notifier_timeout_sec,
         minimum=1,
     )
-    return _TimeoutConfig(
+    return TimeoutSettings(
         request_timeout_sec=request_timeout_sec,
         request_connect_timeout_sec=request_connect_timeout_sec,
         request_read_timeout_sec=request_read_timeout_sec,
@@ -412,8 +412,8 @@ def _parse_timeout_config() -> _TimeoutConfig:
     )
 
 
-def _parse_runtime_config() -> _RuntimeConfig:
-    return _RuntimeConfig(
+def _parse_runtime_config() -> RuntimeSettings:
+    return RuntimeSettings(
         max_retries=_parse_int_env("MAX_RETRIES", 3, minimum=1),
         retry_delay_sec=_parse_int_env("RETRY_DELAY_SEC", 5, minimum=0),
         api_soft_rate_limit_per_sec=_parse_int_env("API_SOFT_RATE_LIMIT_PER_SEC", 30, minimum=0),
@@ -459,8 +459,8 @@ def _parse_runtime_config() -> _RuntimeConfig:
     )
 
 
-def _parse_health_config() -> _HealthConfig:
-    return _HealthConfig(
+def _parse_health_config() -> HealthSettings:
+    return HealthSettings(
         health_alert_enabled=_parse_bool_env("HEALTH_ALERT_ENABLED", default=True),
         health_outage_window_sec=_parse_int_env("HEALTH_OUTAGE_WINDOW_SEC", 600, minimum=1),
         health_outage_fail_ratio_threshold=_parse_float_env(
@@ -572,29 +572,109 @@ class Settings:
     health_recovery_backfill_max_windows_per_cycle: int = 3
     health_state_file: Path = Path("./data/api_health_state.json")
 
+    @property
+    def api(self) -> ApiSettings:
+        return ApiSettings(
+            service_api_key=self.service_api_key,
+            service_hook_url=self.service_hook_url,
+            weather_alert_data_api_url=self.weather_alert_data_api_url,
+            weather_api_warning_type=self.weather_api_warning_type,
+            weather_api_station_id=self.weather_api_station_id,
+            area_codes=self.area_codes,
+            area_code_mapping=self.area_code_mapping,
+            alert_rules=self.alert_rules,
+        )
+
+    @property
+    def storage(self) -> StorageSettings:
+        return StorageSettings(
+            sent_messages_file=self.sent_messages_file,
+            state_repository_type=self.state_repository_type,
+            sqlite_state_file=self.sqlite_state_file,
+            health_state_file=self.health_state_file,
+        )
+
+    @property
+    def timeouts(self) -> TimeoutSettings:
+        return TimeoutSettings(
+            request_timeout_sec=self.request_timeout_sec,
+            request_connect_timeout_sec=self.request_connect_timeout_sec,
+            request_read_timeout_sec=self.request_read_timeout_sec,
+            notifier_timeout_sec=self.notifier_timeout_sec,
+            notifier_connect_timeout_sec=self.notifier_connect_timeout_sec,
+            notifier_read_timeout_sec=self.notifier_read_timeout_sec,
+        )
+
+    @property
+    def runtime(self) -> RuntimeSettings:
+        return RuntimeSettings(
+            max_retries=self.max_retries,
+            retry_delay_sec=self.retry_delay_sec,
+            api_soft_rate_limit_per_sec=self.api_soft_rate_limit_per_sec,
+            notifier_max_retries=self.notifier_max_retries,
+            notifier_retry_delay_sec=self.notifier_retry_delay_sec,
+            notifier_send_rate_limit_per_sec=self.notifier_send_rate_limit_per_sec,
+            notifier_max_attempts_per_cycle=self.notifier_max_attempts_per_cycle,
+            notifier_circuit_breaker_enabled=self.notifier_circuit_breaker_enabled,
+            notifier_circuit_failure_threshold=self.notifier_circuit_failure_threshold,
+            notifier_circuit_reset_sec=self.notifier_circuit_reset_sec,
+            area_max_workers=self.area_max_workers,
+            lookback_days=self.lookback_days,
+            cycle_interval_sec=self.cycle_interval_sec,
+            shutdown_timeout_sec=self.shutdown_timeout_sec,
+            area_interval_sec=self.area_interval_sec,
+            cleanup_enabled=self.cleanup_enabled,
+            cleanup_retention_days=self.cleanup_retention_days,
+            cleanup_include_unsent=self.cleanup_include_unsent,
+            bot_name=self.bot_name,
+            timezone=self.timezone,
+            log_level=self.log_level,
+            dry_run=self.dry_run,
+            run_once=self.run_once,
+        )
+
+    @property
+    def health(self) -> HealthSettings:
+        return HealthSettings(
+            health_alert_enabled=self.health_alert_enabled,
+            health_outage_window_sec=self.health_outage_window_sec,
+            health_outage_fail_ratio_threshold=self.health_outage_fail_ratio_threshold,
+            health_outage_min_failed_cycles=self.health_outage_min_failed_cycles,
+            health_outage_consecutive_failures=self.health_outage_consecutive_failures,
+            health_recovery_window_sec=self.health_recovery_window_sec,
+            health_recovery_max_fail_ratio=self.health_recovery_max_fail_ratio,
+            health_recovery_consecutive_successes=self.health_recovery_consecutive_successes,
+            health_heartbeat_interval_sec=self.health_heartbeat_interval_sec,
+            health_backoff_max_sec=self.health_backoff_max_sec,
+            health_recovery_backfill_max_days=self.health_recovery_backfill_max_days,
+            health_recovery_backfill_window_days=self.health_recovery_backfill_window_days,
+            health_recovery_backfill_max_windows_per_cycle=(
+                self.health_recovery_backfill_max_windows_per_cycle
+            ),
+        )
+
     @classmethod
-    def from_env(cls, env_file: str | Path | None = ".env") -> Settings:
-        if env_file:
-            _load_dotenv_if_exists(Path(env_file))
-
-        core = _parse_core_config()
-        repositories = _parse_repository_config()
-        timeouts = _parse_timeout_config()
-        runtime = _parse_runtime_config()
-        health = _parse_health_config()
-
+    def from_components(
+        cls,
+        *,
+        api: ApiSettings,
+        storage: StorageSettings,
+        timeouts: TimeoutSettings,
+        runtime: RuntimeSettings,
+        health: HealthSettings,
+    ) -> Settings:
         return cls(
-            service_api_key=core.service_api_key,
-            service_hook_url=core.service_hook_url,
-            weather_alert_data_api_url=core.weather_alert_data_api_url,
-            weather_api_warning_type=core.weather_api_warning_type,
-            weather_api_station_id=core.weather_api_station_id,
-            alert_rules=core.alert_rules,
-            sent_messages_file=repositories.sent_messages_file,
-            state_repository_type=repositories.state_repository_type,
-            sqlite_state_file=repositories.sqlite_state_file,
-            area_codes=core.area_codes,
-            area_code_mapping=core.area_code_mapping,
+            service_api_key=api.service_api_key,
+            service_hook_url=api.service_hook_url,
+            weather_alert_data_api_url=api.weather_alert_data_api_url,
+            weather_api_warning_type=api.weather_api_warning_type,
+            weather_api_station_id=api.weather_api_station_id,
+            alert_rules=api.alert_rules,
+            sent_messages_file=storage.sent_messages_file,
+            state_repository_type=storage.state_repository_type,
+            sqlite_state_file=storage.sqlite_state_file,
+            area_codes=api.area_codes,
+            area_code_mapping=api.area_code_mapping,
             request_timeout_sec=timeouts.request_timeout_sec,
             request_connect_timeout_sec=timeouts.request_connect_timeout_sec,
             request_read_timeout_sec=timeouts.request_read_timeout_sec,
@@ -639,5 +719,24 @@ class Settings:
             health_recovery_backfill_max_windows_per_cycle=(
                 health.health_recovery_backfill_max_windows_per_cycle
             ),
-            health_state_file=repositories.health_state_file,
+            health_state_file=storage.health_state_file,
+        )
+
+    @classmethod
+    def from_env(cls, env_file: str | Path | None = ".env") -> Settings:
+        if env_file:
+            _load_dotenv_if_exists(Path(env_file))
+
+        core = _parse_core_config()
+        repositories = _parse_repository_config()
+        timeouts = _parse_timeout_config()
+        runtime = _parse_runtime_config()
+        health = _parse_health_config()
+
+        return cls.from_components(
+            api=core,
+            storage=repositories,
+            timeouts=timeouts,
+            runtime=runtime,
+            health=health,
         )

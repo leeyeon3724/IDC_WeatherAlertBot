@@ -15,16 +15,6 @@
 
 ## 2) Active Refactoring Backlog (코드 리뷰 기반)
 
-### 높음
-
-```text
-상태: 진행중
-중요도: 높음
-항목: Settings 데이터클래스 분리
-근거: 70+ 필드 단일 frozen dataclass(settings.py)로 SRP 위반, 설정 간 의존관계 파악 곤란
-완료 기준: API·Storage·Runtime·Health·Timeout 등 논리 그룹으로 분리, 기존 테스트 통과, gate 통과
-```
-
 ### 중간
 
 ```text
