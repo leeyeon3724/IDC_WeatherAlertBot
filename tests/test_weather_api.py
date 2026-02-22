@@ -610,6 +610,67 @@ def test_fetch_alerts_falls_back_to_area_code_when_names_are_missing(
     )
 
 
+def test_area_name_warning_cache_is_bounded(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.weather_api.AREA_NAME_WARNING_CACHE_MAX_SIZE",
+        3,
+    )
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=FakeSession([]),
+        logger=logging.getLogger("test.weather.api.area_name.cache.bound"),
+    )
+
+    for index in range(10):
+        client._log_area_name_mapping_warning(
+            area_code=f"L{index:07d}",
+            reason="missing_mapping",
+            configured_area_name=None,
+            response_area_name=f"지역{index}",
+            resolved_area_name=f"지역{index}",
+        )
+
+    assert len(client._area_name_warning_cache) == 3
+
+
+def test_area_name_warning_cache_logs_hit_rate(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.weather_api.AREA_NAME_WARNING_CACHE_STATS_INTERVAL",
+        2,
+    )
+    logger = logging.getLogger("test.weather.api.area_name.cache.stats")
+    client = WeatherAlertClient(
+        settings=_settings(tmp_path),
+        session=FakeSession([]),
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.INFO, logger=logger.name):
+        client._log_area_name_mapping_warning(
+            area_code="L1070100",
+            reason="missing_mapping",
+            configured_area_name=None,
+            response_area_name="남해서부동쪽먼바다",
+            resolved_area_name="남해서부동쪽먼바다",
+        )
+        client._log_area_name_mapping_warning(
+            area_code="L1070100",
+            reason="missing_mapping",
+            configured_area_name=None,
+            response_area_name="남해서부동쪽먼바다",
+            resolved_area_name="남해서부동쪽먼바다",
+        )
+
+    assert any("area_name_warning_cache.stats" in record.message for record in caplog.records)
+
+
 def test_fetch_alerts_raises_after_max_retries(tmp_path) -> None:
     session = FakeSession([requests.Timeout("t1"), requests.Timeout("t2")])
     client = WeatherAlertClient(

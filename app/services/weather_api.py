@@ -65,6 +65,8 @@ API_ERROR_RESULT: Final[str] = "api_result_error"
 API_ERROR_UNMAPPED_CODE: Final[str] = "unmapped_code"
 API_ERROR_UNKNOWN: Final[str] = "unknown_error"
 DEFAULT_PAGE_SIZE: Final[int] = 100
+AREA_NAME_WARNING_CACHE_MAX_SIZE: Final[int] = 1024
+AREA_NAME_WARNING_CACHE_STATS_INTERVAL: Final[int] = 500
 
 
 @dataclass(frozen=True)
@@ -142,7 +144,9 @@ class WeatherAlertClient:
                 station_id=settings.weather_api_station_id,
             )
         )
-        self._area_name_warning_cache: set[tuple[str, str, str, str]] = set()
+        self._area_name_warning_cache: dict[tuple[str, str, str, str], None] = {}
+        self._area_name_warning_cache_hits = 0
+        self._area_name_warning_cache_misses = 0
         self._request_rate_limiter = request_rate_limiter or _SoftRateLimiter(
             settings.api_soft_rate_limit_per_sec
         )
@@ -606,8 +610,13 @@ class WeatherAlertClient:
             response_area_name or "",
         )
         if cache_key in self._area_name_warning_cache:
+            self._area_name_warning_cache_hits += 1
+            self._log_area_name_warning_cache_stats_if_needed()
             return
-        self._area_name_warning_cache.add(cache_key)
+        self._area_name_warning_cache_misses += 1
+        self._area_name_warning_cache[cache_key] = None
+        self._trim_area_name_warning_cache()
+        self._log_area_name_warning_cache_stats_if_needed()
         self.logger.warning(
             log_event(
                 events.AREA_NAME_MAPPING_WARNING,
@@ -617,6 +626,24 @@ class WeatherAlertClient:
                 response_area_name=response_area_name,
                 resolved_area_name=resolved_area_name,
             )
+        )
+
+    def _trim_area_name_warning_cache(self) -> None:
+        while len(self._area_name_warning_cache) > AREA_NAME_WARNING_CACHE_MAX_SIZE:
+            self._area_name_warning_cache.pop(next(iter(self._area_name_warning_cache)))
+
+    def _log_area_name_warning_cache_stats_if_needed(self) -> None:
+        total = self._area_name_warning_cache_hits + self._area_name_warning_cache_misses
+        if total <= 0 or total % AREA_NAME_WARNING_CACHE_STATS_INTERVAL != 0:
+            return
+        hit_rate = self._area_name_warning_cache_hits / total
+        self.logger.info(
+            "area_name_warning_cache.stats size=%s max_size=%s hits=%s misses=%s hit_rate=%.4f",
+            len(self._area_name_warning_cache),
+            AREA_NAME_WARNING_CACHE_MAX_SIZE,
+            self._area_name_warning_cache_hits,
+            self._area_name_warning_cache_misses,
+            hit_rate,
         )
 
     def _resolve_code_mapping(
