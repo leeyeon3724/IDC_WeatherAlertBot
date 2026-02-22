@@ -37,11 +37,13 @@ make run
 - 통합 품질 게이트: `make gate`
 
 ## 4) 문서 맵
-- 설치/초기 설정: `docs/SETUP.md`
-- 운영 절차: `docs/OPERATION.md`
-- 이벤트 계약: `docs/EVENTS.md`
-- 테스트 정책: `docs/TESTING.md`
-- 작업 계획: `docs/BACKLOG.md`
+- `docs/SETUP.md`: 설치/초기 설정
+- `docs/OPERATION.md`: 운영 절차
+- `docs/EVENTS.md`: 이벤트 계약
+- `docs/TESTING.md`: 테스트 정책
+- `docs/BACKLOG.md`: 작업 계획
+- `docs/KMA_API_SPEC_REFERENCE.md`: 기상청 API 프로젝트 적용 참조
+- `docs/DOORAY_WEBHOOK_REFERENCE.md`: Dooray Webhook 프로젝트 적용 참조
 
 ## 5) 문서 유지 원칙
 - 동일 내용을 여러 문서에 중복 작성하지 않습니다.
