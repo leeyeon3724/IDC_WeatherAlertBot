@@ -659,6 +659,10 @@ def test_run_loop_unexpected_exception_propagates(tmp_path: Path) -> None:
         settings_overrides={"run_once": False, "cycle_interval_sec": 5},
         processor_raises=TypeError("unexpected"),
     )
+    handler = _CaptureHandler()
+    runtime.logger.handlers = [handler]
+    runtime.logger.setLevel(logging.INFO)
+    runtime.logger.propagate = False
 
     with pytest.raises(TypeError, match="unexpected"):
         service_loop.run_loop(
@@ -670,6 +674,8 @@ def test_run_loop_unexpected_exception_propagates(tmp_path: Path) -> None:
     assert runtime.processor.closed is True
     assert runtime.notifier.closed is True
     assert runtime.state_repo.closed is True
+    payloads = [json.loads(message) for message in handler.messages]
+    assert sum(p.get("event") == events.SHUTDOWN_UNEXPECTED_ERROR for p in payloads) == 1
 
 
 def test_run_loop_exits_on_fatal_cycle_exception(tmp_path: Path) -> None:
